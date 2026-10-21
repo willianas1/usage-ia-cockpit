@@ -1,0 +1,19 @@
+<Window x:Class="UsageCockpit.OverlayWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Usage IA Cockpit"
+        WindowStyle="None" AllowsTransparency="False" Background="Transparent"
+        Topmost="True" ShowInTaskbar="False" ResizeMode="NoResize"
+        SizeToContent="WidthAndHeight" UseLayoutRounding="True"
+        FontFamily="Segoe UI" TextOptions.TextFormattingMode="Display">
+    <!--
+        Transparência pelo DWM (vidro estendido sobre a janela inteira) em vez de AllowsTransparency:
+        com AllowsTransparency o WPF desenha a janela por software, e as animações constantes
+        (tremor dos ponteiros) custavam ~35% de um núcleo. Assim a renderização fica na GPU.
+    -->
+    <WindowChrome.WindowChrome>
+        <WindowChrome GlassFrameThickness="-1" CaptionHeight="0" ResizeBorderThickness="0"
+                      CornerRadius="0" UseAeroCaptionButtons="False"/>
+    </WindowChrome.WindowChrome>
+    <ContentControl x:Name="Host"/>
+</Window>

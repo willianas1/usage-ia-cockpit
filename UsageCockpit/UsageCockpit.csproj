@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <AssemblyName>UsageCockpit</AssemblyName>
+    <RootNamespace>UsageCockpit</RootNamespace>
+    <Version>0.2.0</Version>
+    <!-- Nome exibido (Gerenciador de Tarefas, propriedades do exe). O exe e as pastas de dados
+         continuam "UsageCockpit" para não perder configurações nem o início com o Windows. -->
+    <Product>Usage IA Cockpit</Product>
+    <AssemblyTitle>Usage IA Cockpit</AssemblyTitle>
+    <Description>Monitor de uso do Claude Code e do Codex</Description>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+    <!-- O DPI PerMonitorV2 fica no app.manifest porque a janela é WPF; o aviso é do analisador do WinForms. -->
+    <NoWarn>$(NoWarn);WFO0003</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\app.ico" />
+  </ItemGroup>
+
+</Project>
