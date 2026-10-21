@@ -88,21 +88,21 @@ Não é preciso instalar o .NET: o executável já inclui tudo o que precisa.
 
 ### Opção 1: instalador (recomendado)
 
-1. Baixe o `UsageCockpit-Setup-<versão>.exe` na página de [Releases](../../releases) do repositório.
+1. Baixe o `UsageIACockpit-Setup-<versão>.exe` (cerca de 45 MB) na página de [Releases](../../releases) do repositório.
 2. Execute o arquivo. A instalação é feita só para o seu usuário e **não pede permissão de administrador**.
 3. Escolha as opções:
    - **Iniciar com o Windows:** o painel abre sozinho quando você entra no Windows.
    - **Criar atalho na área de trabalho.**
 4. Ao terminar, o painel abre no canto superior direito do monitor principal.
 
-O app fica instalado em `%LOCALAPPDATA%\Programs\UsageCockpit` e aparece no menu Iniciar como **Usage IA Cockpit**.
+O app fica instalado em `%LOCALAPPDATA%\Programs\UsageIACockpit` e aparece no menu Iniciar como **Usage IA Cockpit**.
 
 **Para desinstalar:** Configurações do Windows → Aplicativos → Aplicativos instalados → **Usage IA Cockpit** → Desinstalar.
 
 ### Opção 2: executável portátil
 
-1. Baixe o `UsageCockpit.exe` na página de [Releases](../../releases).
-2. Coloque o arquivo numa pasta fixa, por exemplo `C:\Ferramentas\UsageCockpit\`, e execute.
+1. Baixe o `UsageIACockpit-Portable.exe` (cerca de 65 MB) na página de [Releases](../../releases).
+2. Coloque o arquivo numa pasta fixa, por exemplo `C:\Ferramentas\UsageIACockpit\`, e execute.
 
 Para abrir junto com o Windows, ative **Iniciar com o Windows** nas configurações do app. Se você mover o exe depois, o app corrige o caminho sozinho na próxima vez que abrir.
 
@@ -236,13 +236,13 @@ dotnet run --project UsageCockpit
 ### Gerar os executáveis
 
 ```powershell
-.\build.ps1              # dist\UsageCockpit.exe (portátil, arquivo único)
-.\build.ps1 -Installer   # também gera dist\UsageCockpit-Setup-<versão>.exe
+.\build.ps1              # dist\UsageIACockpit-Portable.exe (portátil, arquivo único)
+.\build.ps1 -Installer   # também gera dist\UsageIACockpit-Setup-<versão>.exe
 ```
 
 - **Instalador:** o `-Installer` requer o [Inno Setup 6](https://jrsoftware.org/isinfo.php), que pode ser instalado com `winget install JRSoftware.InnoSetup`.
-- **Tamanho do exe:** o exe portátil tem cerca de 160 MB porque inclui o .NET. Ele fica sem compactação de propósito, para usar menos memória. O instalador comprime tudo.
-- **Modo de verificação:** `UsageCockpit.exe --snapshot <pasta>` busca os dados reais e salva imagens PNG de todos os modos, sem abrir o painel.
+- **Tamanho:** os dois arquivos incluem o .NET, então quem for usar não precisa instalar nada. O instalador (cerca de 45 MB) é o recomendado: o app instalado abre mais rápido e usa menos memória. O portátil (cerca de 65 MB) é um exe único compactado.
+- **Modo de verificação:** `UsageIACockpit.exe --snapshot <pasta>` busca os dados reais e salva imagens PNG de todos os modos, sem abrir o painel.
 
 ---
 
@@ -252,8 +252,8 @@ dotnet run --project UsageCockpit
 2. Crie e envie uma tag:
 
    ```powershell
-   git tag v0.2.0
-   git push origin v0.2.0
+   git tag v0.2.1
+   git push origin v0.2.1
    ```
 
 3. O workflow `.github/workflows/release.yml` gera o exe portátil e o instalador e publica os dois na página de Releases.

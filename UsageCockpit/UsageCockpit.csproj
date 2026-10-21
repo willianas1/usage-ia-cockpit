@@ -8,17 +8,19 @@
     <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <AssemblyName>UsageCockpit</AssemblyName>
+    <AssemblyName>UsageIACockpit</AssemblyName>
     <RootNamespace>UsageCockpit</RootNamespace>
-    <Version>0.2.0</Version>
-    <!-- Nome exibido (Gerenciador de Tarefas, propriedades do exe). O exe e as pastas de dados
-         continuam "UsageCockpit" para não perder configurações nem o início com o Windows. -->
+    <Version>0.2.1</Version>
+    <!-- Nome exibido (Gerenciador de Tarefas, propriedades do exe). A pasta de dados continua
+         %APPDATA%\UsageCockpit para não perder as configurações de quem já usa o app. -->
     <Product>Usage IA Cockpit</Product>
     <AssemblyTitle>Usage IA Cockpit</AssemblyTitle>
     <Description>Monitor de uso do Claude Code e do Codex</Description>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <!-- O DPI PerMonitorV2 fica no app.manifest porque a janela é WPF; o aviso é do analisador do WinForms. -->
     <NoWarn>$(NoWarn);WFO0003</NoWarn>
+    <!-- Só as traduções do WPF/WinForms que o app usa; as demais somam vários MB sem uso. -->
+    <SatelliteResourceLanguages>pt-BR;en</SatelliteResourceLanguages>
   </PropertyGroup>
 
   <ItemGroup>
