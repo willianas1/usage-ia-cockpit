@@ -183,6 +183,38 @@ public partial class OverlayWindow : Window, IOverlayCommands
         return items;
     }
 
+    public void Restore()
+    {
+        Show();
+        Reposition();
+    }
+
+    Window? _menuHost;
+
+    /// <summary>
+    /// Menu do ícone da bandeja: o mesmo do clique direito no painel, aberto no ponteiro do mouse.
+    /// O ContextMenuStrip do WinForms calculava a altura errada com escala de DPI e escondia o fim
+    /// do menu (incluindo "Sair") atrás da barra de tarefas; o menu do WPF se posiciona certo.
+    /// </summary>
+    public void ShowTrayMenu()
+    {
+        // Um menu WPF só fecha ao clicar fora se alguma janela do app estiver ativa; esta janela
+        // invisível existe só para isso, já que o painel pode estar oculto.
+        _menuHost ??= new Window
+        {
+            WindowStyle = WindowStyle.None, AllowsTransparency = true, Background = Brushes.Transparent,
+            ShowInTaskbar = false, Topmost = true, Width = 1, Height = 1, Left = -100, Top = -100,
+        };
+        _menuHost.Show();
+        _menuHost.Activate();
+
+        var menu = BuildContextMenu();
+        menu.PlacementTarget = _menuHost;
+        menu.Placement = System.Windows.Controls.Primitives.PlacementMode.MousePoint;
+        menu.Closed += (_, _) => _menuHost.Hide();
+        menu.IsOpen = true;
+    }
+
     ContextMenu BuildContextMenu()
     {
         var menu = new ContextMenu { PlacementTarget = this };
@@ -231,7 +263,10 @@ public partial class OverlayWindow : Window, IOverlayCommands
         menu.Items.Add(new Separator());
         menu.Items.Add(Item("Atualizar agora", RefreshNow));
         menu.Items.Add(Item("Configurações…", OpenSettings));
-        menu.Items.Add(Item("Minimizar para a bandeja", MinimizeToTray));
+        // Aberto pela bandeja com o painel oculto, o mesmo item traz o painel de volta.
+        menu.Items.Add(IsVisible
+            ? Item("Minimizar para a bandeja", MinimizeToTray)
+            : Item("Restaurar painel", Restore));
         menu.Items.Add(Item("Sair", ((App)Application.Current).Quit));
         return menu;
     }

@@ -98,26 +98,17 @@ public partial class App : Application
 
     void CreateTray()
     {
-        var menu = new Forms.ContextMenuStrip();
-        menu.Items.Add("Restaurar / minimizar", null, (_, _) => ToggleOverlay());
-        menu.Items.Add("Modo completo", null, (_, _) => _vm!.Mode = DisplayMode.Full);
-        menu.Items.Add("Compacto horizontal", null, (_, _) => _vm!.Mode = DisplayMode.Compact);
-        menu.Items.Add("Compacto vertical", null, (_, _) => _vm!.Mode = DisplayMode.CompactVertical);
-        menu.Items.Add("Atualizar agora", null, async (_, _) => { await _vm!.RefreshWithSweepAsync(); UpdateTrayText(); });
-        menu.Items.Add("Configurações…", null, (_, _) => OpenSettings());
-        menu.Items.Add(new Forms.ToolStripSeparator());
-        menu.Items.Add("Sair", null, (_, _) => Quit());
-
         _tray = new Forms.NotifyIcon
         {
             Icon = MakeTrayIcon(),
             Text = AppName,
-            ContextMenuStrip = menu,
             Visible = true,
         };
+        // Esquerdo: restaura ou minimiza. Direito: o mesmo menu do clique direito no painel.
         _tray.MouseClick += (_, e) =>
         {
             if (e.Button == Forms.MouseButtons.Left) ToggleOverlay();
+            else if (e.Button == Forms.MouseButtons.Right) _overlay?.ShowTrayMenu();
         };
     }
 
@@ -138,10 +129,7 @@ public partial class App : Application
         if (_overlay.IsVisible)
             _overlay.Hide();
         else
-        {
-            _overlay.Show();
-            _overlay.Reposition();
-        }
+            _overlay.Restore();
     }
 
     void UpdateTrayText()
