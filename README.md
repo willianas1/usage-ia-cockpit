@@ -142,7 +142,7 @@ O executável não é assinado digitalmente, então na primeira execução o Win
 
 O duplo clique e o botão de compactar alternam entre o modo completo e o **último modo compacto usado**.
 
-![Ícone e menu da bandeja](docs/screenshots/bandeja.png)
+![Ícone da bandeja com o resumo de uso](docs/screenshots/bandeja.png)
 
 ### O que cada sinal significa
 
