@@ -110,6 +110,16 @@ Para abrir junto com o Windows, ative **Iniciar com o Windows** nas configuraç�
 
 O executável não é assinado digitalmente, então na primeira execução o Windows pode mostrar "O Windows protegeu o computador". Clique em **Mais informações** e depois em **Executar assim mesmo**.
 
+### Conferir o arquivo baixado
+
+Cada release traz um `SHA256SUMS.txt` com o hash dos executáveis. Para conferir se o arquivo baixado é o mesmo que o GitHub gerou, rode no PowerShell, na pasta do download:
+
+```powershell
+Get-FileHash .\UsageIACockpit-Setup-<versão>.exe -Algorithm SHA256
+```
+
+O valor tem que ser igual ao da linha correspondente no `SHA256SUMS.txt` (o PowerShell mostra em maiúsculas; a comparação não diferencia).
+
 ---
 
 ## Primeiros passos
@@ -256,7 +266,7 @@ dotnet run --project UsageCockpit
    git push origin v0.2.2
    ```
 
-3. O workflow `.github/workflows/release.yml` gera o exe portátil e o instalador e publica os dois na página de Releases.
+3. O workflow `.github/workflows/release.yml` gera o exe portátil e o instalador e publica os dois na página de Releases, junto com o `SHA256SUMS.txt`. A tag precisa estar no formato `v1.2.3` (sufixo opcional, como `v1.2.3-beta.1`); outro formato faz o build falhar.
 
 ---
 
