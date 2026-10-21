@@ -252,8 +252,8 @@ dotnet run --project UsageCockpit
 2. Crie e envie uma tag:
 
    ```powershell
-   git tag v0.2.1
-   git push origin v0.2.1
+   git tag v0.2.2
+   git push origin v0.2.2
    ```
 
 3. O workflow `.github/workflows/release.yml` gera o exe portátil e o instalador e publica os dois na página de Releases.
