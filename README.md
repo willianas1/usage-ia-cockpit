@@ -88,7 +88,7 @@ Não é preciso instalar o .NET: o executável já inclui tudo o que precisa.
 
 ### Opção 1: instalador (recomendado)
 
-1. Baixe o `UsageIACockpit-Setup-<versão>.exe` (cerca de 45 MB) na página de [Releases](../../releases) do repositório.
+1. Baixe o `UsageIACockpit-Setup-<versão>.exe` (cerca de 48 MB) na página de [Releases](../../releases) do repositório.
 2. Execute o arquivo. A instalação é feita só para o seu usuário e **não pede permissão de administrador**.
 3. Escolha as opções:
    - **Iniciar com o Windows:** o painel abre sozinho quando você entra no Windows.
@@ -241,7 +241,7 @@ dotnet run --project UsageCockpit
 ```
 
 - **Instalador:** o `-Installer` requer o [Inno Setup 6](https://jrsoftware.org/isinfo.php), que pode ser instalado com `winget install JRSoftware.InnoSetup`.
-- **Tamanho:** os dois arquivos incluem o .NET, então quem for usar não precisa instalar nada. O instalador (cerca de 45 MB) é o recomendado: o app instalado abre mais rápido e usa menos memória. O portátil (cerca de 65 MB) é um exe único compactado.
+- **Tamanho:** os dois arquivos incluem o .NET, então quem for usar não precisa instalar nada. O instalador (cerca de 48 MB) é o recomendado: o app instalado abre mais rápido e usa menos memória. O portátil (cerca de 65 MB) é um exe único compactado.
 - **Modo de verificação:** `UsageIACockpit.exe --snapshot <pasta>` busca os dados reais e salva imagens PNG de todos os modos, sem abrir o painel.
 
 ---
