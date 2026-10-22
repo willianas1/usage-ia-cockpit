@@ -266,8 +266,8 @@ dotnet run --project UsageCockpit
 2. Crie e envie uma tag:
 
    ```powershell
-   git tag v0.2.2
-   git push origin v0.2.2
+   git tag v0.3.0
+   git push origin v0.3.0
    ```
 
 3. O workflow `.github/workflows/release.yml` gera o exe portátil e o instalador e publica os dois na página de Releases, junto com o `SHA256SUMS.txt`. A tag precisa estar no formato `v1.2.3` (sufixo opcional, como `v1.2.3-beta.1`); outro formato faz o build falhar.
