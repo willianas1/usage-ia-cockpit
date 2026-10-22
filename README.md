@@ -105,7 +105,7 @@ O app fica instalado em `%LOCALAPPDATA%\Programs\UsageIACockpit` e aparece no me
 
 ### Opção 2: executável portátil
 
-1. Baixe o `UsageIACockpit-Portable.exe` (cerca de 65 MB) na página de [Releases](../../releases).
+1. Baixe o `UsageIACockpit-Portable.exe` (cerca de 146 MB) na página de [Releases](../../releases).
 2. Coloque o arquivo numa pasta fixa, por exemplo `C:\Ferramentas\UsageIACockpit\`, e execute.
 
 Para abrir junto com o Windows, ative **Iniciar com o Windows** nas configurações do app. Se você mover o exe depois, o app corrige o caminho sozinho na próxima vez que abrir.
@@ -257,7 +257,8 @@ dotnet run --project UsageCockpit
 ```
 
 - **Instalador:** o `-Installer` requer o [Inno Setup 6](https://jrsoftware.org/isinfo.php), que pode ser instalado com `winget install JRSoftware.InnoSetup`.
-- **Tamanho:** os dois arquivos incluem o .NET, então quem for usar não precisa instalar nada. O instalador (cerca de 48 MB) é o recomendado: o app instalado abre mais rápido e usa menos memória. O portátil (cerca de 65 MB) é um exe único compactado.
+- **Tamanho:** os dois arquivos incluem o .NET, então quem for usar não precisa instalar nada. O instalador (cerca de 48 MB) é o recomendado: o app instalado abre mais rápido e usa menos memória. O portátil (cerca de 146 MB) é um exe único sem compactação, porque exe que se descompacta sozinho costuma ser acusado por antivírus.
+- **Assinatura:** `-CertThumbprint <SHA1>` (certificado instalado no Windows) ou `-PfxPath cert.pfx` (senha na variável `SIGN_PFX_PASSWORD`) assina os executáveis com o `signtool` do Windows SDK, com carimbo de tempo. Sem esses parâmetros, nada é assinado.
 - **Modo de verificação:** `UsageIACockpit.exe --snapshot <pasta>` busca os dados reais e salva imagens PNG de todos os modos, sem abrir o painel.
 
 ---
