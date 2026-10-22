@@ -42,12 +42,14 @@ O painel fica por cima de todas as janelas, em qualquer canto de qualquer monito
   - abaixo de 60%: cor da marca ou verde;
   - de 60% a 80%: amarelo;
   - de 80% a 100%: vermelho.
+- **Uso semanal com cores próprias,** para não se confundir com a sessão de 5 horas: azul até 80% e magenta acima. No modo completo a barra também tem a faixa amarela, de 60% a 80%. Aparece em todos os modos: barra no completo e no compacto horizontal, arco interno no compacto vertical.
 - **Sinais visuais:**
-  - **App funcionando:** os ponteiros e as pontas das barras tremem levemente o tempo todo.
+  - **App funcionando:** os ponteiros e as pontas das barras tremem levemente o tempo todo. Dá para desligar o tremor em Configurações → Animação.
   - **Ferramenta trabalhando:** um anel colorido gira em volta do logo enquanto o Claude Code ou o Codex está em uso.
-  - **Atualização:** ao clicar em atualizar, os ponteiros descem a zero e voltam com os valores novos.
+  - **Atualização:** ao clicar em atualizar, os ponteiros descem a zero e voltam com os valores novos, mesmo com o tremor desligado.
 - **Minimizar para a bandeja:** o painel some, e um clique no ícone da bandeja traz ele de volta.
-- **Nunca fica em branco:** se uma consulta falhar, o painel mostra a última leitura boa, esmaecida e com um aviso.
+- **Nunca fica em branco:** se uma consulta falhar, o painel mostra a última leitura boa com um aviso ⚠. Se a leitura tiver mais de 15 minutos, a conta fica levemente esmaecida.
+- **Envio para API (opcional):** manda o uso atual para uma API sua, para usar os mesmos números em um dashboard, bot ou widget. Veja [docs/API.md](docs/API.md).
 - **Leve:** cerca de 2% de um núcleo de CPU em repouso. A renderização usa a placa de vídeo, e as animações param com o painel minimizado.
 
 ---
@@ -56,19 +58,19 @@ O painel fica por cima de todas as janelas, em qualquer canto de qualquer monito
 
 ### Completo (cockpit)
 
-Um mostrador com ponteiro por conta para a sessão de 5 horas. Embaixo de cada mostrador ficam o tempo até o reset e uma barra com o uso semanal. Pode ser redimensionado de 55% a 160%.
+Um mostrador com ponteiro por conta para a sessão de 5 horas. Embaixo de cada mostrador ficam o tempo até o reset da sessão e o uso semanal: o horário do reset da semana, o percentual e uma barra com as faixas amarela e magenta. Pode ser redimensionado de 55% a 160%.
 
 ![Modo completo](docs/screenshots/modo-completo.png)
 
 ### Compacto horizontal
 
-Uma faixa fina, com duas barras por conta: sessão de 5h e semana.
+Uma faixa fina, com duas barras por conta e o percentual ao lado de cada uma: sessão de 5h e semana (em azul).
 
 ![Compacto horizontal](docs/screenshots/compacto-horizontal.png)
 
 ### Compacto vertical
 
-Uma coluna estreita com um mini velocímetro da sessão de 5h por conta, boa para a lateral da tela. **Passe o mouse sobre um velocímetro para ver o uso semanal.** Pode ser reduzido de 100% até 60%.
+Uma coluna estreita com um mini velocímetro por conta, boa para a lateral da tela. O arco externo e o ponteiro mostram a sessão de 5h; o arco azul, mais fino e por dentro, mostra o uso semanal. Embaixo ficam o tempo até o reset da sessão e o percentual da semana. **Passe o mouse sobre um velocímetro para ver os detalhes**, como o horário do reset semanal. Pode ser reduzido de 100% até 60%.
 
 ![Compacto vertical](docs/screenshots/compacto-vertical.png)
 ![Uso semanal ao passar o mouse](docs/screenshots/uso-semanal-hover.png)
@@ -162,17 +164,19 @@ O duplo clique e o botão de compactar alternam entre o modo completo e o **últ
 
 | Sinal | Significado |
 |---|---|
-| Ponteiro ou ponta da barra tremendo levemente | O app está funcionando |
+| Ponteiro ou ponta da barra tremendo levemente | O app está funcionando (se o tremor não estiver desligado) |
+| Ponteiros descendo a zero e voltando | O app acabou de atualizar os valores |
 | Anel colorido girando em volta do logo | A ferramenta está trabalhando agora |
-| Número amarelo ou vermelho | Uso entre 60% e 80%, ou acima de 80% |
-| ⚠ ou texto âmbar | A última consulta falhou. O valor mostrado é o último conhecido |
-| Conta esmaecida | A leitura tem mais de 15 minutos |
+| Número amarelo ou vermelho | Uso da sessão entre 60% e 80%, ou acima de 80% |
+| Barra, arco ou percentual azul | Uso semanal. Fica magenta acima de 80% |
+| ⚠ ou texto âmbar | A última consulta falhou. O valor mostrado é o último conhecido; passe o mouse no ⚠ para ver o motivo |
+| Conta levemente esmaecida | A leitura tem mais de 15 minutos |
 
 ---
 
 ## Configurações
 
-Todas as opções ficam na janela **Configurações** e são salvas na hora.
+Todas as opções ficam na janela **Configurações** e valem na hora, enquanto você ajusta.
 
 | Opção | Descrição | Padrão |
 |---|---|---|
@@ -181,7 +185,9 @@ Todas as opções ficam na janela **Configurações** e são salvas na hora.
 | Tamanho do modo completo | De 55% a 160% | 100% |
 | Tamanho do compacto vertical | De 60% a 100% | 100% |
 | Opacidade do fundo | De 0% (só os instrumentos) a 100% | 85% |
+| Ponteiros sem tremor | Ponteiros e barras ficam parados no valor. A varredura ao atualizar e o anel de atividade continuam | Desligado |
 | Monitor | Em qual monitor o painel fica | Principal |
+| Posição rápida | Leva o painel para um dos cantos ou para o centro do monitor | — |
 | Grudar nas bordas | Encaixa o painel nas bordas ao arrastar | Ligado |
 | Consultar a cada | 2, 5, 10, 15 ou 30 minutos | 5 min |
 | Iniciar com o Windows | Abre o app ao entrar no Windows | Desligado |

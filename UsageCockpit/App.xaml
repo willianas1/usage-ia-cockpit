@@ -49,10 +49,11 @@
             </Style.Triggers>
         </Style>
 
+        <!-- Leitura antiga: esmaece só um pouco; o ícone de aviso já sinaliza o erro -->
         <Style x:Key="StaleFade" TargetType="FrameworkElement">
             <Style.Triggers>
                 <DataTrigger Binding="{Binding IsStale}" Value="True">
-                    <Setter Property="Opacity" Value="0.55"/>
+                    <Setter Property="Opacity" Value="0.8"/>
                 </DataTrigger>
             </Style.Triggers>
         </Style>

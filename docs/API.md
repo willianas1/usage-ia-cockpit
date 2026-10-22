@@ -47,7 +47,7 @@ O app não segue redirecionamentos, para que a chave não seja reenviada a outro
 ```json
 {
   "schemaVersion": 1,
-  "client": { "name": "UsageCockpit", "version": "0.3.0" },
+  "client": { "name": "UsageCockpit", "version": "0.4.0" },
   "sentAt": "2026-10-22T14:32:05.1234567-03:00",
   "reason": "activity",
   "providers": {
