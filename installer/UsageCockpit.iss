@@ -23,6 +23,9 @@ DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
 OutputBaseFilename=UsageIACockpit-Setup-{#AppVersion}
 SetupIconFile=..\UsageCockpit\Assets\app.ico
+; Mostra a licença MIT numa página do instalador, que precisa ser aceita para continuar.
+LicenseFile=..\LICENSE
+AppCopyright=Copyright (c) 2026 Willian Santos
 UninstallDisplayName=Usage IA Cockpit
 UninstallDisplayIcon={app}\{#AppExe}
 Compression=lzma2/ultra64
@@ -46,6 +49,8 @@ Type: files; Name: "{app}\UsageCockpit.exe"
 
 [Files]
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+; A MIT pede que o texto da licença acompanhe as cópias do software.
+Source: "..\LICENSE"; DestDir: "{app}"; DestName: "LICENSE.txt"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\Usage IA Cockpit"; Filename: "{app}\{#AppExe}"

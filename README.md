@@ -24,6 +24,8 @@ O painel fica por cima de todas as janelas, em qualquer canto de qualquer monito
 - [Compilar a partir do código](#compilar-a-partir-do-código)
 - [Publicar uma nova versão](#publicar-uma-nova-versão)
 - [Estrutura do projeto](#estrutura-do-projeto)
+- [Segurança](#segurança)
+- [Licença](#licença)
 
 ---
 
@@ -87,6 +89,8 @@ Não é preciso instalar o .NET: o executável já inclui tudo o que precisa.
 ## Instalação
 
 ### Opção 1: instalador (recomendado)
+
+> **Baixe só pela página de [Releases](../../releases) deste repositório.** Cópias de outros sites podem ter sido alteradas.
 
 1. Baixe o `UsageIACockpit-Setup-<versão>.exe` (cerca de 48 MB) na página de [Releases](../../releases) do repositório.
 2. Execute o arquivo. A instalação é feita só para o seu usuário e **não pede permissão de administrador**.
@@ -294,6 +298,18 @@ build.ps1               gera o exe portátil e o instalador
 ```
 
 **Tecnologias:** C#, .NET 9 e WPF. A transparência é feita pelo DWM, o que mantém a renderização na placa de vídeo.
+
+---
+
+## Segurança
+
+Encontrou uma vulnerabilidade? Não abra uma issue pública: veja como reportar em privado no [SECURITY.md](SECURITY.md).
+
+---
+
+## Licença
+
+Distribuído sob a [licença MIT](LICENSE). Você pode usar, copiar, modificar e redistribuir o código, inclusive em projetos comerciais, desde que mantenha o aviso de copyright e o texto da licença. O software é fornecido "no estado em que se encontra", sem garantia de nenhum tipo.
 
 ---
 

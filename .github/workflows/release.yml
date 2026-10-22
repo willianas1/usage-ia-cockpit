@@ -55,6 +55,7 @@ jobs:
           path: |
             dist/*.exe
             dist/SHA256SUMS.txt
+            LICENSE
 
       - name: Publicar release
         if: github.ref_type == 'tag'
@@ -64,3 +65,4 @@ jobs:
             dist/UsageIACockpit-Portable.exe
             dist/UsageIACockpit-Setup-*.exe
             dist/SHA256SUMS.txt
+            LICENSE
