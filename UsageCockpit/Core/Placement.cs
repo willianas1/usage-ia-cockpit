@@ -112,6 +112,27 @@ public static class Placement
         DwmSetWindowAttribute(hwnd, 34, ref noColor, sizeof(int));     // DWMWA_BORDER_COLOR = nenhuma
     }
 
+    /// <summary>
+    /// O Windows impõe uma largura mínima de janela (~136 px a 100%), maior que o compacto vertical:
+    /// sobrava espaço vazio nas laterais. Zeramos o mínimo para a janela ter o tamanho do conteúdo.
+    /// </summary>
+    public static IntPtr NoMinimumSize(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+    {
+        const int WmGetMinMaxInfo = 0x0024;
+        if (msg != WmGetMinMaxInfo) return IntPtr.Zero;
+        var info = Marshal.PtrToStructure<MinMaxInfo>(lParam);
+        info.MinTrackSize = new Point { X = 1, Y = 1 };
+        Marshal.StructureToPtr(info, lParam, false);
+        handled = true;
+        return IntPtr.Zero;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    struct Point { public int X, Y; }
+
+    [StructLayout(LayoutKind.Sequential)]
+    struct MinMaxInfo { public Point Reserved, MaxSize, MaxPosition, MinTrackSize, MaxTrackSize; }
+
     [DllImport("dwmapi.dll")] static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int value, int size);
 
     static IntPtr MonitorFromRect(System.Drawing.Rectangle rc)

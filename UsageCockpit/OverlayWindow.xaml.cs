@@ -46,6 +46,7 @@ public partial class OverlayWindow : Window, IOverlayCommands
             if (HwndSource.FromHwnd(_hwnd)?.CompositionTarget is { } target)
                 target.BackgroundColor = Colors.Transparent;
             Placement.DisableWindowFrame(_hwnd);
+            HwndSource.FromHwnd(_hwnd)?.AddHook(Placement.NoMinimumSize);
         };
         Loaded += (_, _) => Reposition();
         IsVisibleChanged += (_, _) => Controls.Ticker.Paused = !IsVisible;
@@ -235,7 +236,7 @@ public partial class OverlayWindow : Window, IOverlayCommands
 
         var accounts = new MenuItem { Header = "Contas" };
         accounts.Items.Add(Item("Claude Code", () => _vm.ShowClaude = !_vm.ShowClaude, _vm.ShowClaude));
-        accounts.Items.Add(Item("Codex", () => _vm.ShowCodex = !_vm.ShowCodex, _vm.ShowCodex));
+        accounts.Items.Add(Item("Codex (ChatGPT)", () => _vm.ShowCodex = !_vm.ShowCodex, _vm.ShowCodex));
         menu.Items.Add(accounts);
 
         var monitors = new MenuItem { Header = "Monitor" };

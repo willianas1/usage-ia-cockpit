@@ -79,6 +79,11 @@ public sealed class ProviderViewModel : Observable
 
     public DateTimeOffset? LastFetchedAt => _last?.FetchedAt;
 
+    /// <summary>Última leitura boa (da rede, dos logs ou do cache em disco).</summary>
+    public UsageSnapshot? Last => _last;
+
+    public DateTimeOffset? LastActivityAt => _activity.LastActivityAt;
+
     public string ShortStatus => _last == null ? $"{Label}: --" : $"{Label}: 5h {SessionPercentText} · sem {WeekPercentText}";
 
     public bool HasData => _last != null;
@@ -88,6 +93,8 @@ public sealed class ProviderViewModel : Observable
     public string WeekPercentText => _last == null ? "--" : $"{Math.Round(WeekPercent)}%";
     public Brush SessionLevelBrush => Palette.Level(SessionPercent, HasData);
     public Brush WeekLevelBrush => Palette.Level(WeekPercent, HasData);
+    public Brush WeekBrush => Palette.Week(WeekPercent, HasData);
+    public Brush WeekBandBrush => Palette.WeekBand(WeekPercent, HasData);
     public string SessionResetText => "reseta em " + Until(_last?.SessionResetsAt);
     public string WeekResetText => "reseta " + When(_last?.WeekResetsAt);
     public string SessionResetShort => Until(_last?.SessionResetsAt);
@@ -137,7 +144,7 @@ public sealed class ProviderViewModel : Observable
         foreach (var p in new[]
                  {
                      nameof(HasData), nameof(SessionPercent), nameof(WeekPercent), nameof(SessionPercentText),
-                     nameof(WeekPercentText), nameof(SessionLevelBrush), nameof(WeekLevelBrush),
+                     nameof(WeekPercentText), nameof(SessionLevelBrush), nameof(WeekLevelBrush), nameof(WeekBrush), nameof(WeekBandBrush),
                      nameof(SessionResetText), nameof(WeekResetText), nameof(IsStale), nameof(Tooltip),
                      nameof(ShortStatus), nameof(SessionResetShort),
                  })
@@ -179,9 +186,9 @@ public sealed class MainViewModel : Observable
     public MainViewModel(AppSettings settings)
     {
         _settings = settings;
-        Claude = new ProviderViewModel(new ClaudeProvider(), ActivityMonitor.ForClaude(), "claude code",
+        Claude = new ProviderViewModel(new ClaudeProvider(), ActivityMonitor.ForClaude(), "Claude Code",
             Logos.Claude, Palette.Clay, Palette.Clay);
-        Codex = new ProviderViewModel(new CodexProvider(), ActivityMonitor.ForCodex(), "codex",
+        Codex = new ProviderViewModel(new CodexProvider(), ActivityMonitor.ForCodex(), "Codex (ChatGPT)",
             Logos.OpenAI, Palette.OpenAIGreen, Palette.Text);
     }
 
@@ -191,11 +198,20 @@ public sealed class MainViewModel : Observable
     /// </summary>
     public void CheckActivity()
     {
+        var before = (Claude.IsActive, Codex.IsActive);
         var stopped = Claude.CheckActivity() && _settings.ShowClaude;
         stopped |= Codex.CheckActivity() && _settings.ShowCodex;
+        if ((Claude.IsActive, Codex.IsActive) != before)
+            ActivityChanged?.Invoke();
         if (stopped && (_lastRefresh == null || DateTimeOffset.Now - _lastRefresh > TimeSpan.FromMinutes(1)))
             _ = RefreshAsync(force: false);
     }
+
+    /// <summary>Uma das ferramentas começou ou parou de trabalhar.</summary>
+    public event Action? ActivityChanged;
+
+    /// <summary>Terminou uma rodada de consultas (com ou sem sucesso).</summary>
+    public event Action? Refreshed;
 
     /// <summary>Atualização pedida pelo usuário: ponteiros descem a zero e voltam com os valores novos.</summary>
     public Task RefreshWithSweepAsync()
@@ -342,6 +358,7 @@ public sealed class MainViewModel : Observable
             _refreshing = false;
             Raise(nameof(UpdatedText));
         }
+        Refreshed?.Invoke();
     }
 
     public void Tick()

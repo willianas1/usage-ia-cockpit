@@ -177,7 +177,7 @@ Todas as opções ficam na janela **Configurações** e são salvas na hora.
 | Opção | Descrição | Padrão |
 |---|---|---|
 | Modo | Completo, compacto horizontal ou compacto vertical | Completo |
-| Contas monitoradas | Claude Code, Codex ou as duas. Pelo menos uma fica marcada | As duas |
+| Contas monitoradas | Claude Code, Codex (ChatGPT) ou as duas. Pelo menos uma fica marcada | As duas |
 | Tamanho do modo completo | De 55% a 160% | 100% |
 | Tamanho do compacto vertical | De 60% a 100% | 100% |
 | Opacidade do fundo | De 0% (só os instrumentos) a 100% | 85% |
@@ -185,6 +185,7 @@ Todas as opções ficam na janela **Configurações** e são salvas na hora.
 | Grudar nas bordas | Encaixa o painel nas bordas ao arrastar | Ligado |
 | Consultar a cada | 2, 5, 10, 15 ou 30 minutos | 5 min |
 | Iniciar com o Windows | Abre o app ao entrar no Windows | Desligado |
+| Envio para API | Envia o uso atual para uma API sua, para usar em outras aplicações. Veja [docs/API.md](docs/API.md) | Desligado |
 
 Arquivos do app em `%APPDATA%\UsageCockpit\`:
 
@@ -219,6 +220,7 @@ O app **não pede login nem senha**. Ele usa o login que o Claude Code e o Codex
 
 - **Nada sai do seu computador**, a não ser as consultas de uso feitas diretamente para a Anthropic e para a OpenAI, com o seu próprio token.
 - **Sem servidores próprios:** não há servidor intermediário, telemetria nem coleta de dados.
+- **Envio para API (opcional, desligado por padrão):** se você ligar, o app envia percentuais, horários de reset e se a ferramenta está em uso para a URL que **você** configurar. Tokens, logins e conversas nunca são enviados. A chave da sua API fica cifrada com a sua conta do Windows (DPAPI). Detalhes em [docs/API.md](docs/API.md).
 - **Conteúdo das conversas:** o app não lê o conteúdo das suas conversas. Ele só percebe que os arquivos foram alterados, para saber se a ferramenta está trabalhando, e lê o trecho de limites dos logs do Codex.
 
 ---
@@ -229,8 +231,8 @@ O app **não pede login nem senha**. Ele usa o login que o Claude Code e o Codex
 |---|---|
 | **"Token expirado: abra o Claude Code para renovar"** | O token do Claude Code vence depois de algumas horas sem uso. Abra o Claude Code, ou rode qualquer comando nele, para renovar. O painel volta sozinho na próxima consulta. |
 | **"Muitas consultas, aguardando"** | O servidor limitou as consultas. O app espera e tenta de novo, mostrando o último valor conhecido enquanto isso. Evite intervalos muito curtos. |
-| **"Faça login no Claude Code"** ou **"Faça login no Codex"** | Não foi encontrada credencial nesta máquina. Faça login na ferramenta (veja [Requisitos](#requisitos)). |
-| **"Codex sem login do ChatGPT (só API key)"** | O Codex está configurado só com API key. Rode `codex login` e entre com a conta do ChatGPT. |
+| **"Faça login no Claude Code"** ou **"Faça login no Codex (ChatGPT): rode codex login"** | Não foi encontrada credencial nesta máquina. Faça login na ferramenta (veja [Requisitos](#requisitos)). |
+| **"Codex (ChatGPT) sem login do ChatGPT (só API key)"** | O Codex está configurado só com API key. Rode `codex login` e entre com a conta do ChatGPT. |
 | O painel sumiu | Ele pode estar minimizado: clique no ícone da bandeja. Se ainda não aparecer, use clique direito no ícone da bandeja → Configurações → Monitor ou uma posição rápida. |
 | O painel não abre com o Windows | Desative e ative de novo **Iniciar com o Windows** nas configurações. |
 | O app fechou sozinho | Veja `%APPDATA%\UsageCockpit\crash.log` e abra uma issue com o conteúdo. |
@@ -283,6 +285,7 @@ UsageCockpit/
     ActivityMonitor.cs  detecta se a ferramenta está trabalhando agora
     Models.cs           configurações, cache da última leitura
     ViewModels.cs       estado exibido, atualização e textos
+    UsagePublisher.cs   envio opcional do uso para uma API externa (contrato em docs/API.md)
     Placement.cs        monitores, posição, DPI e janela sempre visível (Win32)
   Controls/
     Gauge.cs            mostrador com ponteiro, faixas, varredura e anel de atividade
@@ -292,6 +295,8 @@ UsageCockpit/
   Views/                modo completo, compacto horizontal e compacto vertical
   OverlayWindow.*       janela flutuante: arrastar, redimensionar, menus
   SettingsWindow.*      tela de configurações
+  PublishWindow.*       configuração do envio para API
+docs/API.md             contrato do envio para API
 installer/              script do Inno Setup
 tools/make-icon.ps1     gera o ícone do app
 build.ps1               gera o exe portátil e o instalador

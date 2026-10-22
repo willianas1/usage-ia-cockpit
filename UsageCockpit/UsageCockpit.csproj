@@ -15,7 +15,7 @@
          %APPDATA%\UsageCockpit para não perder as configurações de quem já usa o app. -->
     <Product>Usage IA Cockpit</Product>
     <AssemblyTitle>Usage IA Cockpit</AssemblyTitle>
-    <Description>Monitor de uso do Claude Code e do Codex</Description>
+    <Description>Monitor de uso do Claude Code e do Codex (ChatGPT)</Description>
     <Copyright>Copyright (c) 2026 Willian Santos. Licença MIT.</Copyright>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <!-- O DPI PerMonitorV2 fica no app.manifest porque a janela é WPF; o aviso é do analisador do WinForms. -->

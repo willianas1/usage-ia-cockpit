@@ -23,6 +23,21 @@ public static class Palette
     public static readonly Brush HubRim = Make(0x3A, 0x40, 0x48);
     public static readonly Brush NoData = Make(0x6B, 0x72, 0x80);
 
+    // Uso semanal em todos os modos: cores próprias, para não se confundir com o da sessão.
+    public static readonly Brush WeekBlue = Make(0x4C, 0x9A, 0xFF);
+    public static readonly Brush WeekDanger = Make(0xD6, 0x33, 0x84);
+    public static readonly Brush WeekWarn = Make(0xE8, 0xD4, 0x4D);
+    public static readonly Brush WeekWarnSoft = Make(0xE8, 0xD4, 0x4D, 0x40);
+    public static readonly Brush WeekDangerSoft = Make(0xD6, 0x33, 0x84, 0x40);
+
+    /// <summary>Cor do semanal: azul até 80%, depois um vermelho diferente do arco da sessão.</summary>
+    public static Brush Week(double pct, bool hasData = true) =>
+        !hasData ? NoData : pct < DangerFrom ? WeekBlue : WeekDanger;
+
+    /// <summary>Cor do semanal no modo completo, que tem também a faixa amarela de 60% a 80%.</summary>
+    public static Brush WeekBand(double pct, bool hasData = true) =>
+        !hasData ? NoData : pct < WarnFrom ? WeekBlue : pct < DangerFrom ? WeekWarn : WeekDanger;
+
     /// <summary>Verde até 70%, âmbar até 90%, vermelho acima.</summary>
     public static readonly Brush WarnSoft = Make(0xEF, 0x9F, 0x27, 0x59);
 

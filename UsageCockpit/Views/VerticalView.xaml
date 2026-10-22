@@ -7,12 +7,14 @@
         <ToolTip x:Key="WeekTip" x:Shared="False" Background="#15181D" BorderBrush="#2D333B" Padding="10,8"
                  Placement="Left" HorizontalOffset="-6">
             <StackPanel Width="200">
+                <TextBlock Text="{Binding Label}" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,6"
+                           Foreground="{Binding LogoBrush}"/>
                 <DockPanel Margin="0,0,0,4">
                     <TextBlock Text="{Binding WeekPercentText}" DockPanel.Dock="Right" FontSize="12"
-                               FontFamily="{StaticResource MonoFont}" Foreground="{Binding WeekLevelBrush}"/>
+                               FontFamily="{StaticResource MonoFont}" Foreground="{Binding WeekBrush}"/>
                     <TextBlock Text="Uso semanal" FontSize="12" Foreground="{StaticResource TextBrush}"/>
                 </DockPanel>
-                <c:FuelBar Percent="{Binding WeekPercent}" HasData="{Binding HasData}" Brand="{Binding Brand}"/>
+                <c:MiniBar Percent="{Binding WeekPercent}" HasData="{Binding HasData}" IsWeek="True" Width="200"/>
                 <TextBlock Text="{Binding WeekResetText}" FontSize="11" Margin="0,4,0,0"
                            Foreground="{StaticResource MutedBrush}"/>
                 <TextBlock FontSize="11" Margin="0,8,0,0" Foreground="{StaticResource MutedBrush}">
@@ -27,7 +29,7 @@
             </StackPanel>
         </ToolTip>
 
-        <!-- Uma conta: mini velocímetro da sessão de 5h, igual ao do modo completo -->
+        <!-- Uma conta: mini velocímetro da sessão de 5h (arco externo) com o uso semanal no arco interno -->
         <DataTemplate x:Key="ProviderGauge">
             <StackPanel Background="Transparent" Style="{StaticResource StaleFade}"
                         ToolTip="{StaticResource WeekTip}" ToolTipService.InitialShowDelay="150"
@@ -35,6 +37,7 @@
                 <Grid HorizontalAlignment="Center">
                     <c:Gauge Width="100" Height="80" ShowScaleLabels="False"
                              Percent="{Binding SessionPercent}" HasData="{Binding HasData}"
+                             InnerPercent="{Binding WeekPercent}"
                              Brand="{Binding Brand}" Logo="{Binding Logo}" LogoFill="{Binding LogoBrush}"
                              IsActive="{Binding IsActive}" SweepToken="{Binding SweepToken}"/>
                     <TextBlock Text="&#xE7BA;" FontFamily="{StaticResource IconFont}" FontSize="10"
@@ -46,6 +49,10 @@
                            Foreground="{StaticResource MutedBrush}">
                     <Run Text="5h ·"/>
                     <Run Text="{Binding SessionResetShort, Mode=OneWay}" Foreground="{StaticResource TextBrush}"/>
+                </TextBlock>
+                <TextBlock HorizontalAlignment="Center" FontSize="11" Foreground="{StaticResource MutedBrush}">
+                    <Run Text="sem ·"/>
+                    <Run Text="{Binding WeekPercentText, Mode=OneWay}" Foreground="{Binding WeekBrush, Mode=OneWay}"/>
                 </TextBlock>
             </StackPanel>
         </DataTemplate>

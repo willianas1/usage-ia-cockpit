@@ -28,7 +28,7 @@
                     <TextBlock Grid.Row="1" Text="sem" FontSize="11" Foreground="{StaticResource MutedBrush}"
                                VerticalAlignment="Center"/>
                     <c:MiniBar Grid.Row="1" Grid.Column="1" SweepToken="{Binding SweepToken}" Percent="{Binding WeekPercent}" HasData="{Binding HasData}"
-                               Brand="{Binding Brand}" VerticalAlignment="Center"/>
+                               IsWeek="True" VerticalAlignment="Center"/>
                     <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding WeekPercentText}" FontSize="11"
                                TextAlignment="Right" FontFamily="{StaticResource MonoFont}"
                                Foreground="{StaticResource TextBrush}" VerticalAlignment="Center"/>

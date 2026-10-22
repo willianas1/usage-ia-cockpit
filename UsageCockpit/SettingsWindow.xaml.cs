@@ -17,15 +17,20 @@ public partial class SettingsWindow : Window
     readonly MainViewModel _vm;
     readonly OverlayWindow _overlay;
     readonly Action _pollChanged;
+    readonly UsagePublisher _publisher;
     readonly bool _loading;
 
-    public SettingsWindow(AppSettings settings, MainViewModel vm, OverlayWindow overlay, Action pollChanged)
+    public SettingsWindow(AppSettings settings, MainViewModel vm, OverlayWindow overlay, Action pollChanged,
+        UsagePublisher publisher)
     {
         InitializeComponent();
         _settings = settings;
         _vm = vm;
         _overlay = overlay;
         _pollChanged = pollChanged;
+        _publisher = publisher;
+        ShowPublishStatus();
+        publisher.OutcomeChanged += ShowPublishStatus;
 
         _loading = true;
         FullMode.IsChecked = settings.Mode == DisplayMode.Full;
@@ -166,10 +171,23 @@ public partial class SettingsWindow : Window
         return key?.GetValue(RunValue) != null;
     }
 
+    void Publish_Click(object sender, RoutedEventArgs e) =>
+        new PublishWindow(_settings, _publisher) { Owner = this }.ShowDialog();
+
+    void ShowPublishStatus()
+    {
+        var o = _publisher.LastOutcome;
+        PublishStatus.Text = !_settings.PublishEnabled ? "Desligado"
+            : o == null ? "Ligado, aguardando o primeiro envio"
+            : o.Ok ? $"Ligado · {o.Message.ToLowerInvariant()}"
+            : $"Ligado · erro: {o.Message}";
+    }
+
     void Close_Click(object sender, RoutedEventArgs e) => Close();
 
     protected override void OnClosed(EventArgs e)
     {
+        _publisher.OutcomeChanged -= ShowPublishStatus;
         _settings.Save();
         base.OnClosed(e);
     }

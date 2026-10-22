@@ -5,10 +5,17 @@
     <UserControl.Resources>
         <DataTemplate x:Key="ProviderColumn">
             <StackPanel Width="172" ToolTip="{Binding Tooltip}" Style="{StaticResource StaleFade}" Background="Transparent">
-                <c:Gauge Width="160" Height="128" HorizontalAlignment="Center"
-                         Percent="{Binding SessionPercent}" HasData="{Binding HasData}"
-                         Brand="{Binding Brand}" Logo="{Binding Logo}" LogoFill="{Binding LogoBrush}"
-                         IsActive="{Binding IsActive}" SweepToken="{Binding SweepToken}"/>
+                <Grid Width="160" HorizontalAlignment="Center">
+                    <c:Gauge Height="128"
+                             Percent="{Binding SessionPercent}" HasData="{Binding HasData}"
+                             Brand="{Binding Brand}" Logo="{Binding Logo}" LogoFill="{Binding LogoBrush}"
+                             IsActive="{Binding IsActive}" SweepToken="{Binding SweepToken}"/>
+                    <!-- Erro discreto: só o ícone, o texto aparece ao passar o mouse -->
+                    <TextBlock Text="&#xE7BA;" FontFamily="{StaticResource IconFont}" FontSize="13"
+                               HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,4,0,0"
+                               Foreground="{StaticResource WarnBrush}" ToolTip="{Binding Error}" Background="Transparent"
+                               Visibility="{Binding HasError, Converter={StaticResource BoolToVis}}"/>
+                </Grid>
                 <TextBlock HorizontalAlignment="Center" FontSize="11" Margin="0,0,0,8"
                            Foreground="{StaticResource MutedBrush}">
                     <Run Text="5h ·"/>
@@ -24,13 +31,9 @@
                         <Run Text="{Binding WeekResetText, Mode=OneWay}"/>
                     </TextBlock>
                     <TextBlock Text="{Binding WeekPercentText}" FontSize="11" HorizontalAlignment="Right"
-                               FontFamily="{StaticResource MonoFont}" Foreground="{Binding WeekLevelBrush}"/>
-                    <c:FuelBar Grid.Row="1" Percent="{Binding WeekPercent}" HasData="{Binding HasData}"
-                               Brand="{Binding Brand}"/>
+                               FontFamily="{StaticResource MonoFont}" Foreground="{Binding WeekBandBrush}"/>
+                    <c:WeekBar Grid.Row="1" Percent="{Binding WeekPercent}" HasData="{Binding HasData}"/>
                 </Grid>
-                <TextBlock Text="{Binding Error}" FontSize="11" TextWrapping="Wrap" TextAlignment="Center"
-                           Margin="4,6,4,0" Foreground="{StaticResource WarnBrush}"
-                           Visibility="{Binding HasError, Converter={StaticResource BoolToVis}}"/>
             </StackPanel>
         </DataTemplate>
     </UserControl.Resources>

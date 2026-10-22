@@ -106,6 +106,20 @@ public sealed class AppSettings
     public int PollMinutes { get; set; } = 5;
     public bool StartWithWindows { get; set; }
 
+    /// <summary>Envio do uso para uma API externa (docs/API.md). Desligado por padrão.</summary>
+    public bool PublishEnabled { get; set; }
+    public string? PublishBaseUrl { get; set; }
+
+    /// <summary>Chave da API cifrada com DPAPI. Use <see cref="PublishKey"/> para ler e gravar.</summary>
+    public string? PublishKeyProtected { get; set; }
+
+    [JsonIgnore]
+    public string? PublishKey
+    {
+        get => Secret.Unprotect(PublishKeyProtected);
+        set => PublishKeyProtected = string.IsNullOrEmpty(value) ? null : Secret.Protect(value);
+    }
+
     [JsonIgnore]
     public static string Folder => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "UsageCockpit");

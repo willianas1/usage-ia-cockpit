@@ -32,6 +32,16 @@ public sealed class Gauge : Instrument
         nameof(ShowScaleLabels), typeof(bool), typeof(Gauge),
         new FrameworkPropertyMetadata(true, FrameworkPropertyMetadataOptions.AffectsRender));
 
+    public static readonly DependencyProperty InnerPercentProperty = DependencyProperty.Register(
+        nameof(InnerPercent), typeof(double?), typeof(Gauge),
+        new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender));
+
+    /// <summary>
+    /// Segunda escala, num arco fino por dentro do principal (o uso semanal no modo compacto vertical).
+    /// Nula, o arco não aparece.
+    /// </summary>
+    public double? InnerPercent { get => (double?)GetValue(InnerPercentProperty); set => SetValue(InnerPercentProperty, value); }
+
     /// <summary>Números 0/50/100 da escala. Desligados nos mini velocímetros, onde ficariam ilegíveis.</summary>
     public bool ShowScaleLabels { get => (bool)GetValue(ShowScaleLabelsProperty); set => SetValue(ShowScaleLabelsProperty, value); }
 
@@ -57,6 +67,13 @@ public sealed class Gauge : Instrument
     static readonly Geometry TrackArc = Arc(R, Start, Start + Sweep);
     static readonly Geometry WarnArc = Arc(R, AngleOf(Palette.WarnFrom), AngleOf(Palette.DangerFrom));
     static readonly Geometry DangerArc = Arc(R, AngleOf(Palette.DangerFrom), Start + Sweep);
+
+    // Arco interno: mais fino e afastado do principal, para as duas escalas não se confundirem.
+    const double InnerR = R - 15, InnerWidth = 4;
+    static readonly Pen InnerTrackPen = MakePen(Palette.Track, InnerWidth);
+    static readonly Pen InnerPen = MakePen(Palette.WeekBlue, InnerWidth);
+    static readonly Pen InnerDangerPen = MakePen(Palette.WeekDanger, InnerWidth);
+    static readonly Geometry InnerTrackArc = Arc(InnerR, Start, Start + Sweep);
 
     // Marcas da escala a cada 5%, coloridas pela faixa: normal, amarela (60–80%) e vermelha (80–100%).
     static readonly Geometry MinorTicks = Ticks(zone: 0, major: false);
@@ -144,31 +161,33 @@ public sealed class Gauge : Instrument
             _ring.Opacity = IsActive ? 1 : 0;
             UpdateHook();
         }
+        // Sem tremor o relógio fica parado em repouso: uma leitura nova precisa religá-lo para o ponteiro andar.
+        if (e.Property == PercentProperty || e.Property == HasDataProperty)
+            UpdateHook();
     }
 
     void OnStaticChanged(object? sender, EventArgs e)
     {
-        _shown = Target;
-        _phase = Phase.Follow;
         UpdateHook();
         UpdateNeedle();
         InvalidateVisual();
     }
 
+    // A varredura acontece mesmo com os ponteiros sem tremor: mostra que a atualização foi feita.
     void StartSweep()
     {
-        if (StaticNeedles) return;
         _phase = Phase.Down;
         _phaseFrom = _shown;
         _phaseStart = Ticker.Now;
+        UpdateHook();
     }
 
     // A animação roda sempre que o mostrador está na tela: o tremor constante do ponteiro mostra que
     // o app está vivo, e o anel em volta do logo mostra que a ferramenta está trabalhando.
-    // Com os ponteiros sem animação, o relógio só é usado enquanto o anel gira.
+    // Sem tremor, o relógio só é usado enquanto o anel gira ou o ponteiro está indo a um valor.
     void UpdateHook()
     {
-        var on = IsLoaded && (!StaticNeedles || IsActive);
+        var on = IsLoaded && (!StaticNeedles || IsActive || Moving);
         if (on == _hooked) return;
         _hooked = on;
         if (on)
@@ -185,16 +204,13 @@ public sealed class Gauge : Instrument
 
     double Target => HasData ? P : 0;
 
+    bool Moving => _phase != Phase.Follow || Math.Abs(Target - _shown) > 0.05;
+
     void OnFrame(object? sender, EventArgs e)
     {
         var now = Ticker.Now;
         var dt = now - _lastFrame;
         _lastFrame = now;
-        if (StaticNeedles)
-        {
-            _phase = Phase.Follow;
-            dt = double.PositiveInfinity; // vai direto ao valor
-        }
 
         switch (_phase)
         {
@@ -229,6 +245,9 @@ public sealed class Gauge : Instrument
         // O mostrador (arco colorido e número) só é redesenhado quando o valor exibido muda de verdade.
         if (double.IsNaN(_drawnShown) || Math.Abs(_drawnShown - _shown) > 0.2 || (settled && _drawnShown != _shown))
             InvalidateVisual();
+
+        if (settled && StaticNeedles)
+            UpdateHook();
     }
 
     void UpdateNeedle(double now = 0)
@@ -248,8 +267,7 @@ public sealed class Gauge : Instrument
     }
 
     // Fora da árvore visual (ex.: captura de tela de teste) não há animação: usa o valor final.
-    // Sem animação, o ponteiro vai direto ao valor.
-    double Shown => !StaticNeedles && (_hooked || IsLoaded) ? Math.Clamp(_shown, 0, 104) : Target;
+    double Shown => _hooked || IsLoaded ? Math.Clamp(_shown, 0, 104) : Target;
 
     static double EaseOutBack(double t)
     {
@@ -259,8 +277,7 @@ public sealed class Gauge : Instrument
 
     protected override void OnRender(DrawingContext dc)
     {
-        if (StaticNeedles) _shown = Target;
-        if (!_hooked || StaticNeedles) UpdateNeedle();
+        if (!_hooked) UpdateNeedle();
         var shown = Shown;
         _drawnShown = shown;
 
@@ -281,6 +298,9 @@ public sealed class Gauge : Instrument
                 dc.DrawGeometry(null, DangerPen, Arc(R, AngleOf(Palette.DangerFrom), AngleOf(value)));
         }
 
+        if (InnerPercent is double inner)
+            DrawInner(dc, Math.Clamp(inner, 0, 100));
+
         dc.DrawGeometry(null, MakePen(Palette.Tick, 1), MinorTicks);
         dc.DrawGeometry(null, MakePen(Palette.Tick, 2), MajorTicks);
         dc.DrawGeometry(null, MakePen(Palette.Warn, 1), WarnMinorTicks);
@@ -296,6 +316,17 @@ public sealed class Gauge : Instrument
         var readout = HasData ? $"{Math.Round(Math.Clamp(shown, 0, 100))}%" : "--";
         DrawText(dc, readout, ReadoutFace, 22, Palette.Level(P, HasData), new Point(Cx, Cy + 36), dpi);
         dc.Pop();
+    }
+
+    // Sem animação: o semanal muda devagar, e o ponteiro já mostra que o app está vivo.
+    void DrawInner(DrawingContext dc, double value)
+    {
+        dc.DrawGeometry(null, InnerTrackPen, InnerTrackArc);
+        if (!HasData || value <= 0.5) return;
+        // Mesma cor nas duas contas: azul até 80%, depois o vermelho próprio do semanal.
+        dc.DrawGeometry(null, InnerPen, Arc(InnerR, Start, AngleOf(Math.Min(value, Palette.DangerFrom))));
+        if (value > Palette.DangerFrom)
+            dc.DrawGeometry(null, InnerDangerPen, Arc(InnerR, AngleOf(Palette.DangerFrom), AngleOf(value)));
     }
 
     void DrawHub()

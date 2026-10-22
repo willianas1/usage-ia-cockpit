@@ -135,17 +135,17 @@ public sealed class CodexProvider : IUsageProvider
         try
         {
             if (!File.Exists(AuthPath))
-                return FetchResult.Fail("Faça login no Codex (codex login)");
+                return FetchResult.Fail("Faça login no Codex (ChatGPT): rode codex login");
             using var doc = JsonDocument.Parse(await File.ReadAllTextAsync(AuthPath, ct));
             if (!doc.RootElement.TryGetProperty("tokens", out var t) || t.ValueKind != JsonValueKind.Object)
-                return FetchResult.Fail("Codex sem login do ChatGPT (só API key)");
+                return FetchResult.Fail("Codex (ChatGPT) sem login do ChatGPT (só API key)");
             token = t.GetProperty("access_token").GetString() ?? "";
             account = t.TryGetProperty("account_id", out var a) ? a.GetString() ?? "" : "";
         }
         catch (Exception e) when (e is IOException or JsonException or InvalidOperationException
                                   or System.Collections.Generic.KeyNotFoundException)
         {
-            return FetchResult.Fail("Não consegui ler o login do Codex");
+            return FetchResult.Fail("Não consegui ler o login do Codex (ChatGPT)");
         }
 
         using var req = new HttpRequestMessage(HttpMethod.Get, "https://chatgpt.com/backend-api/wham/usage");
@@ -161,7 +161,7 @@ public sealed class CodexProvider : IUsageProvider
             if (res.StatusCode == HttpStatusCode.TooManyRequests)
                 return FetchResult.Fail("Muitas consultas, aguardando", Http.RetryAfter(res));
             if (res.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
-                return FetchResult.Fail("Token recusado: rode o Codex para renovar");
+                return FetchResult.Fail("Token recusado: rode o Codex (ChatGPT) para renovar");
             if (!res.IsSuccessStatusCode)
                 return FetchResult.Fail($"Erro {(int)res.StatusCode} ao consultar o uso");
 

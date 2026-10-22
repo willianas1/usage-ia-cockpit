@@ -21,6 +21,7 @@ public partial class App : Application
     Mutex? _single;
     AppSettings _settings = new();
     MainViewModel? _vm;
+    UsagePublisher? _publisher;
     OverlayWindow? _overlay;
     SettingsWindow? _settingsWindow;
     Forms.NotifyIcon? _tray;
@@ -55,6 +56,9 @@ public partial class App : Application
         Controls.Instrument.StaticNeedles = _settings.StaticNeedles;
         SettingsWindow.RepairStartupPath();
         _vm = new MainViewModel(_settings);
+        var publisher = _publisher = new UsagePublisher(_settings, _vm);
+        _vm.Refreshed += () => publisher.Publish("refresh");
+        _vm.ActivityChanged += () => publisher.Publish("activity");
         _overlay = new OverlayWindow(_settings, _vm);
         _overlay.SettingsRequested += OpenSettings;
         _overlay.MinimizedToTray += NotifyMinimized;
@@ -67,6 +71,7 @@ public partial class App : Application
         _tick.Tick += (_, _) =>
         {
             _vm.Tick();
+            publisher.HeartbeatIfDue();
             _overlay.KeepOnTop();
             UpdateTrayText();
         };
@@ -87,13 +92,13 @@ public partial class App : Application
 
     void OpenSettings()
     {
-        if (_vm == null || _overlay == null) return;
+        if (_vm == null || _overlay == null || _publisher == null) return;
         if (_settingsWindow is { IsLoaded: true })
         {
             _settingsWindow.Activate();
             return;
         }
-        _settingsWindow = new SettingsWindow(_settings, _vm, _overlay, RestartPoll);
+        _settingsWindow = new SettingsWindow(_settings, _vm, _overlay, RestartPoll, _publisher);
         _settingsWindow.Show();
     }
 

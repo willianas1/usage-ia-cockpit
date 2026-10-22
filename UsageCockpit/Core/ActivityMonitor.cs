@@ -43,6 +43,16 @@ public sealed class ActivityMonitor : IDisposable
     public bool IsActive =>
         DateTime.UtcNow - new DateTime(System.Threading.Interlocked.Read(ref _lastWriteTicks), DateTimeKind.Utc) < ActiveWindow;
 
+    /// <summary>Última escrita vista desde que o app abriu. Nulo = nenhuma atividade ainda.</summary>
+    public DateTimeOffset? LastActivityAt
+    {
+        get
+        {
+            var ticks = System.Threading.Interlocked.Read(ref _lastWriteTicks);
+            return ticks == 0 ? null : new DateTimeOffset(new DateTime(ticks, DateTimeKind.Utc)).ToLocalTime();
+        }
+    }
+
     public static ActivityMonitor ForClaude() => new(Http.Home(".claude", "projects"));
     public static ActivityMonitor ForCodex() => new(Http.Home(".codex", "sessions"));
 
