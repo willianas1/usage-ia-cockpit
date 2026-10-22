@@ -92,7 +92,8 @@ public sealed class Gauge : Instrument
 
     enum Phase { Follow, Down, Up }
 
-    const double RingRadius = 19;
+    // Miolo grande: o logo ocupa o centro até perto do arco interno e do número da leitura.
+    const double HubRadius = 27, LogoSize = 40, RingRadius = HubRadius + 2.5;
 
     readonly DrawingVisual _needle = new();
     readonly DrawingVisual _hub = new();
@@ -314,7 +315,7 @@ public sealed class Gauge : Instrument
 
         // O número acompanha o ponteiro durante a varredura.
         var readout = HasData ? $"{Math.Round(Math.Clamp(shown, 0, 100))}%" : "--";
-        DrawText(dc, readout, ReadoutFace, 22, Palette.Level(P, HasData), new Point(Cx, Cy + 36), dpi);
+        DrawText(dc, readout, ReadoutFace, 22, Palette.Level(P, HasData), new Point(Cx, Cy + 42), dpi);
         dc.Pop();
     }
 
@@ -332,10 +333,10 @@ public sealed class Gauge : Instrument
     void DrawHub()
     {
         using var dc = _hub.RenderOpen();
-        dc.DrawEllipse(Palette.Hub, HubPen, new Point(Cx, Cy), 14, 14);
+        dc.DrawEllipse(Palette.Hub, HubPen, new Point(Cx, Cy), HubRadius, HubRadius);
         if (Logo == null) return;
-        dc.PushTransform(new TranslateTransform(Cx - 8, Cy - 8));
-        dc.PushTransform(new ScaleTransform(16 / 24.0, 16 / 24.0));
+        dc.PushTransform(new TranslateTransform(Cx - LogoSize / 2, Cy - LogoSize / 2));
+        dc.PushTransform(new ScaleTransform(LogoSize / 24.0, LogoSize / 24.0));
         dc.DrawGeometry(LogoFill ?? Brand, null, Logo);
         dc.Pop();
         dc.Pop();
