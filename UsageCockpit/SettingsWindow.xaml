@@ -34,7 +34,7 @@
 
         <TextBlock Text="CONTAS MONITORADAS" Style="{StaticResource Section}"/>
         <StackPanel Orientation="Horizontal">
-            <CheckBox x:Name="ClaudeCheck" Content="Claude Code" Margin="0,0,18,0" Click="Accounts_Click"/>
+            <CheckBox x:Name="ClaudeCheck" Content="Claude Code" Margin="0,4,18,0" Click="Accounts_Click"/>
             <CheckBox x:Name="CodexCheck" Content="Codex" Click="Accounts_Click"/>
         </StackPanel>
 
@@ -64,6 +64,11 @@
         </DockPanel>
         <TextBlock Text="Ponteiros e textos continuam visíveis; só o fundo fica transparente." FontSize="11"
                    Foreground="#8B949E" Margin="0,4,0,0" TextWrapping="Wrap"/>
+
+        <TextBlock Text="ANIMAÇÃO" Style="{StaticResource Section}"/>
+        <CheckBox x:Name="StaticNeedlesCheck" Content="Ponteiros sem animação" Click="StaticNeedles_Click"/>
+        <TextBlock Text="Sem tremor nem varredura: ponteiros e barras vão direto ao valor. O anel em volta do logo continua girando quando a ferramenta está em uso."
+                   FontSize="11" Foreground="#8B949E" Margin="0,4,0,0" TextWrapping="Wrap"/>
 
         <TextBlock Text="MONITOR" Style="{StaticResource Section}"/>
         <ComboBox x:Name="MonitorCombo" DisplayMemberPath="Label" SelectionChanged="Monitor_Changed"/>

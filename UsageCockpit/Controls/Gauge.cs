@@ -112,8 +112,8 @@ public sealed class Gauge : Instrument
         DrawRing();
         UpdateNeedle();
 
-        Loaded += (_, _) => Animate();
-        Unloaded += (_, _) => Unhook();
+        Loaded += (_, _) => { StaticNeedlesChanged += OnStaticChanged; UpdateHook(); };
+        Unloaded += (_, _) => { StaticNeedlesChanged -= OnStaticChanged; UpdateHook(); };
     }
 
     protected override int VisualChildrenCount => 3;
@@ -140,11 +140,24 @@ public sealed class Gauge : Instrument
         if (e.Property == BrandProperty)
             DrawRing();
         if (e.Property == IsActiveProperty)
+        {
             _ring.Opacity = IsActive ? 1 : 0;
+            UpdateHook();
+        }
+    }
+
+    void OnStaticChanged(object? sender, EventArgs e)
+    {
+        _shown = Target;
+        _phase = Phase.Follow;
+        UpdateHook();
+        UpdateNeedle();
+        InvalidateVisual();
     }
 
     void StartSweep()
     {
+        if (StaticNeedles) return;
         _phase = Phase.Down;
         _phaseFrom = _shown;
         _phaseStart = Ticker.Now;
@@ -152,20 +165,22 @@ public sealed class Gauge : Instrument
 
     // A animação roda sempre que o mostrador está na tela: o tremor constante do ponteiro mostra que
     // o app está vivo, e o anel em volta do logo mostra que a ferramenta está trabalhando.
-    void Animate()
+    // Com os ponteiros sem animação, o relógio só é usado enquanto o anel gira.
+    void UpdateHook()
     {
-        if (_hooked) return;
-        _hooked = true;
-        _lastFrame = Ticker.Now;
-        Ticker.Tick += OnFrame;
-    }
-
-    void Unhook()
-    {
-        if (!_hooked) return;
-        _hooked = false;
-        Ticker.Tick -= OnFrame;
-        Ticker.SetSmooth(this, false);
+        var on = IsLoaded && (!StaticNeedles || IsActive);
+        if (on == _hooked) return;
+        _hooked = on;
+        if (on)
+        {
+            _lastFrame = Ticker.Now;
+            Ticker.Tick += OnFrame;
+        }
+        else
+        {
+            Ticker.Tick -= OnFrame;
+            Ticker.SetSmooth(this, false);
+        }
     }
 
     double Target => HasData ? P : 0;
@@ -175,6 +190,11 @@ public sealed class Gauge : Instrument
         var now = Ticker.Now;
         var dt = now - _lastFrame;
         _lastFrame = now;
+        if (StaticNeedles)
+        {
+            _phase = Phase.Follow;
+            dt = double.PositiveInfinity; // vai direto ao valor
+        }
 
         switch (_phase)
         {
@@ -214,7 +234,7 @@ public sealed class Gauge : Instrument
     void UpdateNeedle(double now = 0)
     {
         // Tremor constante: duas senoides fora de fase + um pouco de ruído, cerca de ±1,5°.
-        var jitter = _hooked && HasData
+        var jitter = _hooked && HasData && !StaticNeedles
             ? 0.9 * Math.Sin(now * 19) + 0.45 * Math.Sin(now * 43 + 1.3) + 0.35 * (Noise.NextDouble() - 0.5)
             : 0;
         _rotation.Angle = Start + Sweep * Shown / 100 + jitter;
@@ -228,7 +248,8 @@ public sealed class Gauge : Instrument
     }
 
     // Fora da árvore visual (ex.: captura de tela de teste) não há animação: usa o valor final.
-    double Shown => _hooked || IsLoaded ? Math.Clamp(_shown, 0, 104) : Target;
+    // Sem animação, o ponteiro vai direto ao valor.
+    double Shown => !StaticNeedles && (_hooked || IsLoaded) ? Math.Clamp(_shown, 0, 104) : Target;
 
     static double EaseOutBack(double t)
     {
@@ -238,7 +259,8 @@ public sealed class Gauge : Instrument
 
     protected override void OnRender(DrawingContext dc)
     {
-        if (!_hooked) UpdateNeedle();
+        if (StaticNeedles) _shown = Target;
+        if (!_hooked || StaticNeedles) UpdateNeedle();
         var shown = Shown;
         _drawnShown = shown;
 

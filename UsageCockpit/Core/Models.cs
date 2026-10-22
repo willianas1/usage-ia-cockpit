@@ -100,6 +100,9 @@ public sealed class AppSettings
     public bool ShowCodex { get; set; } = true;
 
     public bool SnapToEdges { get; set; } = true;
+
+    /// <summary>Ponteiros e barras sem tremor nem varredura.</summary>
+    public bool StaticNeedles { get; set; }
     public int PollMinutes { get; set; } = 5;
     public bool StartWithWindows { get; set; }
 

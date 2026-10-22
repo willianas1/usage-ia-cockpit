@@ -34,6 +34,7 @@ public partial class SettingsWindow : Window
         OpacitySlider.Value = settings.BackgroundOpacity;
         OpacityLabel.Text = $"{settings.BackgroundOpacity}%";
         SnapCheck.IsChecked = settings.SnapToEdges;
+        StaticNeedlesCheck.IsChecked = settings.StaticNeedles;
         ClaudeCheck.IsChecked = settings.ShowClaude;
         CodexCheck.IsChecked = settings.ShowCodex;
         ScaleSlider.Value = Math.Round(settings.FullScale * 100);
@@ -116,6 +117,13 @@ public partial class SettingsWindow : Window
     void Snap_Click(object sender, RoutedEventArgs e)
     {
         _settings.SnapToEdges = SnapCheck.IsChecked == true;
+        _settings.Save();
+    }
+
+    void StaticNeedles_Click(object sender, RoutedEventArgs e)
+    {
+        _settings.StaticNeedles = StaticNeedlesCheck.IsChecked == true;
+        Controls.Instrument.StaticNeedles = _settings.StaticNeedles;
         _settings.Save();
     }
 

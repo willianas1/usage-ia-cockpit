@@ -52,6 +52,7 @@ public partial class App : Application
         }
 
         _settings = AppSettings.Load();
+        Controls.Instrument.StaticNeedles = _settings.StaticNeedles;
         SettingsWindow.RepairStartupPath();
         _vm = new MainViewModel(_settings);
         _overlay = new OverlayWindow(_settings, _vm);

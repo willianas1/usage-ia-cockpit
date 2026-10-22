@@ -26,6 +26,25 @@ public abstract class Instrument : FrameworkElement
 
     protected double P => Math.Clamp(Percent, 0, 100);
 
+    static bool _staticNeedles;
+
+    /// <summary>
+    /// Ponteiros e barrinhas sem animação: sem tremor e sem varredura, vão direto ao valor.
+    /// O anel em volta do logo continua girando, porque indica a ferramenta em uso.
+    /// </summary>
+    public static bool StaticNeedles
+    {
+        get => _staticNeedles;
+        set
+        {
+            if (_staticNeedles == value) return;
+            _staticNeedles = value;
+            StaticNeedlesChanged?.Invoke(null, EventArgs.Empty);
+        }
+    }
+
+    public static event EventHandler? StaticNeedlesChanged;
+
     protected static Pen MakePen(Brush b, double w, PenLineCap cap = PenLineCap.Flat)
     {
         var p = new Pen(b, w) { StartLineCap = cap, EndLineCap = cap };
@@ -67,11 +86,28 @@ public sealed class MiniBar : Instrument
     // A ponta da barra oscila de leve, como os ponteiros do modo completo: mostra que o app está vivo.
     double _jitter;
     int _frame;
+    bool _hooked;
 
     public MiniBar()
     {
-        Loaded += (_, _) => Ticker.Tick += OnTick;
-        Unloaded += (_, _) => Ticker.Tick -= OnTick;
+        Loaded += (_, _) => { StaticNeedlesChanged += OnStaticChanged; UpdateHook(); };
+        Unloaded += (_, _) => { StaticNeedlesChanged -= OnStaticChanged; UpdateHook(); };
+    }
+
+    void OnStaticChanged(object? sender, EventArgs e)
+    {
+        UpdateHook();
+        InvalidateVisual();
+    }
+
+    // Sem animação, a barra não precisa do relógio: só redesenha quando o percentual muda.
+    void UpdateHook()
+    {
+        var on = IsLoaded && !StaticNeedles;
+        if (on == _hooked) return;
+        _hooked = on;
+        if (on) Ticker.Tick += OnTick;
+        else Ticker.Tick -= OnTick;
     }
 
     public static readonly DependencyProperty SweepTokenProperty = DependencyProperty.Register(
@@ -107,7 +143,7 @@ public sealed class MiniBar : Instrument
         dc.DrawRectangle(Palette.Track, null, new Rect(0, 0, w, 5));
         if (HasData)
         {
-            var fill = Math.Clamp(w * P / 100 * _sweepFactor + _jitter, 0, w);
+            var fill = StaticNeedles ? w * P / 100 : Math.Clamp(w * P / 100 * _sweepFactor + _jitter, 0, w);
             dc.DrawRectangle(Palette.Bar(P, Brand), null, new Rect(0, 0, fill, 5));
         }
         dc.Pop();
