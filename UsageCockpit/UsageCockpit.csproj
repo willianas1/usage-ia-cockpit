@@ -10,7 +10,7 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AssemblyName>UsageIACockpit</AssemblyName>
     <RootNamespace>UsageCockpit</RootNamespace>
-    <Version>0.4.2</Version>
+    <Version>0.5.0</Version>
     <!-- Nome exibido (Gerenciador de Tarefas, propriedades do exe). A pasta de dados continua
          %APPDATA%\UsageCockpit para não perder as configurações de quem já usa o app. -->
     <Product>Usage IA Cockpit</Product>
