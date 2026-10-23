@@ -9,6 +9,8 @@
         clique duplo fora do logo abre o modo completo e o clique direito, o menu.
         Texto em modo Ideal com suavização em tons de cinza: os números grandes ficavam serrilhados no
         modo Display da janela (contornos presos ao pixel, e sem ClearType sobre o fundo transparente).
+        Números em Segoe UI, a fonte da janela: o Cascadia Mono só existe como fonte variável, e o WPF
+        simula o negrito dela engrossando o traço, o que deixava os dígitos irregulares.
     -->
     <UserControl.Resources>
         <DataTemplate x:Key="ProviderNumbers">
@@ -19,13 +21,13 @@
                                  IsActive="{Binding ShowRing}"/>
                 </Button>
                 <TextBlock Text="{Binding SessionPercentText}" FontSize="20" FontWeight="Bold"
-                           FontFamily="{StaticResource MonoFont}" Foreground="{Binding SessionLevelBrush}"
+                           Foreground="{Binding SessionLevelBrush}"
                            VerticalAlignment="Center"/>
                 <StackPanel VerticalAlignment="Center" Margin="5,1,0,0">
                     <TextBlock Text="sem" FontSize="10" LineHeight="11" LineStackingStrategy="BlockLineHeight"
-                               FontFamily="{StaticResource MonoFont}" Foreground="{StaticResource MutedBrush}"/>
+                               Foreground="{StaticResource MutedBrush}"/>
                     <TextBlock Text="{Binding WeekPercentText}" FontSize="11" FontWeight="SemiBold" LineHeight="12"
-                               LineStackingStrategy="BlockLineHeight" FontFamily="{StaticResource MonoFont}"
+                               LineStackingStrategy="BlockLineHeight"
                                Foreground="{Binding WeekBrush}"/>
                 </StackPanel>
                 <TextBlock Text="&#xE7BA;" FontFamily="{StaticResource IconFont}" FontSize="11" Margin="4,0,0,0"
