@@ -11,16 +11,14 @@ Imagens usadas no README principal. Ao mudar o layout, substitua o arquivo mante
 | `configuracoes.png` | Janela de configurações inteira, incluindo Modo, Forma do compacto, Tema, Animação e Envio para API |
 | `bandeja.png` | Ícone da bandeja com o menu aberto |
 
-### Novos prints (versão 0.5.0)
-
-Ainda faltam no repositório. Quando adicionar, inclua as imagens no `README.md` da raiz, na seção indicada.
+### Ultra compacto e tema claro (versão 0.5.0)
 
 | Arquivo | O que mostrar | Seção do README |
 |---|---|---|
 | `ultra-compacto-horizontal.png` | Ultra compacto na horizontal, tema escuro, com as duas contas e uma delas trabalhando (anel girando) | Ultra compacto |
-| `ultra-compacto-vertical.png` | Ultra compacto na vertical, tema escuro, com as duas contas | Ultra compacto |
+| `ultra-compacto-vertical.png` | Ultra compacto na vertical, com as duas contas | Ultra compacto |
 | `tema-claro.png` | Modo completo no tema claro, com as duas contas | Tema claro ou escuro |
-| `tema-claro-compactos.png` | Compacto horizontal e ultra compacto no tema claro, lado a lado na mesma imagem | Tema claro ou escuro |
+| `tema-claro-compactos.png` | Ultra compacto horizontal no tema claro | Tema claro ou escuro |
 
 Dicas:
 - **Recorte:** use a Ferramenta de Captura do Windows (`Win + Shift + S`) e recorte só o painel, com um pouco de fundo em volta.

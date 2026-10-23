@@ -80,9 +80,15 @@ Uma coluna estreita com um mini velocímetro por conta, boa para a lateral da te
 
 O menor dos modos: só o logo e os números de cada conta, na horizontal (lado a lado) ou na vertical (empilhados). O percentual da sessão de 5h aparece grande, na cor da faixa (verde, amarelo a partir de 60%, vermelho a partir de 80%), e o percentual da semana fica pequeno, em azul. Não tem botões: passe o mouse sobre o logo para ver os indicadores completos e clique nele para atualizar aquela conta. Clique duas vezes fora do logo para abrir o modo completo, ou use o clique direito para o menu.
 
+![Ultra compacto horizontal](docs/screenshots/ultra-compacto-horizontal.png)
+![Ultra compacto vertical](docs/screenshots/ultra-compacto-vertical.png)
+
 ### Tema claro ou escuro
 
 Vale para todos os modos. Escolha em **Configurações → Tema** ou no clique direito, em **Tema**.
+
+![Modo completo no tema claro](docs/screenshots/tema-claro.png)
+![Ultra compacto no tema claro](docs/screenshots/tema-claro-compactos.png)
 
 ---
 
