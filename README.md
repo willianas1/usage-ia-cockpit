@@ -32,7 +32,8 @@ O painel fica por cima de todas as janelas, em qualquer canto de qualquer monito
 ## Funcionalidades
 
 - **Uso da sessão de 5 horas e da cota semanal** do Claude Code e do Codex, com o tempo que falta até cada limite resetar.
-- **Três modos de exibição:** completo, compacto horizontal e compacto vertical.
+- **Três modos de exibição:** completo, compacto e ultra compacto. Os dois compactos podem ficar na horizontal ou na vertical.
+- **Tema claro ou escuro,** em todos os modos.
 - **Sempre visível:** fica por cima das outras janelas e não aparece na barra de tarefas nem no Alt+Tab.
 - **Posição livre:** arraste para qualquer lugar. Perto das bordas o painel gruda nelas.
 - **Escolha do monitor:** escolha em qual monitor o painel fica. Cada monitor usa a própria escala de DPI. Se o monitor for desconectado, o painel volta para o principal.
@@ -46,7 +47,7 @@ O painel fica por cima de todas as janelas, em qualquer canto de qualquer monito
 - **Sinais visuais:**
   - **App funcionando:** os ponteiros e as pontas das barras tremem levemente o tempo todo. Dá para desligar o tremor em Configurações → Animação.
   - **Ferramenta trabalhando:** um anel colorido gira em volta do logo enquanto o Claude Code ou o Codex está em uso.
-  - **Atualização:** ao clicar em atualizar, os ponteiros descem a zero e voltam com os valores novos, mesmo com o tremor desligado.
+  - **Atualização:** ao clicar em atualizar, os ponteiros descem a zero e voltam com os valores novos, mesmo com o tremor desligado. Nos modos compactos, o clique no logo atualiza só aquela conta, e o anel gira enquanto ela atualiza.
 - **Minimizar para a bandeja:** o painel some, e um clique no ícone da bandeja traz ele de volta.
 - **Nunca fica em branco:** se uma consulta falhar, o painel mostra a última leitura boa com um aviso ⚠. Se a leitura tiver mais de 15 minutos, a conta fica levemente esmaecida.
 - **Envio para API (opcional):** manda o uso atual para uma API sua, para usar os mesmos números em um dashboard, bot ou widget. Veja [docs/API.md](docs/API.md).
@@ -64,16 +65,24 @@ Um mostrador com ponteiro por conta para a sessão de 5 horas. Embaixo de cada m
 
 ### Compacto horizontal
 
-Uma faixa fina, com duas barras por conta e o percentual ao lado de cada uma: sessão de 5h e semana (em azul).
+Uma faixa fina, com duas barras por conta e o percentual ao lado de cada uma: sessão de 5h e semana (em azul). **Passe o mouse sobre o logo** para ver os indicadores completos e clique nele para atualizar aquela conta.
 
 ![Compacto horizontal](docs/screenshots/compacto-horizontal.png)
 
 ### Compacto vertical
 
-Uma coluna estreita com um mini velocímetro por conta, boa para a lateral da tela. O arco externo e o ponteiro mostram a sessão de 5h; o arco azul, mais fino e por dentro, mostra o uso semanal. Embaixo ficam o tempo até o reset da sessão e o percentual da semana. **Passe o mouse sobre um velocímetro para ver os detalhes**, como o horário do reset semanal. Pode ser reduzido de 100% até 60%.
+Uma coluna estreita com um mini velocímetro por conta, boa para a lateral da tela. O arco externo e o ponteiro mostram a sessão de 5h; o arco azul, mais fino e por dentro, mostra o uso semanal. Embaixo ficam o tempo até o reset da sessão e o percentual da semana. **Passe o mouse sobre o logo no centro do velocímetro** para ver os indicadores completos, como o horário do reset semanal, e clique nele para atualizar aquela conta. Pode ser reduzido de 100% até 60%.
 
 ![Compacto vertical](docs/screenshots/compacto-vertical.png)
 ![Uso semanal ao passar o mouse](docs/screenshots/uso-semanal-hover.png)
+
+### Ultra compacto
+
+O menor dos modos: só o logo e os números de cada conta, na horizontal (lado a lado) ou na vertical (empilhados). O percentual da sessão de 5h aparece grande, na cor da faixa (verde, amarelo a partir de 60%, vermelho a partir de 80%), e o percentual da semana fica pequeno, em azul. Não tem botões: passe o mouse sobre o logo para ver os indicadores completos e clique nele para atualizar aquela conta. Clique duas vezes fora do logo para abrir o modo completo, ou use o clique direito para o menu.
+
+### Tema claro ou escuro
+
+Vale para todos os modos. Escolha em **Configurações → Tema** ou no clique direito, em **Tema**.
 
 ---
 
@@ -145,7 +154,7 @@ O valor tem que ser igual ao da linha correspondente no `SHA256SUMS.txt` (o Powe
 |---|---|
 | Mover | Arraste por qualquer parte do painel. Perto das bordas ele gruda. |
 | Trocar de modo | Botão de compactar ou expandir no painel, duplo clique, clique direito ou menu da bandeja |
-| Atualizar agora | Botão ⟳ no painel, clique direito ou menu da bandeja |
+| Atualizar agora | Botão ⟳ no modo completo, clique no logo de uma conta nos modos compactos, clique direito ou menu da bandeja |
 | Redimensionar | Alça no canto inferior direito, **Ctrl + roda do mouse** ou Configurações |
 | Escolher o monitor | Ícone de monitor no painel, clique direito → Monitor, ou Configurações |
 | Posições rápidas | Clique direito → Posição: cantos ou centro |
@@ -153,7 +162,7 @@ O valor tem que ser igual ao da linha correspondente no `SHA256SUMS.txt` (o Powe
 | Escolher as contas | Clique direito → Contas, ou Configurações |
 | Minimizar para a bandeja | Botão — no painel ou clique direito |
 | Restaurar | Clique no ícone da bandeja |
-| Ver detalhes | Passe o mouse sobre um mostrador ou uma barra |
+| Ver detalhes | Passe o mouse sobre um mostrador no modo completo, ou sobre o logo nos modos compactos |
 | Sair | Clique direito → Sair, ou menu da bandeja → Sair |
 
 O duplo clique e o botão de compactar alternam entre o modo completo e o **último modo compacto usado**.
@@ -180,7 +189,9 @@ Todas as opções ficam na janela **Configurações** e valem na hora, enquanto 
 
 | Opção | Descrição | Padrão |
 |---|---|---|
-| Modo | Completo, compacto horizontal ou compacto vertical | Completo |
+| Modo | Completo, compacto ou ultra compacto | Completo |
+| Forma do compacto | Horizontal ou vertical, para o compacto e o ultra compacto | Horizontal |
+| Tema | Escuro ou claro, em todos os modos | Escuro |
 | Contas monitoradas | Claude Code, Codex (ChatGPT) ou as duas. Pelo menos uma fica marcada | As duas |
 | Tamanho do modo completo | De 55% a 160% | 100% |
 | Tamanho do compacto vertical | De 60% a 100% | 100% |
@@ -299,7 +310,7 @@ UsageCockpit/
     Instruments.cs      barras do modo completo e do compacto
     Animation.cs        relógio das animações e anel em volta do logo
     Palette.cs          cores, faixas de uso e logos
-  Views/                modo completo, compacto horizontal e compacto vertical
+  Views/                modo completo, compacto e ultra compacto (horizontal e vertical)
   OverlayWindow.*       janela flutuante: arrastar, redimensionar, menus
   SettingsWindow.*      tela de configurações
   PublishWindow.*       configuração do envio para API

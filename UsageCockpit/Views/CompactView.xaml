@@ -4,11 +4,13 @@
              xmlns:c="clr-namespace:UsageCockpit.Controls">
     <UserControl.Resources>
         <DataTemplate x:Key="ProviderBars">
-            <StackPanel Orientation="Horizontal" ToolTip="{Binding Tooltip}" Background="Transparent"
-                        Style="{StaticResource StaleFade}">
-                <!-- Em uso: anel colorido girando em volta do logo -->
-                <c:LogoBadge Logo="{Binding Logo}" LogoFill="{Binding LogoBrush}" Brand="{Binding Brand}"
-                             IsActive="{Binding IsActive}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+            <StackPanel Orientation="Horizontal" Background="Transparent" Style="{StaticResource StaleFade}">
+                <!-- Em uso: anel colorido girando em volta do logo. Clique: atualiza esta conta. -->
+                <Button Style="{StaticResource LogoButton}" ToolTip="{StaticResource ProviderTip}" Click="Logo_Click"
+                        VerticalAlignment="Center" Margin="0,0,8,0">
+                    <c:LogoBadge Logo="{Binding Logo}" LogoFill="{Binding LogoBrush}" Brand="{Binding Brand}"
+                                 IsActive="{Binding ShowRing}"/>
+                </Button>
                 <Grid VerticalAlignment="Center">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="24"/>
@@ -52,9 +54,7 @@
                     Visibility="{Binding ShowDivider, Converter={StaticResource BoolToVis}}"/>
             <ContentControl Content="{Binding Codex}" ContentTemplate="{StaticResource ProviderBars}"
                             Visibility="{Binding ShowCodex, Converter={StaticResource BoolToVis}}"/>
-            <Button Style="{StaticResource IconButton}" Content="&#xE72C;" ToolTip="Atualizar agora" Margin="6,0,0,0"
-                    Click="Refresh_Click"/>
-            <Button Style="{StaticResource IconButton}" Content="&#xE740;" ToolTip="Modo completo"
+            <Button Style="{StaticResource IconButton}" Content="&#xE740;" ToolTip="Modo completo" Margin="6,0,0,0"
                     Click="Expand_Click"/>
             <Button Style="{StaticResource IconButton}" Content="&#xE921;" ToolTip="Minimizar para a bandeja"
                     Click="Minimize_Click"/>

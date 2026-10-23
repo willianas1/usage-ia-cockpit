@@ -228,7 +228,7 @@ public partial class App : Application
         Save(new VerticalView { DataContext = vm }, Path.Combine(dir, "vertical-claude-active.png"));
 
         // Conteúdo da dica semanal do modo vertical (a dica em si só abre com o mouse).
-        if (new VerticalView().Resources["WeekTip"] is ToolTip tip && tip.Content is FrameworkElement tipBody)
+        if (Current.Resources["ProviderTip"] is ToolTip tip && tip.Content is FrameworkElement tipBody)
         {
             tip.Content = null;
             Save(new Border
@@ -237,6 +237,21 @@ public partial class App : Application
                 Padding = tip.Padding, Child = tipBody, DataContext = vm.Claude,
             }, Path.Combine(dir, "vertical-tooltip.png"));
         }
+
+        Save(new UltraCompactView { DataContext = vm }, Path.Combine(dir, "ultra-85.png"));
+        Save(new UltraCompactVerticalView { DataContext = vm }, Path.Combine(dir, "ultra-vertical-85.png"));
+
+        // Tema claro: as views pegam as cores ao serem criadas.
+        vm.Theme = AppTheme.Light;
+        Save(new FullView { DataContext = vm }, Path.Combine(dir, "light-full.png"));
+        Save(new CompactView { DataContext = vm }, Path.Combine(dir, "light-compact.png"));
+        Save(new VerticalView { DataContext = vm }, Path.Combine(dir, "light-vertical.png"));
+        Save(new UltraCompactView { DataContext = vm }, Path.Combine(dir, "light-ultra.png"));
+        Save(new UltraCompactVerticalView { DataContext = vm }, Path.Combine(dir, "light-ultra-vertical.png"));
+        vm.BackgroundOpacity = 25;
+        Save(new UltraCompactView { DataContext = vm }, Path.Combine(dir, "light-ultra-25.png"));
+        vm.BackgroundOpacity = 85;
+        vm.Theme = AppTheme.Dark;
 
         vm.FullScale = 0.7;
         vm.VerticalScale = 0.6;

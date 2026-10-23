@@ -1,0 +1,50 @@
+<UserControl x:Class="UsageCockpit.Views.UltraCompactVerticalView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="clr-namespace:UsageCockpit.Controls"
+             TextOptions.TextFormattingMode="Ideal" TextOptions.TextRenderingMode="Grayscale">
+    <!--
+        Ultra compacto em pé: o mesmo conteúdo do horizontal, empilhado (logo, sessão de 5h e semanal).
+        Sem botões: o logo mostra os indicadores completos ao passar o mouse e atualiza a conta no clique;
+        clique duplo fora do logo abre o modo completo e o clique direito, o menu.
+    -->
+    <UserControl.Resources>
+        <DataTemplate x:Key="ProviderNumbers">
+            <StackPanel Background="Transparent" Style="{StaticResource StaleFade}">
+                <Grid HorizontalAlignment="Center">
+                    <Button Style="{StaticResource LogoButton}" ToolTip="{StaticResource ProviderTip}"
+                            ToolTipService.Placement="Left" ToolTipService.HorizontalOffset="-6" Click="Logo_Click">
+                        <c:LogoBadge Logo="{Binding Logo}" LogoFill="{Binding LogoBrush}" Brand="{Binding Brand}"
+                                     IsActive="{Binding ShowRing}"/>
+                    </Button>
+                    <TextBlock Text="&#xE7BA;" FontFamily="{StaticResource IconFont}" FontSize="10"
+                               HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,0,-10,0"
+                               Foreground="{StaticResource WarnBrush}"
+                               Visibility="{Binding HasError, Converter={StaticResource BoolToVis}}"/>
+                </Grid>
+                <TextBlock Text="{Binding SessionPercentText}" FontSize="20" FontWeight="Bold" HorizontalAlignment="Center"
+                           FontFamily="{StaticResource MonoFont}" Foreground="{Binding SessionLevelBrush}"/>
+                <TextBlock HorizontalAlignment="Center" FontSize="10" FontFamily="{StaticResource MonoFont}"
+                           Foreground="{StaticResource MutedBrush}">
+                    <Run Text="sem"/>
+                    <Run Text="{Binding WeekPercentText, Mode=OneWay}" FontSize="11" FontWeight="SemiBold"
+                         Foreground="{Binding WeekBrush, Mode=OneWay}"/>
+                </TextBlock>
+            </StackPanel>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <Border Background="{Binding PanelBackground}" BorderBrush="{Binding PanelBorder}" BorderThickness="1"
+            CornerRadius="16" Padding="8,4,8,8" MinWidth="64">
+        <StackPanel Style="{StaticResource ShadowWhenTransparent}">
+            <TextBlock Text="&#xE76F;" FontFamily="{StaticResource IconFont}" FontSize="12" Margin="0,0,0,2"
+                       HorizontalAlignment="Center" Foreground="{StaticResource MutedBrush}" Cursor="SizeAll"/>
+            <ContentControl Content="{Binding Claude}" ContentTemplate="{StaticResource ProviderNumbers}"
+                            Visibility="{Binding ShowClaude, Converter={StaticResource BoolToVis}}"/>
+            <Border Height="1" Margin="6,7" Background="{Binding PanelBorder}"
+                    Visibility="{Binding ShowDivider, Converter={StaticResource BoolToVis}}"/>
+            <ContentControl Content="{Binding Codex}" ContentTemplate="{StaticResource ProviderNumbers}"
+                            Visibility="{Binding ShowCodex, Converter={StaticResource BoolToVis}}"/>
+        </StackPanel>
+    </Border>
+</UserControl>

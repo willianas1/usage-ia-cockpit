@@ -68,8 +68,37 @@ public static class SnapshotCache
     }
 }
 
-/// <summary>Completo (cockpit), compacto horizontal (faixa) e compacto vertical (coluna).</summary>
-public enum DisplayMode { Full, Compact, CompactVertical }
+/// <summary>
+/// Completo (cockpit), compacto (barras ou mini velocímetros) e ultra compacto (só os números),
+/// os dois últimos na horizontal (faixa) ou na vertical (coluna).
+/// </summary>
+public enum DisplayMode { Full, Compact, CompactVertical, UltraCompact, UltraCompactVertical }
+
+/// <summary>O tamanho do painel, escolhido à parte da forma (horizontal ou vertical).</summary>
+public enum PanelSize { Full, Compact, Ultra }
+
+public static class DisplayModes
+{
+    public static PanelSize SizeOf(DisplayMode m) => m switch
+    {
+        DisplayMode.Compact or DisplayMode.CompactVertical => PanelSize.Compact,
+        DisplayMode.UltraCompact or DisplayMode.UltraCompactVertical => PanelSize.Ultra,
+        _ => PanelSize.Full,
+    };
+
+    public static bool IsVertical(DisplayMode m) =>
+        m is DisplayMode.CompactVertical or DisplayMode.UltraCompactVertical;
+
+    /// <summary>Junta o tamanho e a forma; o modo completo não tem forma.</summary>
+    public static DisplayMode Of(PanelSize size, bool vertical) => size switch
+    {
+        PanelSize.Compact => vertical ? DisplayMode.CompactVertical : DisplayMode.Compact,
+        PanelSize.Ultra => vertical ? DisplayMode.UltraCompactVertical : DisplayMode.UltraCompact,
+        _ => DisplayMode.Full,
+    };
+}
+
+public enum AppTheme { Dark, Light }
 
 public enum Corner { TopLeft, TopRight, BottomLeft, BottomRight, Center }
 
@@ -79,6 +108,9 @@ public sealed class AppSettings
 
     /// <summary>Último modo compacto usado: é para ele que o botão "compactar" do modo completo volta.</summary>
     public DisplayMode LastCompactMode { get; set; } = DisplayMode.Compact;
+
+    /// <summary>Tema do painel em todos os modos.</summary>
+    public AppTheme Theme { get; set; } = AppTheme.Dark;
 
     /// <summary>Opacidade do fundo, de 0 a 100. O conteúdo (ponteiros, textos) fica sempre opaco.</summary>
     public int BackgroundOpacity { get; set; } = 85;

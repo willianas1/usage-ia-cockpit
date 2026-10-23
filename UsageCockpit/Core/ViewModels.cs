@@ -6,6 +6,7 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Media;
+using System.Windows.Media.Effects;
 using UsageCockpit.Controls;
 
 namespace UsageCockpit.Core;
@@ -42,24 +43,54 @@ public sealed class ProviderViewModel : Observable
     int _sweepToken;
 
     public ProviderViewModel(IUsageProvider provider, ActivityMonitor activity, string label, Geometry logo,
-        Brush brand, Brush logoBrush)
+        Brush brand, Brush? logoBrush)
     {
         _provider = provider;
         _activity = activity;
         Label = label;
         Logo = logo;
         Brand = brand;
-        LogoBrush = logoBrush;
+        _logoBrush = logoBrush;
         _last = SnapshotCache.Get(provider.Name);
     }
 
     public string Label { get; }
     public Geometry Logo { get; }
     public Brush Brand { get; }
-    public Brush LogoBrush { get; }
+    readonly Brush? _logoBrush;
+
+    /// <summary>Cor do logo. Nula: a cor do texto do tema (o logo da OpenAI é monocromático).</summary>
+    public Brush LogoBrush => _logoBrush ?? Palette.Text;
 
     /// <summary>A ferramenta está trabalhando agora (os ponteiros tremem).</summary>
-    public bool IsActive { get => _isActive; private set => Set(ref _isActive, value); }
+    public bool IsActive { get => _isActive; private set { if (Set(ref _isActive, value)) Raise(nameof(ShowRing)); } }
+
+    bool _isRefreshing;
+
+    /// <summary>Atualização pedida pelo clique no logo, em andamento.</summary>
+    public bool IsRefreshing { get => _isRefreshing; private set { if (Set(ref _isRefreshing, value)) Raise(nameof(ShowRing)); } }
+
+    /// <summary>Anel girando em volta do logo nos modos compactos: ferramenta em uso ou atualizando.</summary>
+    public bool ShowRing => IsActive || IsRefreshing;
+
+    /// <summary>
+    /// Atualização desta conta pelo clique no logo. O anel gira por pelo menos 0,8 s, para o
+    /// clique ter resposta visível mesmo quando a consulta volta na hora.
+    /// </summary>
+    public async Task RefreshNowAsync()
+    {
+        if (IsRefreshing) return;
+        IsRefreshing = true;
+        Sweep();
+        try
+        {
+            await Task.WhenAll(RefreshAsync(force: true, CancellationToken.None), Task.Delay(800));
+        }
+        finally
+        {
+            IsRefreshing = false;
+        }
+    }
 
     /// <summary>Muda a cada atualização manual; os mostradores fazem a varredura até zero e voltam.</summary>
     public int SweepToken { get => _sweepToken; private set => Set(ref _sweepToken, value); }
@@ -83,6 +114,9 @@ public sealed class ProviderViewModel : Observable
     public UsageSnapshot? Last => _last;
 
     public DateTimeOffset? LastActivityAt => _activity.LastActivityAt;
+
+    public string UpdatedText => _last == null ? ""
+        : $"Atualizado {Ago(_last.FetchedAt)}{(_last.Source == "logs" ? " (logs locais)" : "")}";
 
     public string ShortStatus => _last == null ? $"{Label}: --" : $"{Label}: 5h {SessionPercentText} · sem {WeekPercentText}";
 
@@ -146,7 +180,7 @@ public sealed class ProviderViewModel : Observable
                      nameof(HasData), nameof(SessionPercent), nameof(WeekPercent), nameof(SessionPercentText),
                      nameof(WeekPercentText), nameof(SessionLevelBrush), nameof(WeekLevelBrush), nameof(WeekBrush), nameof(WeekBandBrush),
                      nameof(SessionResetText), nameof(WeekResetText), nameof(IsStale), nameof(Tooltip),
-                     nameof(ShortStatus), nameof(SessionResetShort),
+                     nameof(ShortStatus), nameof(SessionResetShort), nameof(UpdatedText),
                  })
             Raise(p);
     }
@@ -189,7 +223,8 @@ public sealed class MainViewModel : Observable
         Claude = new ProviderViewModel(new ClaudeProvider(), ActivityMonitor.ForClaude(), "Claude Code",
             Logos.Claude, Palette.Clay, Palette.Clay);
         Codex = new ProviderViewModel(new CodexProvider(), ActivityMonitor.ForCodex(), "Codex (ChatGPT)",
-            Logos.OpenAI, Palette.OpenAIGreen, Palette.Text);
+            Logos.OpenAI, Palette.OpenAIGreen, null);
+        Palette.ApplyTheme(settings.Theme == AppTheme.Light);
     }
 
     /// <summary>
@@ -221,6 +256,13 @@ public sealed class MainViewModel : Observable
         return RefreshAsync(force: true);
     }
 
+    /// <summary>Atualização de uma conta só, pelo clique no logo nos modos compactos.</summary>
+    public async Task RefreshProviderAsync(ProviderViewModel provider)
+    {
+        await provider.RefreshNowAsync();
+        Refreshed?.Invoke();
+    }
+
     public ProviderViewModel Claude { get; }
     public ProviderViewModel Codex { get; }
 
@@ -238,11 +280,52 @@ public sealed class MainViewModel : Observable
         }
     }
 
+    /// <summary>Completo, compacto ou ultra compacto; a forma vem de <see cref="Vertical"/>.</summary>
+    public PanelSize Size
+    {
+        get => DisplayModes.SizeOf(Mode);
+        set => Mode = DisplayModes.Of(value, Vertical);
+    }
+
+    /// <summary>
+    /// Forma dos modos compactos. No modo completo vale a do último compacto usado,
+    /// e mudá-la só define como o próximo compacto vai abrir.
+    /// </summary>
+    public bool Vertical
+    {
+        get => DisplayModes.IsVertical(Mode == DisplayMode.Full ? _settings.LastCompactMode : Mode);
+        set
+        {
+            if (Mode != DisplayMode.Full)
+            {
+                Mode = DisplayModes.Of(Size, value);
+                return;
+            }
+            var last = DisplayModes.SizeOf(_settings.LastCompactMode);
+            _settings.LastCompactMode = DisplayModes.Of(last == PanelSize.Full ? PanelSize.Compact : last, value);
+            _settings.Save();
+        }
+    }
+
     /// <summary>Alterna entre o modo completo e o último modo compacto usado.</summary>
     public void ToggleMode() =>
         Mode = Mode == DisplayMode.Full
             ? (_settings.LastCompactMode == DisplayMode.Full ? DisplayMode.Compact : _settings.LastCompactMode)
             : DisplayMode.Full;
+
+    public AppTheme Theme
+    {
+        get => _settings.Theme;
+        set
+        {
+            if (_settings.Theme == value) return;
+            _settings.Theme = value;
+            Palette.ApplyTheme(value == AppTheme.Light);
+            _settings.Save();
+            Raise();
+            RaiseBackground();
+        }
+    }
 
     public int BackgroundOpacity
     {
@@ -260,11 +343,30 @@ public sealed class MainViewModel : Observable
     // cliques, e o usuário perderia a capacidade de arrastar o app pelo fundo.
     byte Alpha(double max) => (byte)Math.Max(1, Math.Round(255 * max * _settings.BackgroundOpacity / 100.0));
 
-    public Brush PanelBackground => Frozen(Color.FromArgb(Alpha(1), 0x0F, 0x12, 0x16));
-    public Brush PanelBorder => Frozen(Color.FromArgb(Alpha(1), 0x2D, 0x33, 0x3B));
+    bool Light => _settings.Theme == AppTheme.Light;
+
+    public Brush PanelBackground => Light
+        ? Frozen(Color.FromArgb(Alpha(1), 0xFF, 0xFF, 0xFF))
+        : Frozen(Color.FromArgb(Alpha(1), 0x0F, 0x12, 0x16));
+
+    public Brush PanelBorder => Light
+        ? Frozen(Color.FromArgb(Alpha(1), 0xD0, 0xD7, 0xDE))
+        : Frozen(Color.FromArgb(Alpha(1), 0x2D, 0x33, 0x3B));
 
     /// <summary>Com fundo bem transparente, uma sombra leve nos textos mantém a leitura sobre qualquer janela.</summary>
     public bool UseTextShadow => _settings.BackgroundOpacity < 60;
+
+    static readonly Effect DarkShadow = FrozenShadow(Colors.Black), LightShadow = FrozenShadow(Colors.White);
+
+    /// <summary>Sombra dos textos: preta no tema escuro, branca no claro (o texto é escuro).</summary>
+    public Effect? TextShadow => !UseTextShadow ? null : Light ? LightShadow : DarkShadow;
+
+    static Effect FrozenShadow(Color c)
+    {
+        var e = new DropShadowEffect { BlurRadius = 8, ShadowDepth = 0, Opacity = 1, Color = c };
+        e.Freeze();
+        return e;
+    }
 
     public const double MinScale = 0.55, MaxScale = 1.6;
 
@@ -338,6 +440,7 @@ public sealed class MainViewModel : Observable
         Raise(nameof(PanelBackground));
         Raise(nameof(PanelBorder));
         Raise(nameof(UseTextShadow));
+        Raise(nameof(TextShadow));
     }
 
     public async Task RefreshAsync(bool force, CancellationToken ct = default)

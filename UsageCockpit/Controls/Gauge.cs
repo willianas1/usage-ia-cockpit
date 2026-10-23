@@ -57,11 +57,12 @@ public sealed class Gauge : Instrument
     const double W = 160, H = 128, Cx = 80, Cy = 72, R = 56, Start = 135, Sweep = 270;
     const double DownSeconds = 0.45, UpSeconds = 0.9;
 
-    static readonly Pen TrackPen = MakePen(Palette.Track, 8);
+    // Pens com cores do tema são do mostrador, não estáticos: a view é recriada ao trocar de tema.
+    readonly Pen TrackPen = MakePen(Palette.Track, 8);
     static readonly Pen WarnZonePen = MakePen(Palette.WarnSoft, 8);
     static readonly Pen DangerZonePen = MakePen(Palette.DangerSoft, 8);
-    static readonly Pen NeedlePen = MakePen(Palette.Needle, 2.5, PenLineCap.Round);
-    static readonly Pen HubPen = MakePen(Palette.HubRim, 1);
+    readonly Pen NeedlePen = MakePen(Palette.Needle, 2.5, PenLineCap.Round);
+    readonly Pen HubPen = MakePen(Palette.HubRim, 1);
     static readonly Pen WarnPen = MakePen(Palette.Warn, 8);
     static readonly Pen DangerPen = MakePen(Palette.Danger, 8);
     static readonly Geometry TrackArc = Arc(R, Start, Start + Sweep);
@@ -70,8 +71,8 @@ public sealed class Gauge : Instrument
 
     // Arco interno: mais fino e afastado do principal, para as duas escalas não se confundirem.
     const double InnerR = R - 15, InnerWidth = 4;
-    static readonly Pen InnerTrackPen = MakePen(Palette.Track, InnerWidth);
-    static readonly Pen InnerPen = MakePen(Palette.WeekBlue, InnerWidth);
+    readonly Pen InnerTrackPen = MakePen(Palette.Track, InnerWidth);
+    readonly Pen InnerPen = MakePen(Palette.WeekBlue, InnerWidth);
     static readonly Pen InnerDangerPen = MakePen(Palette.WeekDanger, InnerWidth);
     static readonly Geometry InnerTrackArc = Arc(InnerR, Start, Start + Sweep);
 

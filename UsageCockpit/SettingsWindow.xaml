@@ -26,11 +26,25 @@
 
     <StackPanel Margin="20,6,20,20">
         <TextBlock Text="MODO" Style="{StaticResource Section}"/>
-        <WrapPanel>
-            <RadioButton x:Name="FullMode" Content="Completo" Checked="Mode_Checked" Margin="0,0,18,4"/>
-            <RadioButton x:Name="CompactMode" Content="Compacto horizontal" Checked="Mode_Checked" Margin="0,0,18,4"/>
-            <RadioButton x:Name="VerticalMode" Content="Compacto vertical" Checked="Mode_Checked" Margin="0,0,0,4"/>
-        </WrapPanel>
+        <StackPanel Orientation="Horizontal">
+            <RadioButton x:Name="FullMode" Content="Completo" GroupName="Size" Checked="Mode_Checked"/>
+            <RadioButton x:Name="CompactMode" Content="Compacto" GroupName="Size" Checked="Mode_Checked"/>
+            <RadioButton x:Name="UltraMode" Content="Ultra compacto" GroupName="Size" Checked="Mode_Checked"/>
+        </StackPanel>
+
+        <TextBlock Text="FORMA DO COMPACTO" Style="{StaticResource Section}"/>
+        <StackPanel Orientation="Horizontal">
+            <RadioButton x:Name="HorizontalShape" Content="Horizontal" GroupName="Shape" Checked="Shape_Checked"/>
+            <RadioButton x:Name="VerticalShape" Content="Vertical" GroupName="Shape" Checked="Shape_Checked"/>
+        </StackPanel>
+        <TextBlock Text="Vale para o compacto e o ultra compacto. No modo completo, define como o compacto vai abrir."
+                   FontSize="11" Foreground="#8B949E" Margin="0,4,0,0" TextWrapping="Wrap"/>
+
+        <TextBlock Text="TEMA" Style="{StaticResource Section}"/>
+        <StackPanel Orientation="Horizontal">
+            <RadioButton x:Name="DarkTheme" Content="Escuro" GroupName="Theme" Checked="Theme_Checked"/>
+            <RadioButton x:Name="LightTheme" Content="Claro" GroupName="Theme" Checked="Theme_Checked"/>
+        </StackPanel>
 
         <TextBlock Text="CONTAS MONITORADAS" Style="{StaticResource Section}"/>
         <StackPanel Orientation="Horizontal">

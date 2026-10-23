@@ -12,19 +12,35 @@ public static class Palette
     public static readonly Brush Warn = Make(0xEF, 0x9F, 0x27);
     public static readonly Brush Danger = Make(0xE2, 0x4B, 0x4A);
     public static readonly Brush DangerSoft = Make(0xE2, 0x4B, 0x4A, 0x59);
-    public static readonly Brush Track = Make(0x23, 0x28, 0x2F);
     public static readonly Brush LedOff = Make(0x22, 0x27, 0x2E);
     public static readonly Brush LedRim = Make(0x2D, 0x33, 0x3B);
-    public static readonly Brush Tick = Make(0x6B, 0x72, 0x80);
-    public static readonly Brush Muted = Make(0x8B, 0x94, 0x9E);
-    public static readonly Brush Text = Make(0xD0, 0xD7, 0xDE);
-    public static readonly Brush Needle = Make(0xF5, 0xF5, 0xF5);
-    public static readonly Brush Hub = Make(0x0B, 0x0D, 0x10);
-    public static readonly Brush HubRim = Make(0x3A, 0x40, 0x48);
-    public static readonly Brush NoData = Make(0x6B, 0x72, 0x80);
+
+    /// <summary>
+    /// Tema claro: neutros invertidos e tons de texto mais escuros, para ler sobre fundo branco.
+    /// As views são recriadas ao trocar de tema, então quem lê estas cores ao desenhar já pega as novas.
+    /// </summary>
+    public static bool Light { get; private set; }
+
+    static readonly Brush TrackDark = Make(0x23, 0x28, 0x2F), TrackLight = Make(0xE3, 0xE7, 0xEC);
+    static readonly Brush TickDark = Make(0x6B, 0x72, 0x80), TickLight = Make(0x8C, 0x95, 0x9F);
+    static readonly Brush MutedDark = Make(0x8B, 0x94, 0x9E), MutedLight = Make(0x57, 0x60, 0x6A);
+    static readonly Brush TextDark = Make(0xD0, 0xD7, 0xDE), TextLight = Make(0x1F, 0x23, 0x28);
+    static readonly Brush NeedleDark = Make(0xF5, 0xF5, 0xF5), NeedleLight = Make(0x24, 0x29, 0x2F);
+    static readonly Brush HubDark = Make(0x0B, 0x0D, 0x10), HubLight = Make(0xF0, 0xF2, 0xF5);
+    static readonly Brush HubRimDark = Make(0x3A, 0x40, 0x48), HubRimLight = Make(0xC9, 0xD1, 0xD9);
+    static readonly Brush WeekBlueDark = Make(0x4C, 0x9A, 0xFF), WeekBlueLight = Make(0x1F, 0x6F, 0xEB);
+
+    public static Brush Track => Light ? TrackLight : TrackDark;
+    public static Brush Tick => Light ? TickLight : TickDark;
+    public static Brush Muted => Light ? MutedLight : MutedDark;
+    public static Brush Text => Light ? TextLight : TextDark;
+    public static Brush Needle => Light ? NeedleLight : NeedleDark;
+    public static Brush Hub => Light ? HubLight : HubDark;
+    public static Brush HubRim => Light ? HubRimLight : HubRimDark;
+    public static Brush NoData => Tick;
 
     // Uso semanal em todos os modos: cores próprias, para não se confundir com o da sessão.
-    public static readonly Brush WeekBlue = Make(0x4C, 0x9A, 0xFF);
+    public static Brush WeekBlue => Light ? WeekBlueLight : WeekBlueDark;
     public static readonly Brush WeekDanger = Make(0xD6, 0x33, 0x84);
     public static readonly Brush WeekWarn = Make(0xE8, 0xD4, 0x4D);
     public static readonly Brush WeekWarnSoft = Make(0xE8, 0xD4, 0x4D, 0x40);
@@ -46,7 +62,27 @@ public static class Palette
 
     /// <summary>Cor do número: verde abaixo de 60%, amarelo até 80%, vermelho acima.</summary>
     public static Brush Level(double pct, bool hasData = true) =>
-        !hasData ? NoData : pct < WarnFrom ? Ok : pct < DangerFrom ? Warn : Danger;
+        !hasData ? NoData
+        : Light ? (pct < WarnFrom ? OkText : pct < DangerFrom ? WarnText : DangerText)
+        : pct < WarnFrom ? Ok : pct < DangerFrom ? Warn : Danger;
+
+    // Os mesmos tons, escurecidos para os números no tema claro.
+    static readonly Brush OkText = Make(0x1A, 0x7F, 0x37);
+    static readonly Brush WarnText = Make(0xBC, 0x6C, 0x00);
+    static readonly Brush DangerText = Make(0xCF, 0x22, 0x2E);
+
+    /// <summary>Troca o tema: cores desenhadas em código e os pincéis compartilhados do App.xaml.</summary>
+    public static void ApplyTheme(bool light)
+    {
+        Light = light;
+        if (System.Windows.Application.Current?.Resources is not { } res) return;
+        res["MutedBrush"] = Muted;
+        res["TextBrush"] = Text;
+        res["ButtonHoverBrush"] = light ? Make(0xE6, 0xEA, 0xEF) : Make(0x2A, 0x30, 0x38);
+        res["ButtonHoverText"] = light ? Make(0x1F, 0x23, 0x28) : Make(0xF0, 0xF3, 0xF6);
+        res["TipBackground"] = light ? Make(0xFF, 0xFF, 0xFF) : Make(0x15, 0x18, 0x1D);
+        res["TipBorder"] = light ? Make(0xD0, 0xD7, 0xDE) : Make(0x2D, 0x33, 0x3B);
+    }
 
     /// <summary>Cor das barras: a da marca abaixo de 60%; depois amarelo e vermelho como as faixas.</summary>
     public static Brush Bar(double pct, Brush brand) =>

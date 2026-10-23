@@ -33,9 +33,13 @@ public partial class SettingsWindow : Window
         publisher.OutcomeChanged += ShowPublishStatus;
 
         _loading = true;
-        FullMode.IsChecked = settings.Mode == DisplayMode.Full;
-        CompactMode.IsChecked = settings.Mode == DisplayMode.Compact;
-        VerticalMode.IsChecked = settings.Mode == DisplayMode.CompactVertical;
+        FullMode.IsChecked = vm.Size == PanelSize.Full;
+        CompactMode.IsChecked = vm.Size == PanelSize.Compact;
+        UltraMode.IsChecked = vm.Size == PanelSize.Ultra;
+        HorizontalShape.IsChecked = !vm.Vertical;
+        VerticalShape.IsChecked = vm.Vertical;
+        DarkTheme.IsChecked = settings.Theme == AppTheme.Dark;
+        LightTheme.IsChecked = settings.Theme == AppTheme.Light;
         OpacitySlider.Value = settings.BackgroundOpacity;
         OpacityLabel.Text = $"{settings.BackgroundOpacity}%";
         SnapCheck.IsChecked = settings.SnapToEdges;
@@ -61,9 +65,21 @@ public partial class SettingsWindow : Window
     void Mode_Checked(object sender, RoutedEventArgs e)
     {
         if (_loading) return;
-        _vm.Mode = FullMode.IsChecked == true ? DisplayMode.Full
-            : VerticalMode.IsChecked == true ? DisplayMode.CompactVertical
-            : DisplayMode.Compact;
+        _vm.Size = FullMode.IsChecked == true ? PanelSize.Full
+            : UltraMode.IsChecked == true ? PanelSize.Ultra
+            : PanelSize.Compact;
+    }
+
+    void Shape_Checked(object sender, RoutedEventArgs e)
+    {
+        if (_loading) return;
+        _vm.Vertical = VerticalShape.IsChecked == true;
+    }
+
+    void Theme_Checked(object sender, RoutedEventArgs e)
+    {
+        if (_loading) return;
+        _vm.Theme = LightTheme.IsChecked == true ? AppTheme.Light : AppTheme.Dark;
     }
 
     void Opacity_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)

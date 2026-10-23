@@ -1,6 +1,7 @@
 <Application x:Class="UsageCockpit.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="clr-namespace:UsageCockpit.Controls"
              ShutdownMode="OnExplicitShutdown">
     <Application.Resources>
         <FontFamily x:Key="IconFont">Segoe Fluent Icons, Segoe MDL2 Assets</FontFamily>
@@ -9,12 +10,17 @@
         <SolidColorBrush x:Key="TextBrush" Color="#D0D7DE"/>
         <SolidColorBrush x:Key="WarnBrush" Color="#EF9F27"/>
         <SolidColorBrush x:Key="DividerBrush" Color="#22272E"/>
+        <!-- Trocados pelo Palette.ApplyTheme conforme o tema (claro ou escuro) -->
+        <SolidColorBrush x:Key="ButtonHoverBrush" Color="#2A3038"/>
+        <SolidColorBrush x:Key="ButtonHoverText" Color="#F0F3F6"/>
+        <SolidColorBrush x:Key="TipBackground" Color="#15181D"/>
+        <SolidColorBrush x:Key="TipBorder" Color="#2D333B"/>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
 
         <Style x:Key="IconButton" TargetType="Button">
             <Setter Property="FontFamily" Value="{StaticResource IconFont}"/>
             <Setter Property="FontSize" Value="13"/>
-            <Setter Property="Foreground" Value="{StaticResource MutedBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource MutedBrush}"/>
             <Setter Property="Width" Value="24"/>
             <Setter Property="Height" Value="24"/>
             <Setter Property="Cursor" Value="Hand"/>
@@ -27,8 +33,8 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Bg" Property="Background" Value="#2A3038"/>
-                                <Setter Property="Foreground" Value="#F0F3F6"/>
+                                <Setter TargetName="Bg" Property="Background" Value="{DynamicResource ButtonHoverBrush}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource ButtonHoverText}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -36,17 +42,62 @@
             </Setter>
         </Style>
 
-        <!-- Sombra nos textos quando o fundo está bem transparente -->
+        <!--
+            Balão com os indicadores completos de uma conta, aberto pelo logo nos modos compactos.
+            Pincéis dinâmicos: o balão é criado de novo a cada uso e acompanha o tema.
+        -->
+        <ToolTip x:Key="ProviderTip" x:Shared="False" Background="{DynamicResource TipBackground}"
+                 BorderBrush="{DynamicResource TipBorder}" Padding="10,8">
+            <StackPanel Width="210">
+                <TextBlock Text="{Binding Label}" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,8"
+                           Foreground="{Binding LogoBrush}"/>
+                <DockPanel Margin="0,0,0,4">
+                    <TextBlock Text="{Binding SessionPercentText}" DockPanel.Dock="Right" FontSize="12"
+                               FontFamily="{StaticResource MonoFont}" Foreground="{Binding SessionLevelBrush}"/>
+                    <TextBlock Text="Sessão 5h" FontSize="12" Foreground="{DynamicResource TextBrush}"/>
+                </DockPanel>
+                <c:MiniBar Percent="{Binding SessionPercent}" HasData="{Binding HasData}" Brand="{Binding Brand}"
+                           Width="210"/>
+                <TextBlock Text="{Binding SessionResetText}" FontSize="11" Margin="0,4,0,10"
+                           Foreground="{DynamicResource MutedBrush}"/>
+                <DockPanel Margin="0,0,0,4">
+                    <TextBlock Text="{Binding WeekPercentText}" DockPanel.Dock="Right" FontSize="12"
+                               FontFamily="{StaticResource MonoFont}" Foreground="{Binding WeekBrush}"/>
+                    <TextBlock Text="Uso semanal" FontSize="12" Foreground="{DynamicResource TextBrush}"/>
+                </DockPanel>
+                <c:MiniBar Percent="{Binding WeekPercent}" HasData="{Binding HasData}" IsWeek="True" Width="210"/>
+                <TextBlock Text="{Binding WeekResetText}" FontSize="11" Margin="0,4,0,0"
+                           Foreground="{DynamicResource MutedBrush}"/>
+                <TextBlock Text="{Binding UpdatedText}" FontSize="11" Margin="0,10,0,0"
+                           Foreground="{DynamicResource MutedBrush}"/>
+                <TextBlock Text="{Binding Error}" FontSize="11" Margin="0,6,0,0" TextWrapping="Wrap"
+                           Foreground="{StaticResource WarnBrush}"
+                           Visibility="{Binding HasError, Converter={StaticResource BoolToVis}}"/>
+                <TextBlock Text="Clique no logo para atualizar esta conta." FontSize="11" Margin="0,6,0,0"
+                           Foreground="{DynamicResource MutedBrush}"/>
+            </StackPanel>
+        </ToolTip>
+
+        <!-- Logo clicável dos modos compactos: mãozinha, balão completo e clique para atualizar a conta -->
+        <Style x:Key="LogoButton" TargetType="Button">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="ToolTipService.InitialShowDelay" Value="150"/>
+            <Setter Property="ToolTipService.ShowDuration" Value="60000"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="Transparent" CornerRadius="99">
+                            <ContentPresenter/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Sombra nos textos quando o fundo está bem transparente (escura ou clara, conforme o tema) -->
         <Style x:Key="ShadowWhenTransparent" TargetType="FrameworkElement">
-            <Style.Triggers>
-                <DataTrigger Binding="{Binding UseTextShadow}" Value="True">
-                    <Setter Property="Effect">
-                        <Setter.Value>
-                            <DropShadowEffect BlurRadius="8" ShadowDepth="0" Opacity="1" Color="Black"/>
-                        </Setter.Value>
-                    </Setter>
-                </DataTrigger>
-            </Style.Triggers>
+            <Setter Property="Effect" Value="{Binding TextShadow}"/>
         </Style>
 
         <!-- Leitura antiga: esmaece só um pouco; o ícone de aviso já sinaliza o erro -->

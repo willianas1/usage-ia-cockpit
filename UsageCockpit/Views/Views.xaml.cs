@@ -2,6 +2,7 @@ using System;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
+using UsageCockpit.Core;
 
 namespace UsageCockpit.Views;
 
@@ -9,6 +10,7 @@ namespace UsageCockpit.Views;
 public interface IOverlayCommands
 {
     void RefreshNow();
+    void RefreshProvider(ProviderViewModel provider);
     void ToggleMode();
     void OpenSettings();
     void MinimizeToTray();
@@ -41,13 +43,23 @@ public partial class VerticalView : UserControl
 
     IOverlayCommands? Commands => Window.GetWindow(this) as IOverlayCommands;
 
-    void Refresh_Click(object sender, RoutedEventArgs e) => Commands?.RefreshNow();
+    void Logo_Click(object sender, RoutedEventArgs e) => LogoClick.Refresh(sender);
     void Expand_Click(object sender, RoutedEventArgs e) => Commands?.ToggleMode();
     void Minimize_Click(object sender, RoutedEventArgs e) => Commands?.MinimizeToTray();
 
     void Resize_Started(object sender, DragStartedEventArgs e) => Commands?.BeginResize();
     void Resize_Completed(object sender, DragCompletedEventArgs e) => Commands?.EndResize();
     void Resize_Delta(object sender, DragDeltaEventArgs e) => ResizeGrip.Apply(this, e, Commands);
+}
+
+/// <summary>Clique no logo de uma conta, nos modos compactos: atualiza só aquela conta.</summary>
+static class LogoClick
+{
+    public static void Refresh(object sender)
+    {
+        if (sender is FrameworkElement { DataContext: ProviderViewModel provider } element)
+            (Window.GetWindow(element) as IOverlayCommands)?.RefreshProvider(provider);
+    }
 }
 
 static class ResizeGrip
@@ -71,7 +83,21 @@ public partial class CompactView : UserControl
 
     IOverlayCommands? Commands => Window.GetWindow(this) as IOverlayCommands;
 
-    void Refresh_Click(object sender, RoutedEventArgs e) => Commands?.RefreshNow();
+    void Logo_Click(object sender, RoutedEventArgs e) => LogoClick.Refresh(sender);
     void Expand_Click(object sender, RoutedEventArgs e) => Commands?.ToggleMode();
     void Minimize_Click(object sender, RoutedEventArgs e) => Commands?.MinimizeToTray();
+}
+
+public partial class UltraCompactView : UserControl
+{
+    public UltraCompactView() => InitializeComponent();
+
+    void Logo_Click(object sender, RoutedEventArgs e) => LogoClick.Refresh(sender);
+}
+
+public partial class UltraCompactVerticalView : UserControl
+{
+    public UltraCompactVerticalView() => InitializeComponent();
+
+    void Logo_Click(object sender, RoutedEventArgs e) => LogoClick.Refresh(sender);
 }

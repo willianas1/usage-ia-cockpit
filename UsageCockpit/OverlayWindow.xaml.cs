@@ -15,9 +15,11 @@ public partial class OverlayWindow : Window, IOverlayCommands
 {
     readonly AppSettings _settings;
     readonly MainViewModel _vm;
-    readonly FullView _full = new();
-    readonly CompactView _compact = new();
-    readonly VerticalView _vertical = new();
+    FullView _full = new();
+    CompactView _compact = new();
+    VerticalView _vertical = new();
+    UltraCompactView _ultra = new();
+    UltraCompactVerticalView _ultraVertical = new();
     IntPtr _hwnd;
     bool _dragging;
 
@@ -36,6 +38,8 @@ public partial class OverlayWindow : Window, IOverlayCommands
         {
             if (e.PropertyName == nameof(MainViewModel.Mode))
                 ApplyMode();
+            else if (e.PropertyName == nameof(MainViewModel.Theme))
+                RebuildViews();
         };
 
         SourceInitialized += (_, _) =>
@@ -48,7 +52,14 @@ public partial class OverlayWindow : Window, IOverlayCommands
             Placement.DisableWindowFrame(_hwnd);
             HwndSource.FromHwnd(_hwnd)?.AddHook(Placement.NoMinimumSize);
         };
-        Loaded += (_, _) => Reposition();
+        Loaded += (_, _) =>
+        {
+            // A janela nasce com a largura mínima do Windows (~136 px), antes do NoMinimumSize existir.
+            // Num painel mais estreito (ultra compacto vertical), refaz o ajuste ao conteúdo com o gancho já ativo.
+            SizeToContent = SizeToContent.Manual;
+            SizeToContent = SizeToContent.WidthAndHeight;
+            Reposition();
+        };
         IsVisibleChanged += (_, _) => Controls.Ticker.Paused = !IsVisible;
 
         // Tamanho muda ao trocar de modo ou de escala (DPI): reaplica a posição salva para que
@@ -67,8 +78,25 @@ public partial class OverlayWindow : Window, IOverlayCommands
     {
         DisplayMode.Compact => _compact,
         DisplayMode.CompactVertical => _vertical,
+        DisplayMode.UltraCompact => _ultra,
+        DisplayMode.UltraCompactVertical => _ultraVertical,
         _ => _full,
     };
+
+    /// <summary>
+    /// Troca de tema: as views pegam as cores ao serem criadas (recursos do App.xaml e pincéis
+    /// desenhados em código), então basta recriá-las.
+    /// </summary>
+    void RebuildViews()
+    {
+        Host.Content = null;
+        _full = new();
+        _compact = new();
+        _vertical = new();
+        _ultra = new();
+        _ultraVertical = new();
+        ApplyMode();
+    }
 
     public void Reposition()
     {
@@ -122,13 +150,15 @@ public partial class OverlayWindow : Window, IOverlayCommands
 
     void OnMouseWheel(object sender, MouseWheelEventArgs e)
     {
-        if (_vm.Mode == DisplayMode.Compact || (Keyboard.Modifiers & ModifierKeys.Control) == 0) return;
+        if (_vm.Mode is not (DisplayMode.Full or DisplayMode.CompactVertical) || (Keyboard.Modifiers & ModifierKeys.Control) == 0) return;
         _vm.ScaleCurrentMode(s => s + (e.Delta > 0 ? 0.05 : -0.05));
         _settings.Save();
         e.Handled = true;
     }
 
     public void RefreshNow() => _ = _vm.RefreshWithSweepAsync();
+
+    public void RefreshProvider(ProviderViewModel provider) => _ = _vm.RefreshProviderAsync(provider);
 
     public void ToggleMode() =>
         _vm.ToggleMode();
@@ -228,10 +258,15 @@ public partial class OverlayWindow : Window, IOverlayCommands
             return mi;
         }
 
-        menu.Items.Add(Item("Modo completo", () => _vm.Mode = DisplayMode.Full, _vm.Mode == DisplayMode.Full));
-        menu.Items.Add(Item("Compacto horizontal", () => _vm.Mode = DisplayMode.Compact, _vm.Mode == DisplayMode.Compact));
-        menu.Items.Add(Item("Compacto vertical", () => _vm.Mode = DisplayMode.CompactVertical,
-            _vm.Mode == DisplayMode.CompactVertical));
+        menu.Items.Add(Item("Modo completo", () => _vm.Size = PanelSize.Full, _vm.Size == PanelSize.Full));
+        menu.Items.Add(Item("Compacto", () => _vm.Size = PanelSize.Compact, _vm.Size == PanelSize.Compact));
+        menu.Items.Add(Item("Ultra compacto", () => _vm.Size = PanelSize.Ultra, _vm.Size == PanelSize.Ultra));
+
+        // Forma dos modos compactos; no completo, define como o próximo compacto abre.
+        var shape = new MenuItem { Header = "Forma do compacto" };
+        shape.Items.Add(Item("Horizontal", () => _vm.Vertical = false, !_vm.Vertical));
+        shape.Items.Add(Item("Vertical", () => _vm.Vertical = true, _vm.Vertical));
+        menu.Items.Add(shape);
         menu.Items.Add(new Separator());
 
         var accounts = new MenuItem { Header = "Contas" };
@@ -260,6 +295,11 @@ public partial class OverlayWindow : Window, IOverlayCommands
                 _vm.BackgroundOpacity == v));
         }
         menu.Items.Add(opacity);
+
+        var theme = new MenuItem { Header = "Tema" };
+        theme.Items.Add(Item("Escuro", () => _vm.Theme = AppTheme.Dark, _vm.Theme == AppTheme.Dark));
+        theme.Items.Add(Item("Claro", () => _vm.Theme = AppTheme.Light, _vm.Theme == AppTheme.Light));
+        menu.Items.Add(theme);
 
         menu.Items.Add(new Separator());
         menu.Items.Add(Item("Atualizar agora", RefreshNow));
