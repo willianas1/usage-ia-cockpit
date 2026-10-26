@@ -104,6 +104,20 @@
         </StackPanel>
         <CheckBox x:Name="StartupCheck" Content="Iniciar com o Windows" Click="Startup_Click" Margin="0,12,0,0"/>
 
+        <TextBlock Text="HORÁRIO DE TRABALHO" Style="{StaticResource Section}"/>
+        <CheckBox x:Name="WorkHoursCheck" Content="Pausar as consultas fora do horário de trabalho" Click="WorkHours_Click"/>
+        <StackPanel Orientation="Horizontal" Margin="0,8,0,0"
+                    IsEnabled="{Binding IsChecked, ElementName=WorkHoursCheck}">
+            <TextBlock Text="Das" VerticalAlignment="Center" Margin="0,0,8,0"/>
+            <ComboBox x:Name="WorkStartCombo" Width="80" ItemStringFormat="{}{0:hh\:mm}"
+                      SelectionChanged="WorkTime_Changed"/>
+            <TextBlock Text="às" VerticalAlignment="Center" Margin="8,0"/>
+            <ComboBox x:Name="WorkEndCombo" Width="80" ItemStringFormat="{}{0:hh\:mm}"
+                      SelectionChanged="WorkTime_Changed"/>
+        </StackPanel>
+        <TextBlock Text="Fora desse horário o app para de consultar e de enviar para a API, e avisa no ícone da bandeja. Para voltar antes, use o botão ▶ do painel ou o clique direito."
+                   FontSize="11" Foreground="#8B949E" Margin="0,4,0,0" TextWrapping="Wrap"/>
+
         <TextBlock Text="ENVIO PARA API" Style="{StaticResource Section}"/>
         <DockPanel>
             <Button Content="Configurar…" DockPanel.Dock="Right" Margin="8,0,0,0" Click="Publish_Click"/>

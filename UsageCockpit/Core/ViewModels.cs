@@ -120,15 +120,29 @@ public sealed class ProviderViewModel : Observable
 
     public string ShortStatus => _last == null ? $"{Label}: --" : $"{Label}: 5h {SessionPercentText} · sem {WeekPercentText}";
 
+    bool _isPaused;
+
+    /// <summary>Consultas pausadas: os números ficam cinza, como sem leitura.</summary>
+    public bool IsPaused
+    {
+        get => _isPaused;
+        set
+        {
+            if (!Set(ref _isPaused, value)) return;
+            RaiseAll();
+        }
+    }
+
     public bool HasData => _last != null;
+    bool ShowsColor => HasData && !IsPaused;
     public double SessionPercent => _last?.SessionPercent ?? 0;
     public double WeekPercent => _last?.WeekPercent ?? 0;
     public string SessionPercentText => _last == null ? "--" : $"{Math.Round(SessionPercent)}%";
     public string WeekPercentText => _last == null ? "--" : $"{Math.Round(WeekPercent)}%";
-    public Brush SessionLevelBrush => Palette.Level(SessionPercent, HasData);
-    public Brush WeekLevelBrush => Palette.Level(WeekPercent, HasData);
-    public Brush WeekBrush => Palette.Week(WeekPercent, HasData);
-    public Brush WeekBandBrush => Palette.WeekBand(WeekPercent, HasData);
+    public Brush SessionLevelBrush => Palette.Level(SessionPercent, ShowsColor);
+    public Brush WeekLevelBrush => Palette.Level(WeekPercent, ShowsColor);
+    public Brush WeekBrush => Palette.Week(WeekPercent, ShowsColor);
+    public Brush WeekBandBrush => Palette.WeekBand(WeekPercent, ShowsColor);
     public string SessionResetText => "reseta em " + Until(_last?.SessionResetsAt);
     public string WeekResetText => "reseta " + When(_last?.WeekResetsAt);
     public string SessionResetShort => Until(_last?.SessionResetsAt);
@@ -144,7 +158,8 @@ public sealed class ProviderViewModel : Observable
         ? $"{Label}: {Error ?? "carregando…"}"
         : $"{Label}\nSessão 5h: {SessionPercentText} · {SessionResetText}\nSemana: {WeekPercentText} · {WeekResetText}\n" +
           $"Atualizado {Ago(_last.FetchedAt)}{(_last.Source == "logs" ? " (logs locais)" : "")}" +
-          (HasError ? $"\n{Error}" : "");
+          (HasError ? $"\n{Error}" : "") +
+          (IsPaused ? "\nConsultas pausadas" : "");
 
     public async Task RefreshAsync(bool force, CancellationToken ct)
     {
@@ -265,6 +280,64 @@ public sealed class MainViewModel : Observable
 
     public ProviderViewModel Claude { get; }
     public ProviderViewModel Codex { get; }
+
+    enum PauseSource { None, Manual, WorkHours }
+
+    PauseSource _pause;
+    bool? _wasWorkTime;
+
+    /// <summary>Consultas automáticas e envios para a API parados. "Atualizar agora" continua funcionando.</summary>
+    public bool IsPaused => _pause != PauseSource.None;
+
+    /// <summary>Pausou ou voltou, pelo botão ou pelo horário de trabalho.</summary>
+    public event Action? PausedChanged;
+
+    /// <summary>O horário de trabalho acabou e as consultas pausaram sozinhas.</summary>
+    public event Action? PausedByWorkHours;
+
+    /// <summary>Botão pausar/continuar. Uma pausa manual só termina por aqui, nunca pelo horário.</summary>
+    public void TogglePause() => SetPause(IsPaused ? PauseSource.None : PauseSource.Manual);
+
+    void SetPause(PauseSource source)
+    {
+        var was = IsPaused;
+        _pause = source;
+        if (IsPaused == was) return;
+        Claude.IsPaused = Codex.IsPaused = IsPaused;
+        Instrument.Inactive = IsPaused;
+        Raise(nameof(IsPaused));
+        Raise(nameof(UpdatedText));
+        PausedChanged?.Invoke();
+        if (!IsPaused)
+            _ = RefreshAsync(force: false);
+    }
+
+    /// <summary>
+    /// Chamado a cada 30 s. Age só na virada do horário: quem continuou fora do expediente pelo
+    /// botão segue consultando até o próximo fim de expediente.
+    /// </summary>
+    public void CheckWorkHours()
+    {
+        var work = _settings.IsWorkTime(DateTime.Now);
+        if (work == _wasWorkTime) return;
+        _wasWorkTime = work;
+        if (!work && !IsPaused)
+        {
+            SetPause(PauseSource.WorkHours);
+            PausedByWorkHours?.Invoke();
+        }
+        else if (work && _pause == PauseSource.WorkHours)
+        {
+            SetPause(PauseSource.None);
+        }
+    }
+
+    /// <summary>O horário mudou nas configurações: aplica o estado de agora.</summary>
+    public void WorkHoursChanged()
+    {
+        _wasWorkTime = null;
+        CheckWorkHours();
+    }
 
     public DisplayMode Mode
     {
@@ -432,7 +505,8 @@ public sealed class MainViewModel : Observable
             _ = RefreshAsync(force: false);
     }
 
-    public string UpdatedText => _refreshing ? "atualizando…" : _lastRefresh == null ? "" : ProviderViewModel.Ago(_lastRefresh.Value);
+    public string UpdatedText => _refreshing ? "atualizando…" : IsPaused ? "pausado"
+        : _lastRefresh == null ? "" : ProviderViewModel.Ago(_lastRefresh.Value);
 
     public void RaiseBackground()
     {
@@ -443,9 +517,10 @@ public sealed class MainViewModel : Observable
         Raise(nameof(TextShadow));
     }
 
+    /// <summary>Com as consultas pausadas, só a atualização pedida pelo usuário (force) consulta.</summary>
     public async Task RefreshAsync(bool force, CancellationToken ct = default)
     {
-        if (_refreshing) return;
+        if (_refreshing || (IsPaused && !force)) return;
         _refreshing = true;
         Raise(nameof(UpdatedText));
         try

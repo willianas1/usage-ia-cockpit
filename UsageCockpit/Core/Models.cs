@@ -135,7 +135,29 @@ public sealed class AppSettings
 
     /// <summary>Ponteiros e barras sem tremor nem varredura.</summary>
     public bool StaticNeedles { get; set; }
-    public int PollMinutes { get; set; } = 5;
+
+    /// <summary>Menor intervalo de consulta permitido, para não tomar 429 dos provedores.</summary>
+    public const int MinPollSeconds = 30;
+
+    public int PollSeconds { get; set; } = 300;
+
+    /// <summary>Até a versão 0.5 o intervalo era gravado em minutos. Só é lido, para migrar.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? PollMinutes { get; set; }
+
+    /// <summary>Fora do horário de trabalho as consultas e os envios pausam sozinhos.</summary>
+    public bool WorkHoursEnabled { get; set; }
+    public TimeSpan WorkStart { get; set; } = TimeSpan.FromHours(8);
+    public TimeSpan WorkEnd { get; set; } = TimeSpan.FromHours(18);
+
+    /// <summary>Se o horário está dentro do expediente. Aceita expediente que vira a noite (22:00 às 06:00).</summary>
+    public bool IsWorkTime(DateTime now)
+    {
+        if (!WorkHoursEnabled || WorkStart == WorkEnd) return true;
+        var t = now.TimeOfDay;
+        return WorkStart < WorkEnd ? t >= WorkStart && t < WorkEnd : t >= WorkStart || t < WorkEnd;
+    }
+
     public bool StartWithWindows { get; set; }
 
     /// <summary>Envio do uso para uma API externa (docs/API.md). Desligado por padrão.</summary>
@@ -169,8 +191,16 @@ public sealed class AppSettings
     {
         try
         {
-            if (File.Exists(FilePath))
-                return JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(FilePath), JsonOptions) ?? new();
+            if (File.Exists(FilePath)
+                && JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(FilePath), JsonOptions) is { } s)
+            {
+                if (s.PollMinutes is int minutes)
+                {
+                    s.PollSeconds = minutes * 60;
+                    s.PollMinutes = null;
+                }
+                return s;
+            }
         }
         catch
         {

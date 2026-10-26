@@ -50,6 +50,22 @@
                                Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" Cursor="SizeAll"
                                ToolTip="Arraste para mover"/>
                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                        <!-- Pausar e continuar: pausado, mostra o play em destaque -->
+                        <Button Click="Pause_Click">
+                            <Button.Style>
+                                <Style TargetType="Button" BasedOn="{StaticResource IconButton}">
+                                    <Setter Property="Content" Value="&#xE769;"/>
+                                    <Setter Property="ToolTip" Value="Pausar as consultas"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsPaused}" Value="True">
+                                            <Setter Property="Content" Value="&#xE768;"/>
+                                            <Setter Property="ToolTip" Value="Continuar as consultas"/>
+                                            <Setter Property="Foreground" Value="{StaticResource WarnBrush}"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
                         <Button Style="{StaticResource IconButton}" Content="&#xE72C;" ToolTip="Atualizar agora"
                                 Click="Refresh_Click"/>
                         <Button x:Name="MonitorButton" Style="{StaticResource IconButton}" Content="&#xE7F4;"

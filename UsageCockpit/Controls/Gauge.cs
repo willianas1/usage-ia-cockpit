@@ -290,7 +290,12 @@ public sealed class Gauge : Instrument
 
         // Arco do valor: cor da marca até 60%, amarelo até 80% e vermelho daí em diante,
         // como a faixa de rotação de um conta-giros.
-        if (HasData && shown > 0.5)
+        // Consultas pausadas: o arco fica cinza, sem as cores das faixas.
+        if (HasData && shown > 0.5 && Inactive)
+        {
+            dc.DrawGeometry(null, MakePen(Palette.NoData, 8), Arc(R, Start, AngleOf(Math.Min(shown, 100))));
+        }
+        else if (HasData && shown > 0.5)
         {
             var value = Math.Min(shown, 100);
             dc.DrawGeometry(null, MakePen(Brand, 8), Arc(R, Start, AngleOf(Math.Min(value, Palette.WarnFrom))));
@@ -316,7 +321,7 @@ public sealed class Gauge : Instrument
 
         // O número acompanha o ponteiro durante a varredura.
         var readout = HasData ? $"{Math.Round(Math.Clamp(shown, 0, 100))}%" : "--";
-        DrawText(dc, readout, ReadoutFace, 22, Palette.Level(P, HasData), new Point(Cx, Cy + 42), dpi);
+        DrawText(dc, readout, ReadoutFace, 22, Palette.Level(P, HasData && !Inactive), new Point(Cx, Cy + 42), dpi);
         dc.Pop();
     }
 
@@ -325,6 +330,11 @@ public sealed class Gauge : Instrument
     {
         dc.DrawGeometry(null, InnerTrackPen, InnerTrackArc);
         if (!HasData || value <= 0.5) return;
+        if (Inactive)
+        {
+            dc.DrawGeometry(null, MakePen(Palette.NoData, InnerWidth), Arc(InnerR, Start, AngleOf(value)));
+            return;
+        }
         // Mesma cor nas duas contas: azul até 80%, depois o vermelho próprio do semanal.
         dc.DrawGeometry(null, InnerPen, Arc(InnerR, Start, AngleOf(Math.Min(value, Palette.DangerFrom))));
         if (value > Palette.DangerFrom)

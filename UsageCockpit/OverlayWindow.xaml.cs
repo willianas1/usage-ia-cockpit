@@ -160,6 +160,8 @@ public partial class OverlayWindow : Window, IOverlayCommands
 
     public void RefreshProvider(ProviderViewModel provider) => _ = _vm.RefreshProviderAsync(provider);
 
+    public void TogglePause() => _vm.TogglePause();
+
     public void ToggleMode() =>
         _vm.ToggleMode();
 
@@ -302,6 +304,7 @@ public partial class OverlayWindow : Window, IOverlayCommands
         menu.Items.Add(theme);
 
         menu.Items.Add(new Separator());
+        menu.Items.Add(Item(_vm.IsPaused ? "Continuar as consultas" : "Pausar as consultas", TogglePause));
         menu.Items.Add(Item("Atualizar agora", RefreshNow));
         menu.Items.Add(Item("Configurações…", OpenSettings));
         // Aberto pela bandeja com o painel oculto, o mesmo item traz o painel de volta.

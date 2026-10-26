@@ -18,6 +18,7 @@ public sealed record PublishPayload(
     PublishClient Client,
     DateTimeOffset SentAt,
     string Reason,
+    bool Paused,
     IReadOnlyDictionary<string, PublishProvider> Providers);
 
 public sealed record PublishClient(string Name, string Version);
@@ -48,7 +49,8 @@ public sealed class UsagePublisher
     public const string Route = "v1/usage";
     public const int SchemaVersion = 1;
 
-    static readonly TimeSpan MinGap = TimeSpan.FromSeconds(5);
+    // Igual ao menor intervalo de consulta: no máximo um envio por consulta, mesmo com atividade.
+    static readonly TimeSpan MinGap = TimeSpan.FromSeconds(AppSettings.MinPollSeconds);
     static readonly TimeSpan HeartbeatEvery = TimeSpan.FromMinutes(5);
     static readonly TimeSpan MaxBackoff = TimeSpan.FromMinutes(10);
 
@@ -97,8 +99,17 @@ public sealed class UsagePublisher
 
     bool Enabled => _settings.PublishEnabled && !_keyRejected;
 
-    /// <summary>Pede um envio. Pedidos próximos são agrupados (no máximo um a cada 5 s).</summary>
+    /// <summary>Pede um envio. Pedidos próximos são agrupados (no máximo um a cada 30 s). Pausado, não envia.</summary>
     public void Publish(string reason)
+    {
+        if (_vm.IsPaused) return;
+        Enqueue(reason);
+    }
+
+    /// <summary>Pausou ou voltou: avisa a API uma vez (campo paused); pausado, nada mais é enviado.</summary>
+    public void PauseChanged() => Enqueue("heartbeat");
+
+    void Enqueue(string reason)
     {
         if (!Enabled) return;
         _pending = reason;
@@ -233,6 +244,7 @@ public sealed class UsagePublisher
         new PublishClient("UsageCockpit", AppVersion),
         DateTimeOffset.Now,
         reason,
+        _vm.IsPaused,
         new Dictionary<string, PublishProvider>
         {
             ["claude"] = Describe(_vm.Claude, _settings.ShowClaude),

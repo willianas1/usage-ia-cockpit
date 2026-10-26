@@ -65,11 +65,19 @@ public partial class App : Application
         _overlay.Show();
 
         CreateTray();
+        _vm.PausedChanged += () =>
+        {
+            publisher.PauseChanged();
+            UpdateTrayText();
+        };
+        _vm.PausedByWorkHours += NotifyPausedByWorkHours;
+        _vm.CheckWorkHours();
 
         _poll.Tick += async (_, _) => await _vm.RefreshAsync(force: false);
         RestartPoll();
         _tick.Tick += (_, _) =>
         {
+            _vm.CheckWorkHours();
             _vm.Tick();
             publisher.HeartbeatIfDue();
             _overlay.KeepOnTop();
@@ -79,14 +87,16 @@ public partial class App : Application
         _activity.Tick += (_, _) => _vm.CheckActivity();
         _activity.Start();
 
-        await _vm.RefreshAsync(force: true);
+        // Aberto fora do horário de trabalho: mostra a última leitura salva, sem consultar.
+        if (!_vm.IsPaused)
+            await _vm.RefreshAsync(force: true);
         UpdateTrayText();
     }
 
     void RestartPoll()
     {
         _poll.Stop();
-        _poll.Interval = TimeSpan.FromMinutes(Math.Max(1, _settings.PollMinutes));
+        _poll.Interval = TimeSpan.FromSeconds(Math.Max(AppSettings.MinPollSeconds, _settings.PollSeconds));
         _poll.Start();
     }
 
@@ -129,6 +139,12 @@ public partial class App : Application
             Forms.ToolTipIcon.None);
     }
 
+    void NotifyPausedByWorkHours() =>
+        _tray?.ShowBalloonTip(5000, "Consulta pausada",
+            $"Fora do horário de trabalho ({_settings.WorkStart:hh\\:mm} às {_settings.WorkEnd:hh\\:mm}). " +
+            "Para continuar, use o botão ▶ do painel ou o clique direito.",
+            Forms.ToolTipIcon.Info);
+
     void ToggleOverlay()
     {
         if (_overlay == null) return;
@@ -141,7 +157,7 @@ public partial class App : Application
     void UpdateTrayText()
     {
         if (_tray == null || _vm == null) return;
-        var lines = new System.Collections.Generic.List<string> { AppName };
+        var lines = new System.Collections.Generic.List<string> { _vm.IsPaused ? $"{AppName} (pausado)" : AppName };
         if (_settings.ShowClaude) lines.Add(_vm.Claude.ShortStatus);
         if (_settings.ShowCodex) lines.Add(_vm.Codex.ShortStatus);
         var text = string.Join("\n", lines);

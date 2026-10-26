@@ -49,6 +49,7 @@ O painel fica por cima de todas as janelas, em qualquer canto de qualquer monito
   - **Ferramenta trabalhando:** um anel colorido gira em volta do logo enquanto o Claude Code ou o Codex está em uso.
   - **Atualização:** ao clicar em atualizar, os ponteiros descem a zero e voltam com os valores novos, mesmo com o tremor desligado. Nos modos compactos, o clique no logo atualiza só aquela conta, e o anel gira enquanto ela atualiza.
 - **Minimizar para a bandeja:** o painel some, e um clique no ícone da bandeja traz ele de volta.
+- **Pausar as consultas:** o botão ⏸ do modo completo, ou o clique direito, para as consultas e os envios para a API. Pausado, os ponteiros param de tremer, os valores ficam cinza e o botão vira ▶ para continuar. Com o **horário de trabalho** ligado, o app pausa sozinho no fim do expediente, avisa num balão do ícone da bandeja e volta no início do próximo.
 - **Nunca fica em branco:** se uma consulta falhar, o painel mostra a última leitura boa com um aviso ⚠. Se a leitura tiver mais de 15 minutos, a conta fica levemente esmaecida.
 - **Envio para API (opcional):** manda o uso atual para uma API sua, para usar os mesmos números em um dashboard, bot ou widget. Veja [docs/API.md](docs/API.md).
 - **Leve:** cerca de 2% de um núcleo de CPU em repouso. A renderização usa a placa de vídeo, e as animações param com o painel minimizado.
@@ -161,6 +162,7 @@ O valor tem que ser igual ao da linha correspondente no `SHA256SUMS.txt` (o Powe
 | Mover | Arraste por qualquer parte do painel. Perto das bordas ele gruda. |
 | Trocar de modo | Botão de compactar ou expandir no painel, duplo clique, clique direito ou menu da bandeja |
 | Atualizar agora | Botão ⟳ no modo completo, clique no logo de uma conta nos modos compactos, clique direito ou menu da bandeja |
+| Pausar ou continuar as consultas | Botão ⏸/▶ no modo completo, clique direito ou menu da bandeja |
 | Redimensionar | Alça no canto inferior direito, **Ctrl + roda do mouse** ou Configurações |
 | Escolher o monitor | Ícone de monitor no painel, clique direito → Monitor, ou Configurações |
 | Posições rápidas | Clique direito → Posição: cantos ou centro |
@@ -186,6 +188,7 @@ O duplo clique e o botão de compactar alternam entre o modo completo e o **últ
 | Barra, arco ou percentual azul | Uso semanal. Fica magenta acima de 80% |
 | ⚠ ou texto âmbar | A última consulta falhou. O valor mostrado é o último conhecido; passe o mouse no ⚠ para ver o motivo |
 | Conta levemente esmaecida | A leitura tem mais de 15 minutos |
+| Valores cinza e ponteiros parados, com ▶ em destaque | As consultas estão pausadas, pelo botão ou fora do horário de trabalho |
 
 ---
 
@@ -206,7 +209,8 @@ Todas as opções ficam na janela **Configurações** e valem na hora, enquanto 
 | Monitor | Em qual monitor o painel fica | Principal |
 | Posição rápida | Leva o painel para um dos cantos ou para o centro do monitor | — |
 | Grudar nas bordas | Encaixa o painel nas bordas ao arrastar | Ligado |
-| Consultar a cada | 2, 5, 10, 15 ou 30 minutos | 5 min |
+| Consultar a cada | 30 segundos, 1, 2, 5, 10, 15 ou 30 minutos | 5 min |
+| Horário de trabalho | Fora do horário escolhido, em passos de 30 minutos, as consultas e os envios pausam sozinhos. Um ▶ fora do horário continua consultando até o fim do próximo expediente, e uma pausa pelo botão só termina pelo botão | Desligado, das 8:00 às 18:00 |
 | Iniciar com o Windows | Abre o app ao entrar no Windows | Desligado |
 | Envio para API | Envia o uso atual para uma API sua, para usar em outras aplicações. Veja [docs/API.md](docs/API.md) | Desligado |
 
@@ -230,7 +234,7 @@ O app **não pede login nem senha**. Ele usa o login que o Claude Code e o Codex
 | Codex | `%USERPROFILE%\.codex\auth.json` | `GET https://chatgpt.com/backend-api/wham/usage` |
 
 - **Credenciais:** os tokens são só lidos. O app nunca renova nem grava as credenciais, para não derrubar a sessão das ferramentas.
-- **Frequência:** as consultas acontecem no intervalo configurado e logo depois que uma ferramenta termina de trabalhar, no máximo uma vez por minuto.
+- **Frequência:** as consultas acontecem no intervalo configurado, no mínimo 30 segundos, e logo depois que uma ferramenta termina de trabalhar, no máximo uma vez por minuto. Com as consultas pausadas, só o "Atualizar agora" consulta.
 - **Limite de consultas:** se o servidor responder "muitas consultas" (HTTP 429), o app respeita o tempo de espera e mostra o último valor salvo.
 - **Plano B do Codex:** se a API do Codex falhar, o app lê os limites gravados nos logs locais em `%USERPROFILE%\.codex\sessions`.
 - **Detecção de atividade:** o app observa as escritas nos arquivos de conversa em `%USERPROFILE%\.claude\projects` e `%USERPROFILE%\.codex\sessions`.

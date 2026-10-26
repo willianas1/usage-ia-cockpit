@@ -11,6 +11,7 @@ public interface IOverlayCommands
 {
     void RefreshNow();
     void RefreshProvider(ProviderViewModel provider);
+    void TogglePause();
     void ToggleMode();
     void OpenSettings();
     void MinimizeToTray();
@@ -27,6 +28,7 @@ public partial class FullView : UserControl
     IOverlayCommands? Commands => Window.GetWindow(this) as IOverlayCommands;
 
     void Refresh_Click(object sender, RoutedEventArgs e) => Commands?.RefreshNow();
+    void Pause_Click(object sender, RoutedEventArgs e) => Commands?.TogglePause();
     void Monitor_Click(object sender, RoutedEventArgs e) => Commands?.ShowMonitorMenu(MonitorButton);
     void Compact_Click(object sender, RoutedEventArgs e) => Commands?.ToggleMode();
     void Settings_Click(object sender, RoutedEventArgs e) => Commands?.OpenSettings();

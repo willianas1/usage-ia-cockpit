@@ -26,19 +26,32 @@ public abstract class Instrument : FrameworkElement
 
     protected double P => Math.Clamp(Percent, 0, 100);
 
-    static bool _staticNeedles;
+    static bool _staticNeedles, _inactive;
 
     /// <summary>
     /// Ponteiros e barrinhas sem tremor. A varredura ao atualizar continua, e o anel em volta
-    /// do logo continua girando, porque indica a ferramenta em uso.
+    /// do logo continua girando, porque indica a ferramenta em uso. Com as consultas pausadas
+    /// também fica ligado, sem mudar a opção do usuário.
     /// </summary>
     public static bool StaticNeedles
     {
-        get => _staticNeedles;
+        get => _staticNeedles || _inactive;
         set
         {
             if (_staticNeedles == value) return;
             _staticNeedles = value;
+            StaticNeedlesChanged?.Invoke(null, EventArgs.Empty);
+        }
+    }
+
+    /// <summary>Consultas pausadas: os instrumentos param de tremer e os valores ficam cinza.</summary>
+    public static bool Inactive
+    {
+        get => _inactive;
+        set
+        {
+            if (_inactive == value) return;
+            _inactive = value;
             StaticNeedlesChanged?.Invoke(null, EventArgs.Empty);
         }
     }
@@ -166,7 +179,8 @@ public sealed class MiniBar : Instrument
         if (HasData)
         {
             var fill = Math.Clamp(w * P / 100 * _sweepFactor + (StaticNeedles ? 0 : _jitter), 0, w);
-            dc.DrawRectangle(IsWeek ? Palette.Week(P) : Palette.Bar(P, Brand), null, new Rect(0, 0, fill, 5));
+            var color = Inactive ? Palette.NoData : IsWeek ? Palette.Week(P) : Palette.Bar(P, Brand);
+            dc.DrawRectangle(color, null, new Rect(0, 0, fill, 5));
         }
         dc.Pop();
     }
@@ -180,6 +194,14 @@ public sealed class WeekBar : Instrument
 {
     const double H = 8;
 
+    public WeekBar()
+    {
+        Loaded += (_, _) => StaticNeedlesChanged += OnInactiveChanged;
+        Unloaded += (_, _) => StaticNeedlesChanged -= OnInactiveChanged;
+    }
+
+    void OnInactiveChanged(object? sender, EventArgs e) => InvalidateVisual();
+
     protected override Size MeasureOverride(Size available) =>
         new(double.IsInfinity(available.Width) ? 160 : available.Width, H);
 
@@ -192,7 +214,11 @@ public sealed class WeekBar : Instrument
         dc.DrawRectangle(Palette.Track, null, new Rect(0, 0, w, H));
         dc.DrawRectangle(Palette.WeekWarnSoft, null, new Rect(warn, 0, danger - warn, H));
         dc.DrawRectangle(Palette.WeekDangerSoft, null, new Rect(danger, 0, w - danger, H));
-        if (HasData)
+        if (HasData && Inactive)
+        {
+            dc.DrawRectangle(Palette.NoData, null, new Rect(0, 0, w * P / 100, H));
+        }
+        else if (HasData)
         {
             var fill = w * P / 100;
             dc.DrawRectangle(Palette.WeekBlue, null, new Rect(0, 0, Math.Min(fill, warn), H));

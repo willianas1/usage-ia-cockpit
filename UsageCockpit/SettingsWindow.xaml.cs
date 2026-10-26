@@ -9,7 +9,7 @@ namespace UsageCockpit;
 
 public partial class SettingsWindow : Window
 {
-    static readonly int[] PollOptions = { 2, 5, 10, 15, 30 };
+    static readonly int[] PollOptions = { 30, 60, 120, 300, 600, 900, 1800 };
     const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
     const string RunValue = "UsageCockpit";
 
@@ -57,8 +57,15 @@ public partial class SettingsWindow : Window
         MonitorCombo.SelectedItem = monitors.FirstOrDefault(m => m.Device == settings.MonitorDevice)
                                     ?? monitors.FirstOrDefault(m => m.IsPrimary);
 
-        PollCombo.ItemsSource = PollOptions.Select(m => $"{m} min").ToList();
-        PollCombo.SelectedIndex = Math.Max(0, Array.IndexOf(PollOptions, settings.PollMinutes));
+        PollCombo.ItemsSource = PollOptions.Select(s => s < 60 ? $"{s} s" : $"{s / 60} min").ToList();
+        PollCombo.SelectedIndex = Math.Max(0, Array.IndexOf(PollOptions, settings.PollSeconds));
+
+        var times = Enumerable.Range(0, 48).Select(i => TimeSpan.FromMinutes(i * 30)).ToList();
+        WorkStartCombo.ItemsSource = times;
+        WorkEndCombo.ItemsSource = times;
+        WorkStartCombo.SelectedItem = settings.WorkStart;
+        WorkEndCombo.SelectedItem = settings.WorkEnd;
+        WorkHoursCheck.IsChecked = settings.WorkHoursEnabled;
         _loading = false;
     }
 
@@ -151,9 +158,23 @@ public partial class SettingsWindow : Window
     void Poll_Changed(object sender, SelectionChangedEventArgs e)
     {
         if (_loading || PollCombo.SelectedIndex < 0) return;
-        _settings.PollMinutes = PollOptions[PollCombo.SelectedIndex];
+        _settings.PollSeconds = PollOptions[PollCombo.SelectedIndex];
         _settings.Save();
         _pollChanged();
+    }
+
+    void WorkHours_Click(object sender, RoutedEventArgs e) => ApplyWorkHours();
+
+    void WorkTime_Changed(object sender, SelectionChangedEventArgs e) => ApplyWorkHours();
+
+    void ApplyWorkHours()
+    {
+        if (_loading) return;
+        _settings.WorkHoursEnabled = WorkHoursCheck.IsChecked == true;
+        if (WorkStartCombo.SelectedItem is TimeSpan start) _settings.WorkStart = start;
+        if (WorkEndCombo.SelectedItem is TimeSpan end) _settings.WorkEnd = end;
+        _settings.Save();
+        _vm.WorkHoursChanged();
     }
 
     void Startup_Click(object sender, RoutedEventArgs e)

@@ -50,6 +50,7 @@ O app não segue redirecionamentos, para que a chave não seja reenviada a outro
   "client": { "name": "UsageCockpit", "version": "0.4.0" },
   "sentAt": "2026-10-22T14:32:05.1234567-03:00",
   "reason": "activity",
+  "paused": false,
   "providers": {
     "claude": {
       "label": "Claude Code",
@@ -95,6 +96,7 @@ Todas as datas seguem a ISO 8601 com fuso (o fuso local do PC que enviou). Campo
 | `client.name` / `client.version` | texto | Sempre `UsageCockpit` e a versão do app. |
 | `sentAt` | data | Momento do envio. Use para saber se o PC está online (veja [Detectar PC offline](#detectar-pc-offline)). |
 | `reason` | texto | Motivo do envio: `refresh`, `activity`, `heartbeat` ou `test`. |
+| `paused` | booleano | `true` quando o usuário pausou as consultas, pelo botão ou pelo horário de trabalho. Veja [Consultas pausadas](#consultas-pausadas). |
 | `providers` | objeto | Sempre com as chaves `claude` e `codex`. |
 
 **`providers.<id>`**
@@ -146,10 +148,16 @@ Os percentuais refletem a conta inteira, inclusive o uso feito em outros lugares
 |---|---|
 | `refresh` | Ao fim de cada rodada de consultas: na abertura, no intervalo configurado, quando uma ferramenta para de trabalhar e ao atualizar manualmente. |
 | `activity` | Quando o Claude Code ou o Codex começa ou para de trabalhar. |
-| `heartbeat` | Se nada foi enviado nos últimos 5 minutos, e também logo depois de salvar a configuração. |
+| `heartbeat` | Se nada foi enviado nos últimos 5 minutos, logo depois de salvar a configuração e ao pausar ou continuar as consultas. |
 | `test` | O botão **Testar conexão**. |
 
-Envios próximos são agrupados, com no máximo um a cada 5 segundos. O envio acontece em segundo plano e nunca trava o painel.
+Envios próximos são agrupados, com no máximo um a cada 30 segundos, o menor intervalo de consulta. O envio acontece em segundo plano e nunca trava o painel.
+
+### Consultas pausadas
+
+Ao pausar, o app faz um último envio com `paused: true` e para de enviar, inclusive os de `heartbeat`. Ao continuar, envia de novo com `paused: false`. Durante a pausa o `sentAt` envelhece normalmente: se o último envio recebido tiver `paused: true`, mostre a conta como pausada em vez de offline.
+
+Uma API que ignora campos desconhecidos não precisa mudar.
 
 ## Respostas esperadas
 
@@ -165,7 +173,7 @@ O status do último envio aparece em Configurações › Envio para API.
 
 ## Detectar PC offline
 
-O app manda pelo menos um envio a cada 5 minutos enquanto está aberto. Se o último `sentAt` recebido tiver mais de uns 6 minutos, considere o PC desligado ou o app fechado. Nesse caso, trate `inUse` como `false` e os percentuais como os últimos conhecidos.
+O app manda pelo menos um envio a cada 5 minutos enquanto está aberto e com as consultas ativas. Se o último `sentAt` recebido tiver mais de uns 6 minutos, considere o PC desligado ou o app fechado. Nesse caso, trate `inUse` como `false` e os percentuais como os últimos conhecidos.
 
 ## Recomendações para a API
 
