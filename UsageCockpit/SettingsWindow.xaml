@@ -1,7 +1,7 @@
 <Window x:Class="UsageCockpit.SettingsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Usage IA Cockpit — Configurações" Width="420" SizeToContent="Height"
+        Title="Usage IA Cockpit — Configurações" Width="520" Height="500"
         ResizeMode="NoResize" WindowStartupLocation="CenterScreen" Topmost="True"
         Background="#15181D" Foreground="#D0D7DE" FontFamily="Segoe UI" FontSize="13">
     <Window.Resources>
@@ -9,6 +9,12 @@
             <Setter Property="FontSize" Value="11"/>
             <Setter Property="Foreground" Value="#8B949E"/>
             <Setter Property="Margin" Value="0,16,0,6"/>
+        </Style>
+        <Style TargetType="TextBlock" x:Key="Hint">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="#8B949E"/>
+            <Setter Property="Margin" Value="0,4,0,0"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
         </Style>
         <Style TargetType="RadioButton">
             <Setter Property="Foreground" Value="#D0D7DE"/>
@@ -22,111 +28,184 @@
             <Setter Property="Padding" Value="10,4"/>
             <Setter Property="Margin" Value="0,0,6,6"/>
         </Style>
+
+        <!-- Abas no tema escuro: o visual padrão do WPF é claro e destoa da janela -->
+        <Style TargetType="TabControl">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabControl">
+                        <DockPanel>
+                            <Border DockPanel.Dock="Top" BorderBrush="#2D333B" BorderThickness="0,0,0,1">
+                                <TabPanel IsItemsHost="True" Margin="16,0"/>
+                            </Border>
+                            <ContentPresenter ContentSource="SelectedContent"/>
+                        </DockPanel>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="TabItem">
+            <Setter Property="Foreground" Value="#8B949E"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabItem">
+                        <Border x:Name="Tab" Padding="12,10,12,8" Margin="0,0,2,-1" Background="Transparent"
+                                BorderBrush="Transparent" BorderThickness="0,0,0,2">
+                            <ContentPresenter ContentSource="Header" TextElement.Foreground="{TemplateBinding Foreground}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Tab" Property="BorderBrush" Value="#D97757"/>
+                                <Setter Property="Foreground" Value="#F0F3F6"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Foreground" Value="#F0F3F6"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
-    <StackPanel Margin="20,6,20,20">
-        <TextBlock Text="MODO" Style="{StaticResource Section}"/>
-        <StackPanel Orientation="Horizontal">
-            <RadioButton x:Name="FullMode" Content="Completo" GroupName="Size" Checked="Mode_Checked"/>
-            <RadioButton x:Name="CompactMode" Content="Compacto" GroupName="Size" Checked="Mode_Checked"/>
-            <RadioButton x:Name="UltraMode" Content="Ultra compacto" GroupName="Size" Checked="Mode_Checked"/>
-        </StackPanel>
+    <DockPanel>
+        <Border DockPanel.Dock="Bottom" BorderBrush="#2D333B" BorderThickness="0,1,0,0" Padding="20,12">
+            <Button Content="Fechar" HorizontalAlignment="Right" Margin="0" Padding="18,5" Click="Close_Click"
+                    IsDefault="True"/>
+        </Border>
 
-        <TextBlock Text="FORMA DO COMPACTO" Style="{StaticResource Section}"/>
-        <StackPanel Orientation="Horizontal">
-            <RadioButton x:Name="HorizontalShape" Content="Horizontal" GroupName="Shape" Checked="Shape_Checked"/>
-            <RadioButton x:Name="VerticalShape" Content="Vertical" GroupName="Shape" Checked="Shape_Checked"/>
-        </StackPanel>
-        <TextBlock Text="Vale para o compacto e o ultra compacto. No modo completo, define como o compacto vai abrir."
-                   FontSize="11" Foreground="#8B949E" Margin="0,4,0,0" TextWrapping="Wrap"/>
+        <TabControl>
+            <TabItem Header="Aparência">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="20,0,20,16">
+                        <TextBlock Text="MODO" Style="{StaticResource Section}"/>
+                        <StackPanel Orientation="Horizontal">
+                            <RadioButton x:Name="FullMode" Content="Completo" GroupName="Size" Checked="Mode_Checked"/>
+                            <RadioButton x:Name="CompactMode" Content="Compacto" GroupName="Size" Checked="Mode_Checked"/>
+                            <RadioButton x:Name="UltraMode" Content="Ultra compacto" GroupName="Size" Checked="Mode_Checked"/>
+                        </StackPanel>
 
-        <TextBlock Text="TEMA" Style="{StaticResource Section}"/>
-        <StackPanel Orientation="Horizontal">
-            <RadioButton x:Name="DarkTheme" Content="Escuro" GroupName="Theme" Checked="Theme_Checked"/>
-            <RadioButton x:Name="LightTheme" Content="Claro" GroupName="Theme" Checked="Theme_Checked"/>
-        </StackPanel>
+                        <TextBlock Text="FORMA DO COMPACTO" Style="{StaticResource Section}"/>
+                        <StackPanel Orientation="Horizontal">
+                            <RadioButton x:Name="HorizontalShape" Content="Horizontal" GroupName="Shape" Checked="Shape_Checked"/>
+                            <RadioButton x:Name="VerticalShape" Content="Vertical" GroupName="Shape" Checked="Shape_Checked"/>
+                        </StackPanel>
+                        <TextBlock Text="Vale para o compacto e o ultra compacto. No modo completo, define como o compacto vai abrir."
+                                   Style="{StaticResource Hint}"/>
 
-        <TextBlock Text="CONTAS MONITORADAS" Style="{StaticResource Section}"/>
-        <StackPanel Orientation="Horizontal">
-            <CheckBox x:Name="ClaudeCheck" Content="Claude Code" Margin="0,4,18,0" Click="Accounts_Click"/>
-            <CheckBox x:Name="CodexCheck" Content="Codex (ChatGPT)" Click="Accounts_Click"/>
-        </StackPanel>
+                        <TextBlock Text="TEMA" Style="{StaticResource Section}"/>
+                        <StackPanel Orientation="Horizontal">
+                            <RadioButton x:Name="DarkTheme" Content="Escuro" GroupName="Theme" Checked="Theme_Checked"/>
+                            <RadioButton x:Name="LightTheme" Content="Claro" GroupName="Theme" Checked="Theme_Checked"/>
+                        </StackPanel>
 
-        <TextBlock Text="TAMANHO DO MODO COMPLETO" Style="{StaticResource Section}"/>
-        <DockPanel>
-            <TextBlock x:Name="ScaleLabel" DockPanel.Dock="Right" Width="44" TextAlignment="Right"
-                       FontFamily="Cascadia Mono, Consolas"/>
-            <Slider x:Name="ScaleSlider" Minimum="55" Maximum="160" TickFrequency="5" IsSnapToTickEnabled="True"
-                    ValueChanged="Scale_Changed"/>
-        </DockPanel>
-        <TextBlock Text="TAMANHO DO COMPACTO VERTICAL" Style="{StaticResource Section}"/>
-        <DockPanel>
-            <TextBlock x:Name="VerticalScaleLabel" DockPanel.Dock="Right" Width="44" TextAlignment="Right"
-                       FontFamily="Cascadia Mono, Consolas"/>
-            <Slider x:Name="VerticalScaleSlider" Minimum="60" Maximum="100" TickFrequency="5"
-                    IsSnapToTickEnabled="True" ValueChanged="VerticalScale_Changed"/>
-        </DockPanel>
-        <TextBlock Text="Nos dois modos também dá para arrastar a alça no canto do painel ou usar Ctrl + roda do mouse."
-                   FontSize="11" Foreground="#8B949E" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                        <TextBlock Text="OPACIDADE DO FUNDO" Style="{StaticResource Section}"/>
+                        <DockPanel>
+                            <TextBlock x:Name="OpacityLabel" DockPanel.Dock="Right" Width="44" TextAlignment="Right"
+                                       FontFamily="Cascadia Mono, Consolas"/>
+                            <Slider x:Name="OpacitySlider" Minimum="0" Maximum="100" TickFrequency="5" IsSnapToTickEnabled="True"
+                                    ValueChanged="Opacity_Changed"/>
+                        </DockPanel>
+                        <TextBlock Text="Ponteiros e textos continuam visíveis; só o fundo fica transparente."
+                                   Style="{StaticResource Hint}"/>
 
-        <TextBlock Text="OPACIDADE DO FUNDO" Style="{StaticResource Section}"/>
-        <DockPanel>
-            <TextBlock x:Name="OpacityLabel" DockPanel.Dock="Right" Width="44" TextAlignment="Right"
-                       FontFamily="Cascadia Mono, Consolas"/>
-            <Slider x:Name="OpacitySlider" Minimum="0" Maximum="100" TickFrequency="5" IsSnapToTickEnabled="True"
-                    ValueChanged="Opacity_Changed"/>
-        </DockPanel>
-        <TextBlock Text="Ponteiros e textos continuam visíveis; só o fundo fica transparente." FontSize="11"
-                   Foreground="#8B949E" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                        <TextBlock Text="ANIMAÇÃO" Style="{StaticResource Section}"/>
+                        <CheckBox x:Name="StaticNeedlesCheck" Content="Ponteiros sem tremor" Click="StaticNeedles_Click"/>
+                        <TextBlock Text="Ponteiros e barras ficam parados no valor. Ao atualizar, a varredura continua acontecendo. O anel em volta do logo continua girando quando a ferramenta está em uso."
+                                   Style="{StaticResource Hint}"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
 
-        <TextBlock Text="ANIMAÇÃO" Style="{StaticResource Section}"/>
-        <CheckBox x:Name="StaticNeedlesCheck" Content="Ponteiros sem tremor" Click="StaticNeedles_Click"/>
-        <TextBlock Text="Ponteiros e barras ficam parados no valor. Ao atualizar, a varredura continua acontecendo. O anel em volta do logo continua girando quando a ferramenta está em uso."
-                   FontSize="11" Foreground="#8B949E" Margin="0,4,0,0" TextWrapping="Wrap"/>
+            <TabItem Header="Tamanho e posição">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="20,0,20,16">
+                        <TextBlock Text="TAMANHO DO MODO COMPLETO" Style="{StaticResource Section}"/>
+                        <DockPanel>
+                            <TextBlock x:Name="ScaleLabel" DockPanel.Dock="Right" Width="44" TextAlignment="Right"
+                                       FontFamily="Cascadia Mono, Consolas"/>
+                            <Slider x:Name="ScaleSlider" Minimum="55" Maximum="160" TickFrequency="5" IsSnapToTickEnabled="True"
+                                    ValueChanged="Scale_Changed"/>
+                        </DockPanel>
+                        <TextBlock Text="TAMANHO DO COMPACTO VERTICAL" Style="{StaticResource Section}"/>
+                        <DockPanel>
+                            <TextBlock x:Name="VerticalScaleLabel" DockPanel.Dock="Right" Width="44" TextAlignment="Right"
+                                       FontFamily="Cascadia Mono, Consolas"/>
+                            <Slider x:Name="VerticalScaleSlider" Minimum="60" Maximum="100" TickFrequency="5"
+                                    IsSnapToTickEnabled="True" ValueChanged="VerticalScale_Changed"/>
+                        </DockPanel>
+                        <TextBlock Text="Nos dois modos também dá para arrastar a alça no canto do painel ou usar Ctrl + roda do mouse."
+                                   Style="{StaticResource Hint}"/>
 
-        <TextBlock Text="MONITOR" Style="{StaticResource Section}"/>
-        <ComboBox x:Name="MonitorCombo" DisplayMemberPath="Label" SelectionChanged="Monitor_Changed"/>
+                        <TextBlock Text="MONITOR" Style="{StaticResource Section}"/>
+                        <ComboBox x:Name="MonitorCombo" DisplayMemberPath="Label" SelectionChanged="Monitor_Changed"/>
 
-        <TextBlock Text="POSIÇÃO RÁPIDA" Style="{StaticResource Section}"/>
-        <WrapPanel>
-            <Button Content="↖ Sup. esquerdo" Tag="TopLeft" Click="Corner_Click"/>
-            <Button Content="↗ Sup. direito" Tag="TopRight" Click="Corner_Click"/>
-            <Button Content="↙ Inf. esquerdo" Tag="BottomLeft" Click="Corner_Click"/>
-            <Button Content="↘ Inf. direito" Tag="BottomRight" Click="Corner_Click"/>
-            <Button Content="Centro" Tag="Center" Click="Corner_Click"/>
-        </WrapPanel>
-        <CheckBox x:Name="SnapCheck" Content="Grudar nas bordas ao arrastar" Click="Snap_Click"/>
+                        <TextBlock Text="POSIÇÃO RÁPIDA" Style="{StaticResource Section}"/>
+                        <WrapPanel>
+                            <Button Content="↖ Sup. esquerdo" Tag="TopLeft" Click="Corner_Click"/>
+                            <Button Content="↗ Sup. direito" Tag="TopRight" Click="Corner_Click"/>
+                            <Button Content="↙ Inf. esquerdo" Tag="BottomLeft" Click="Corner_Click"/>
+                            <Button Content="↘ Inf. direito" Tag="BottomRight" Click="Corner_Click"/>
+                            <Button Content="Centro" Tag="Center" Click="Corner_Click"/>
+                        </WrapPanel>
+                        <CheckBox x:Name="SnapCheck" Content="Grudar nas bordas ao arrastar" Click="Snap_Click"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
 
-        <TextBlock Text="ATUALIZAÇÃO" Style="{StaticResource Section}"/>
-        <StackPanel Orientation="Horizontal">
-            <TextBlock Text="Consultar a cada" VerticalAlignment="Center" Margin="0,0,8,0"/>
-            <ComboBox x:Name="PollCombo" Width="90" SelectionChanged="Poll_Changed"/>
-        </StackPanel>
-        <CheckBox x:Name="StartupCheck" Content="Iniciar com o Windows" Click="Startup_Click" Margin="0,12,0,0"/>
+            <TabItem Header="Consultas">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="20,0,20,16">
+                        <TextBlock Text="CONTAS MONITORADAS" Style="{StaticResource Section}"/>
+                        <StackPanel Orientation="Horizontal">
+                            <CheckBox x:Name="ClaudeCheck" Content="Claude Code" Margin="0,4,18,0" Click="Accounts_Click"/>
+                            <CheckBox x:Name="CodexCheck" Content="Codex (ChatGPT)" Click="Accounts_Click"/>
+                        </StackPanel>
 
-        <TextBlock Text="HORÁRIO DE TRABALHO" Style="{StaticResource Section}"/>
-        <CheckBox x:Name="WorkHoursCheck" Content="Pausar as consultas fora do horário de trabalho" Click="WorkHours_Click"/>
-        <StackPanel Orientation="Horizontal" Margin="0,8,0,0"
-                    IsEnabled="{Binding IsChecked, ElementName=WorkHoursCheck}">
-            <TextBlock Text="Das" VerticalAlignment="Center" Margin="0,0,8,0"/>
-            <ComboBox x:Name="WorkStartCombo" Width="80" ItemStringFormat="{}{0:hh\:mm}"
-                      SelectionChanged="WorkTime_Changed"/>
-            <TextBlock Text="às" VerticalAlignment="Center" Margin="8,0"/>
-            <ComboBox x:Name="WorkEndCombo" Width="80" ItemStringFormat="{}{0:hh\:mm}"
-                      SelectionChanged="WorkTime_Changed"/>
-        </StackPanel>
-        <TextBlock Text="Fora desse horário o app para de consultar e de enviar para a API, e avisa no ícone da bandeja. Para voltar antes, use o botão ▶ do painel ou o clique direito."
-                   FontSize="11" Foreground="#8B949E" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                        <TextBlock Text="ATUALIZAÇÃO" Style="{StaticResource Section}"/>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Consultar a cada" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <ComboBox x:Name="PollCombo" Width="90" SelectionChanged="Poll_Changed"/>
+                        </StackPanel>
 
-        <TextBlock Text="ENVIO PARA API" Style="{StaticResource Section}"/>
-        <DockPanel>
-            <Button Content="Configurar…" DockPanel.Dock="Right" Margin="8,0,0,0" Click="Publish_Click"/>
-            <TextBlock x:Name="PublishStatus" VerticalAlignment="Center" TextWrapping="Wrap"/>
-        </DockPanel>
-        <TextBlock Text="Envia o uso atual para uma API sua, para usar em outras aplicações."
-                   FontSize="11" Foreground="#8B949E" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                        <TextBlock Text="HORÁRIO DE TRABALHO" Style="{StaticResource Section}"/>
+                        <CheckBox x:Name="WorkHoursCheck" Content="Pausar as consultas fora do horário de trabalho"
+                                  Click="WorkHours_Click"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0"
+                                    IsEnabled="{Binding IsChecked, ElementName=WorkHoursCheck}">
+                            <TextBlock Text="Das" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <ComboBox x:Name="WorkStartCombo" Width="80" ItemStringFormat="{}{0:hh\:mm}"
+                                      SelectionChanged="WorkTime_Changed"/>
+                            <TextBlock Text="às" VerticalAlignment="Center" Margin="8,0"/>
+                            <ComboBox x:Name="WorkEndCombo" Width="80" ItemStringFormat="{}{0:hh\:mm}"
+                                      SelectionChanged="WorkTime_Changed"/>
+                        </StackPanel>
+                        <TextBlock Text="Fora desse horário o app para de consultar e de enviar para a API, e avisa no ícone da bandeja. Para voltar antes, use o botão ▶ do painel ou o clique direito."
+                                   Style="{StaticResource Hint}"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
 
-        <Button Content="Fechar" HorizontalAlignment="Right" Margin="0,20,0,0" Padding="18,5" Click="Close_Click"
-                IsDefault="True"/>
-    </StackPanel>
+            <TabItem Header="Sistema">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="20,0,20,16">
+                        <TextBlock Text="INICIALIZAÇÃO" Style="{StaticResource Section}"/>
+                        <CheckBox x:Name="StartupCheck" Content="Iniciar com o Windows" Click="Startup_Click"/>
+
+                        <TextBlock Text="ENVIO PARA API" Style="{StaticResource Section}"/>
+                        <DockPanel>
+                            <Button Content="Configurar…" DockPanel.Dock="Right" Margin="8,0,0,0" Click="Publish_Click"/>
+                            <TextBlock x:Name="PublishStatus" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                        </DockPanel>
+                        <TextBlock Text="Envia o uso atual para uma API sua, para usar em outras aplicações."
+                                   Style="{StaticResource Hint}"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+        </TabControl>
+    </DockPanel>
 </Window>
