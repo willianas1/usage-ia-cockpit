@@ -51,10 +51,10 @@ Todas as datas são ISO 8601 com fuso. Campos que podem ser `null` sempre aparec
 | `schemaVersion` | `1` | Outro valor: 400. |
 | `client.name` / `client.version` | texto | Iguais ao `/v1/usage`. |
 | `sentAt` | data | Mesma regra de relógio futuro do `/v1/usage`. |
-| `reason` | `interval` \| `alert` \| `heartbeat` \| `test` | `interval` a cada 60 s; `alert` quando o conjunto de alertas ou o `status` muda; `heartbeat` ao salvar a configuração; `test` é o botão Testar conexão (não grava estado nem histórico). |
+| `reason` | `interval` \| `alert` \| `heartbeat` \| `test` | `interval` a cada 15 s (60 s até a 0.7); `alert` quando o conjunto de alertas ou o `status` muda; `heartbeat` ao salvar a configuração; `test` é o botão Testar conexão (não grava estado nem histórico). |
 | `status` | `ok` \| `warn` \| `danger` | O pior `level` entre os alertas; `ok` sem alertas. |
 | `uptimeSeconds` | inteiro ≥ 0 | Tempo desde o boot. |
-| `cpu.percent` | 0–100 | Uso total médio desde o envio anterior (no máximo 60 s). |
+| `cpu.percent` | 0–100 | Uso total médio desde o envio anterior (no máximo 15 s). |
 | `cpu.speedPercent` | número ≥ 0 ou `null` | "% Processor Performance" do Windows. Passa de 100 com turbo. |
 | `cpu.speedMHz` | número ≥ 0 ou `null` | `baseMHz × speedPercent / 100`. |
 | `cpu.baseMHz` | número > 0 ou `null` | Clock base do processador. |
@@ -119,9 +119,17 @@ Sem dados: `200` com `hasData: false`.
 - `${prefix}:health:history`: uma amostra por minuto (a primeira de cada minuto vence), guardada em sorted set ou lista com corte para 24 h, no mesmo script atômico. Amostra: `{ t, cpu, memory, disk, speedMHz }`.
 - Limite de taxa da escrita da saúde numa identidade própria (`write:health`), para não competir com o `/v1/usage`.
 
+## Saúde ligada ou desligada (`healthEnabled` no `/v1/usage`)
+
+O payload do `/v1/usage` ganha o campo de raiz `healthEnabled` (booleano): `true` quando o monitoramento e o envio da saúde estão ligados no app. A API devolve o campo nas leituras `full` e `compact` do `/v1/usage` (`null` quando o app não informa, versões anteriores à 0.8). O painel do Echo Show:
+
+- `healthEnabled: false` → layout só com a IA (o de antes da saúde) e não consulta `/v1/health`;
+- `healthEnabled: true` → layout com a saúde;
+- `null` → decide pelos dados de `/v1/health` (`hasData` e `online`), consultando-o com menos frequência.
+
 ## Comportamento do app
 
 - Configurações › nova aba **Saúde do PC**: "Monitorar a saúde do PC" (desligado por padrão) e "Enviar a saúde para a API" (usa URL e chave de Configurações › Envio para API).
 - Coleta sem administrador e sem depender do idioma do Windows. CPU a cada 5 s; processos, WMI e discos a cada 30 s. Meta de custo: menos de 0,5% de CPU.
-- Envia a cada 60 s e na hora (respeitando 30 s entre envios) quando o `status` ou o conjunto de `code` dos alertas muda. **Continua enviando com as consultas de IA pausadas** e fora do horário de trabalho.
+- Envia a cada 15 s e na hora (respeitando 15 s entre envios) quando o `status` ou o conjunto de `code` dos alertas muda. **Continua enviando com as consultas de IA pausadas** e fora do horário de trabalho.
 - Só lê: não encerra processos, não executa PowerShell nem outros programas.

@@ -51,6 +51,7 @@ O app não segue redirecionamentos, para que a chave não seja reenviada a outro
   "sentAt": "2026-10-22T14:32:05.1234567-03:00",
   "reason": "activity",
   "paused": false,
+  "healthEnabled": true,
   "providers": {
     "claude": {
       "label": "Claude Code",
@@ -97,6 +98,7 @@ Todas as datas seguem a ISO 8601 com fuso (o fuso local do PC que enviou). Campo
 | `sentAt` | data | Momento do envio. Use para saber se o PC está online (veja [Detectar PC offline](#detectar-pc-offline)). |
 | `reason` | texto | Motivo do envio: `refresh`, `activity`, `heartbeat` ou `test`. |
 | `paused` | booleano | `true` quando o usuário pausou as consultas, pelo botão ou pelo horário de trabalho. Veja [Consultas pausadas](#consultas-pausadas). |
+| `healthEnabled` | booleano | `true` quando Configurações › Saúde do PC está com o monitoramento **e** o envio ligados, ou seja, quando a saúde está chegando em `/v1/health`. O painel do Echo Show usa este campo para escolher o layout (com ou sem a saúde). Mudar a opção faz um envio na hora, mesmo com as consultas pausadas. Apps anteriores à 0.8 não mandam o campo. |
 | `providers` | objeto | Sempre com as chaves `claude` e `codex`. |
 
 **`providers.<id>`**
@@ -297,10 +299,10 @@ Datas em ISO 8601 com fuso. Campos que podem ser `null` sempre aparecem. Ignore 
 
 | Campo | Descrição | De onde vem |
 |---|---|---|
-| `reason` | `interval` (a cada 60 s), `alert` (o `status` ou o conjunto de `code` dos alertas mudou), `heartbeat` (a configuração foi salva) ou `test` (botão Testar envio; não deve gravar estado nem histórico). | |
+| `reason` | `interval` (a cada 15 s), `alert` (o `status` ou o conjunto de `code` dos alertas mudou), `heartbeat` (a configuração foi salva) ou `test` (botão Testar envio; não deve gravar estado nem histórico). | |
 | `status` | `ok`, `warn` ou `danger`: o pior `level` entre os alertas. | |
 | `uptimeSeconds` | Tempo desde o boot. | `GetTickCount64` |
-| `cpu.percent` | Uso total médio desde o envio anterior (no máximo 60 s), de 0 a 100. | `GetSystemTimes`, a cada 5 s |
+| `cpu.percent` | Uso total médio desde o envio anterior (no máximo 15 s), de 0 a 100. | `GetSystemTimes`, a cada 5 s |
 | `cpu.speedPercent` | "% Processor Performance" do Windows; passa de 100 com turbo. `null` se indisponível. | Contador do PDH pelo nome em inglês (não depende do idioma), a cada 30 s |
 | `cpu.speedMHz` | `baseMHz × speedPercent / 100`. | |
 | `cpu.baseMHz` | Clock base do processador. | `CallNtPowerInformation` |
@@ -330,7 +332,7 @@ O `cpu_high` só aparece depois de 5 minutos de amostras (logo depois de abrir o
 
 ### Quando o app envia
 
-- A cada 60 s e, na hora, quando o `status` ou o conjunto de alertas muda, com no máximo um envio a cada 30 s.
+- A cada 15 s (o mesmo ritmo em que o painel do Echo Show consulta) e, na hora, quando o `status` ou o conjunto de alertas muda, com no máximo um envio a cada 15 s.
 - **Continua enviando com as consultas de IA pausadas** e fora do horário de trabalho: a saúde não depende delas.
 - As respostas são tratadas como no `/v1/usage`: `2xx` é sucesso; `401`/`403` param o envio da saúde até a configuração ser salva de novo; `429` respeita o `Retry-After`; outras falhas são tentadas de novo com espera crescente.
 

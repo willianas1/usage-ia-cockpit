@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Propostas de layout · Echo Show</title>
+<style>
+/* Três propostas de layout para o painel do Echo Show 5 (960×480), com dados reais de 29/10. */
+:root {
+  --panel: #0F1216; --panel-border: #2D333B; --muted: #8B949E; --text: #D0D7DE; --dim: #6B7280;
+  --warn: #EF9F27; --ok: #3FB950; --danger: #E24B4A; --blue: #4C9AFF; --card: #141920; --line: #1F252D;
+  --mono: "Cascadia Mono", Consolas, "Roboto Mono", "DejaVu Sans Mono", monospace;
+  --sans: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #000; color: var(--text); font-family: var(--sans); -webkit-user-select: none; user-select: none; }
+
+.panel { position: absolute; left: 0; top: 0; width: 960px; height: 480px; transform-origin: 0 0; padding: 4px 18px 12px; background: var(--panel); border: 1px solid var(--panel-border); border-radius: 14px; display: flex; flex-direction: column; overflow: hidden; }
+
+/* Topo um pouco mais baixo (64 px em vez de 72) para sobrar altura para o conteúdo. */
+.top { height: 64px; flex-shrink: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; }
+.btns { display: flex; gap: 8px; align-items: center; }
+.ib { width: 40px; height: 40px; padding: 10px; border: 1px solid var(--panel-border); border-radius: 10px; background: #171B21; color: var(--text); }
+.ib svg { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.clock-wrap { text-align: center; line-height: 1; }
+.clock { font-family: var(--mono); font-weight: 600; font-size: 42px; letter-spacing: 1px; }
+.clock small { font-size: 16px; color: var(--muted); letter-spacing: 0; }
+.date { margin-top: 3px; color: var(--muted); font-size: 12px; font-weight: 600; letter-spacing: .8px; }
+.status { display: flex; justify-content: flex-end; align-items: center; gap: 8px; font-size: 15px; color: var(--muted); white-space: nowrap; }
+.status .sub { display: block; font-family: var(--mono); font-size: 11px; color: var(--dim); margin-top: 3px; text-align: right; }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--ok); }
+
+.body { flex: 1; min-height: 0; position: relative; }
+.g svg { display: block; width: 100%; height: 100%; }
+.needle { will-change: transform; }
+
+/* Peças comuns */
+.lbl { font-size: 14px; font-weight: 600; text-align: center; }
+.det { font-size: 12px; color: var(--muted); text-align: center; white-space: nowrap; }
+.det.w { color: var(--warn); }
+.reset { color: var(--muted); text-align: center; }
+.reset b { font-weight: 400; color: var(--text); }
+.week-row { display: flex; justify-content: space-between; color: var(--muted); margin-bottom: 5px; }
+.week-row .pct { font-family: var(--mono); color: var(--blue); }
+.bar { position: relative; height: 12px; border-radius: 4px; overflow: hidden; background: linear-gradient(to right, #23282F 0 60%, rgba(232,212,77,.25) 60% 80%, rgba(214,51,132,.25) 80% 100%); }
+.bar span { position: absolute; top: 0; bottom: 0; left: 0; background: var(--blue); }
+.spark { display: block; width: 100%; }
+.sec { font-size: 11px; font-weight: 700; letter-spacing: 1.4px; color: var(--dim); text-transform: uppercase; }
+.card { background: var(--card); border: 1px solid var(--panel-border); border-radius: 12px; }
+
+/* Barra inferior (A e C): alerta principal, selos e o botão Ver saúde */
+.bottom { height: 54px; display: flex; align-items: center; gap: 12px; padding: 0 8px 0 14px; }
+.bottom .alert { flex: 1; min-width: 0; display: flex; align-items: center; gap: 9px; font-size: 14px; }
+.bottom .alert i { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+.bottom .alert span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bottom .alert small { color: var(--dim); font-size: 12px; white-space: nowrap; }
+.chips { display: flex; gap: 6px; }
+.chip { font-size: 12px; padding: 3px 8px; border-radius: 999px; background: #1B222C; color: var(--muted); border: 1px solid var(--panel-border); white-space: nowrap; }
+.chip b { color: var(--text); font-weight: 600; }
+.chip.w { border-color: rgba(239,159,39,.55); } .chip.w b { color: var(--warn); }
+.chip.d { border-color: rgba(226,75,74,.6); } .chip.d b { color: #FF7B72; }
+.see { height: 40px; padding: 0 14px; border: 1px solid rgba(226,75,74,.7); border-radius: 10px; background: #1B1416; color: var(--text); font: 600 14px var(--sans); display: flex; align-items: center; gap: 8px; white-space: nowrap; cursor: pointer; }
+.see svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.badge { font-size: 12px; font-weight: 700; padding: 2px 7px; border-radius: 999px; background: rgba(226,75,74,.18); color: #FF7B72; }
+
+/* ---------- A: meio a meio ---------- */
+.A { position: absolute; inset: 0; display: grid; grid-template-rows: 1fr 54px; gap: 8px; }
+.A .halves { display: grid; grid-template-columns: 1fr 1px 1fr; gap: 14px; min-height: 0; }
+.A .vline { background: var(--panel-border); margin: 4px 0; }
+.A .ai { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.A .aicol { display: flex; flex-direction: column; align-items: center; }
+.A .aicol .g { width: 222px; height: 178px; }
+.A .aicol .reset { font-size: 15px; margin: 2px 0 12px; }
+.A .aicol .week { width: 200px; font-size: 14px; }
+.A .health { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 4px 6px; }
+.A .hcell { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.A .hcell .g { width: 132px; height: 106px; }
+.A .hcell .lbl { margin-top: -6px; }
+.A .bottom { border-top: 1px solid var(--line); }
+
+/* ---------- B: IA compacta + saúde em destaque ---------- */
+.B { position: absolute; inset: 0; display: grid; grid-template-columns: 322px 1fr; gap: 12px; }
+.B .ai { display: grid; grid-template-rows: 1fr 1fr; gap: 10px; }
+/* Cartão de IA: mostrador grande à esquerda e a semana como termômetro vertical à direita. */
+.B .aicard { display: grid; grid-template-columns: 1fr 64px; align-items: stretch; gap: 6px; padding: 4px 10px 6px 6px; min-height: 0; }
+.B .aicard .gwrap { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 0; }
+.B .aicard .g { width: 210px; height: 168px; }
+.B .aicard .reset { font-size: 13px; white-space: nowrap; margin-top: -2px; }
+/* Termômetro da semana: tubo de vidro, mercúrio em degradê (verde → vermelho) e seta com o valor. */
+.thermo { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 0; }
+.thermo .cap { font-size: 10px; font-weight: 700; letter-spacing: 1.2px; color: var(--dim); margin-bottom: 2px; }
+.thermo svg { display: block; width: 64px; height: 152px; overflow: visible; }
+.thermo .when { font-size: 11px; color: var(--muted); margin-top: 2px; white-space: nowrap; }
+.thermo .merc { transform-origin: 16px 128px; transform: scaleY(0); transition: transform 1s cubic-bezier(.34, 1.25, .64, 1); }
+.thermo .tag { transform: translateY(var(--d)); transition: transform 1s cubic-bezier(.34, 1.25, .64, 1); }
+.thermo.up .merc, .thermo.up .tag { transform: none; }
+.B .chip { font-size: 11px; padding: 2px 6px; }
+.B .right { display: grid; grid-template-rows: 172px 1fr; gap: 10px; min-height: 0; }
+.B .hrow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.B .hcell { display: flex; flex-direction: column; align-items: center; padding: 2px 6px 6px; }
+.B .hcell .g { width: 126px; height: 101px; }
+.B .hcell .lbl { margin-top: -6px; }
+.B .hcell .spark { height: 18px; margin-top: 4px; }
+.B .lower { display: grid; grid-template-columns: 1.35fr 1fr; gap: 8px; min-height: 0; }
+.B .lower .card { padding: 8px 12px; overflow: hidden; display: flex; flex-direction: column; }
+.B .head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+.B .see { height: 30px; padding: 0 10px; font-size: 13px; }
+.item { display: grid; grid-template-columns: 10px 1fr; gap: 8px; padding: 4px 0; border-top: 1px solid var(--line); }
+.item:first-of-type { border-top: 0; }
+.item i { width: 9px; height: 9px; border-radius: 50%; margin-top: 4px; }
+.item .a { font-size: 13px; font-weight: 600; line-height: 1.2; }
+.item .b { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.more { font-size: 11px; color: var(--dim); margin-top: auto; }
+.proc { display: grid; grid-template-columns: 1fr 38px 58px; gap: 6px; font-size: 13px; padding: 2px 0; }
+.proc small { color: var(--dim); }
+.proc .v { font-family: var(--mono); text-align: right; color: var(--muted); }
+.B .chips { margin-top: auto; padding-top: 6px; }
+
+/* ---------- C: painel de instrumentos em linha ---------- */
+.C { position: absolute; inset: 0; display: grid; grid-template-rows: 1fr 54px; gap: 8px; }
+.C .row { display: grid; grid-template-columns: 196px 196px 1px repeat(4, 1fr); gap: 10px; min-height: 0; }
+.C .vline { background: var(--panel-border); margin: 6px 0; }
+.C .col { display: flex; flex-direction: column; align-items: center; min-width: 0; padding-top: 4px; }
+.C .col.ai .g { width: 196px; height: 157px; }
+.C .col.h .g { width: 128px; height: 102px; margin-top: 24px; }
+.C .col .lbl { margin-top: -4px; }
+.C .col.h .det { margin-bottom: auto; }
+.C .col.ai .foot { margin-top: auto; }
+.C .foot { width: 100%; margin-top: 10px; }
+.C .foot .week-row { font-size: 13px; }
+.C .foot .bar + .week-row { margin-top: 12px; }
+.C .foot .spark { height: 78px; }
+.C .foot .cap { display: flex; justify-content: space-between; font-size: 11px; color: var(--dim); margin-top: 2px; }
+.C .bottom { border-top: 1px solid var(--line); }
+.C .tag { font-size: 11px; color: var(--dim); letter-spacing: 1.2px; font-weight: 700; margin-bottom: 2px; }
+
+/* Barra do protótipo (fora do palco) */
+.demo { position: fixed; left: 0; right: 0; bottom: 0; height: 46px; display: flex; gap: 8px; align-items: center; justify-content: center; font: 13px var(--sans); color: var(--muted); background: #0A0C0F; border-top: 1px solid #1F252D; }
+.demo button { font: 13px var(--sans); color: var(--text); background: #171B21; border: 1px solid var(--panel-border); border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+.demo button.on { border-color: var(--blue); color: #fff; }
+.toast { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); background: #1B222C; border: 1px solid var(--panel-border); border-radius: 10px; padding: 10px 16px; font-size: 14px; display: none; }
+</style>
+</head>
+<body>
+<main id="panel" class="panel">
+  <header class="top">
+    <div class="btns">
+      <span class="ib"><svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3"/></svg></span>
+      <span class="ib"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8M21 3v5h-5"/></svg></span>
+      <span class="ib"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></span>
+      <span class="ib" style="color:var(--ok);border-color:var(--ok)"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4M9 10h6M12 7v6"/></svg></span>
+    </div>
+    <div class="clock-wrap"><div id="clock" class="clock">--:--</div><div id="date" class="date">---</div></div>
+    <div class="status"><span class="dot"></span><span>Atualizado agora<span class="sub" id="last">--</span></span></div>
+  </header>
+  <section id="body" class="body"></section>
+  <div id="toast" class="toast">Abre o modo detalhado (como já está no painel)</div>
+</main>
+
+<div class="demo">Proposta:
+  <button data-l="A">A · Meio a meio</button>
+  <button data-l="B" class="on">B · Saúde em destaque</button>
+  <button data-l="C">C · Instrumentos em linha</button>
+  <button id="jit" class="on" style="margin-left:14px">Ponteiros tremendo: ligado</button>
+  <button id="wk">Semana: valores reais</button>
+</div>
+
+<script>
+'use strict';
+var C = { track: '#23282F', tick: '#6B7280', muted: '#8B949E', text: '#D0D7DE', needle: '#F5F5F5', hub: '#0B0D10', hubRim: '#3A4048',
+  ok: '#3FB950', warn: '#EF9F27', danger: '#E24B4A', warnSoft: 'rgba(239,159,39,0.35)', dangerSoft: 'rgba(226,75,74,0.35)', blue: '#4C9AFF' };
+var LOGO_CLAUDE = 'm4.7144 15.9555 4.7174-2.6471.079-.2307-.079-.1275h-.2307l-.7893-.0486-2.6956-.0729-2.3375-.0971-2.2646-.1214-.5707-.1215-.5343-.7042.0546-.3522.4797-.3218.686.0608 1.5179.1032 2.2767.1578 1.6514.0972 2.4468.255h.3886l.0546-.1579-.1336-.0971-.1032-.0972L6.973 9.8356l-2.55-1.6879-1.3356-.9714-.7225-.4918-.3643-.4614-.1578-1.0078.6557-.7225.8803.0607.2246.0607.8925.686 1.9064 1.4754 2.4893 1.8336.3643.3035.1457-.1032.0182-.0728-.164-.2733-1.3539-2.4467-1.445-2.4893-.6435-1.032-.17-.6194c-.0607-.255-.1032-.4674-.1032-.7285L6.287.1335 6.6997 0l.9957.1336.419.3642.6192 1.4147 1.0018 2.2282 1.5543 3.0296.4553.8985.2429.8318.091.255h.1579v-.1457l.1275-1.706.2368-2.0947.2307-2.6957.0789-.7589.3764-.9107.7468-.4918.5828.2793.4797.686-.0668.4433-.2853 1.8517-.5586 2.9021-.3643 1.9429h.2125l.2429-.2429.9835-1.3053 1.6514-2.0643.7286-.8196.85-.9046.5464-.4311h1.0321l.759 1.1293-.34 1.1657-1.0625 1.3478-.8804 1.1414-1.2628 1.7-.7893 1.36.0729.1093.1882-.0183 2.8535-.607 1.5421-.2794 1.8396-.3157.8318.3886.091.3946-.3278.8075-1.967.4857-2.3072.4614-3.4364.8136-.0425.0304.0486.0607 1.5482.1457.6618.0364h1.621l3.0175.2247.7892.522.4736.6376-.079.4857-1.2142.6193-1.6393-.3886-3.825-.9107-1.3113-.3279h-.1822v.1093l1.0929 1.0686 2.0035 1.8092 2.5075 2.3314.1275.5768-.3218.4554-.34-.0486-2.2039-1.6575-.85-.7468-1.9246-1.621h-.1275v.17l.4432.6496 2.3436 3.5214.1214 1.0807-.17.3521-.6071.2125-.6679-.1214-1.3721-1.9246L14.38 17.959l-1.1414-1.9428-.1397.079-.674 7.2552-.3156.3703-.7286.2793-.6071-.4614-.3218-.7468.3218-1.4753.3886-1.9246.3157-1.53.2853-1.9004.17-.6314-.0121-.0425-.1397.0182-1.4328 1.9672-2.1796 2.9446-1.7243 1.8456-.4128.164-.7164-.3704.0667-.6618.4008-.5889 2.386-3.0357 1.4389-1.882.929-1.0868-.0062-.1579h-.0546l-6.3385 4.1164-1.1293.1457-.4857-.4554.0608-.7467.2307-.2429 1.9064-1.3114Z';
+var LOGO_OPENAI = 'M22.2819 9.8211a5.9847 5.9847 0 0 0-.5157-4.9108 6.0462 6.0462 0 0 0-6.5098-2.9A6.0651 6.0651 0 0 0 4.9807 4.1818a5.9847 5.9847 0 0 0-3.9977 2.9 6.0462 6.0462 0 0 0 .7427 7.0966 5.98 5.98 0 0 0 .511 4.9107 6.051 6.051 0 0 0 6.5146 2.9001A5.9847 5.9847 0 0 0 13.2599 24a6.0557 6.0557 0 0 0 5.7718-4.2058 5.9894 5.9894 0 0 0 3.9977-2.9001 6.0557 6.0557 0 0 0-.7475-7.0729zm-9.022 12.6081a4.4755 4.4755 0 0 1-2.8764-1.0408l.1419-.0804 4.7783-2.7582a.7948.7948 0 0 0 .3927-.6813v-6.7369l2.02 1.1686a.071.071 0 0 1 .038.052v5.5826a4.504 4.504 0 0 1-4.4945 4.4944zm-9.6607-4.1254a4.4708 4.4708 0 0 1-.5346-3.0137l.142.0852 4.783 2.7582a.7712.7712 0 0 0 .7806 0l5.8428-3.3685v2.3324a.0804.0804 0 0 1-.0332.0615L9.74 19.9502a4.4992 4.4992 0 0 1-6.1408-1.6464zM2.3408 7.8956a4.485 4.485 0 0 1 2.3655-1.9728V11.6a.7664.7664 0 0 0 .3879.6765l5.8144 3.3543-2.0201 1.1685a.0757.0757 0 0 1-.071 0l-4.8303-2.7865A4.504 4.504 0 0 1 2.3408 7.872zm16.5963 3.8558L13.1038 8.364 15.1192 7.2a.0757.0757 0 0 1 .071 0l4.8303 2.7913a4.4944 4.4944 0 0 1-.6765 8.1042v-5.6772a.79.79 0 0 0-.407-.667zm2.0107-3.0231l-.142-.0852-4.7735-2.7818a.7759.7759 0 0 0-.7854 0L9.409 9.2297V6.8974a.0662.0662 0 0 1 .0284-.0615l4.8303-2.7866a4.4992 4.4992 0 0 1 6.6802 4.66zM8.3065 12.863l-2.02-1.1638a.0804.0804 0 0 1-.038-.0567V6.0742a4.4992 4.4992 0 0 1 7.3757-3.4537l-.142.0805L8.704 5.459a.7948.7948 0 0 0-.3927.6813zm1.0976-2.3654l2.602-1.4998 2.6069 1.4998v2.9994l-2.5974 1.4997-2.6067-1.4997Z';
+
+// ---------- Mostrador (mesma geometria do Gauge.cs / app.js) ----------
+var CX = 80, CY = 72, R = 56, START = 135, SWEEP = 270;
+function pt(r, deg) { var a = deg * Math.PI / 180; return (CX + r * Math.cos(a)).toFixed(2) + ' ' + (CY + r * Math.sin(a)).toFixed(2); }
+function arc(r, a0, a1) { return 'M' + pt(r, a0) + 'A' + r + ' ' + r + ' 0 ' + (a1 - a0 > 180 ? 1 : 0) + ' 1 ' + pt(r, a1); }
+function stroke(d, color, w) { return '<path d="' + d + '" fill="none" stroke="' + color + '" stroke-width="' + w + '"/>'; }
+function clamp(v) { return Math.max(0, Math.min(100, v)); }
+function ang(p) { return START + SWEEP * p / 100; }
+
+function gauge(o) {
+  var v = clamp(o.pct), bands = o.warn != null;
+  var s = '<svg viewBox="0 0 160 128">';
+  s += stroke(arc(R, START, START + SWEEP), C.track, 8);
+  if (bands) {
+    s += stroke(arc(R, ang(o.warn), ang(o.danger)), C.warnSoft, 8);
+    s += stroke(arc(R, ang(o.danger), START + SWEEP), C.dangerSoft, 8);
+    if (v > 0.5) s += stroke(arc(R, START, ang(Math.min(v, o.warn))), o.color, 8);
+    if (v > o.warn) s += stroke(arc(R, ang(o.warn), ang(Math.min(v, o.danger))), C.warn, 8);
+    if (v > o.danger) s += stroke(arc(R, ang(o.danger), ang(v)), C.danger, 8);
+  } else if (v > 0.5) s += stroke(arc(R, START, ang(v)), o.color, 8);
+  for (var i = 0; i <= 20; i++) {
+    var p = i * 5, major = i % 5 === 0, a = START + SWEEP * i / 20;
+    if (o.mini && !major) continue;
+    var tc = !bands ? C.tick : p >= o.danger ? C.danger : p >= o.warn ? C.warn : C.tick;
+    s += stroke('M' + pt(R + 7, a) + 'L' + pt(R + (major ? 15 : 11), a), tc, major ? (o.mini ? 3 : 2) : 1);
+  }
+  if (!o.mini) (o.scale || ['0', '50', '100']).forEach(function (t, k) {
+    var xy = pt(R - 17, ang(k * 50)).split(' ');
+    s += '<text x="' + xy[0] + '" y="' + xy[1] + '" fill="' + C.muted + '" font-size="11" text-anchor="middle" dominant-baseline="central">' + t + '</text>';
+  });
+  s += '<g class="needle" data-a="' + ang(v).toFixed(1) + '" style="transform-origin:80px 72px;transform:rotate(' + ang(v).toFixed(1) + 'deg)">' +
+       '<line x1="72" y1="72" x2="132" y2="72" stroke="' + C.needle + '" stroke-width="' + (o.mini ? 3.5 : 2.5) + '" stroke-linecap="round"/></g>';
+  s += '<circle cx="80" cy="72" r="27" fill="' + C.hub + '" stroke="' + C.hubRim + '" stroke-width="1"/>';
+  if (o.logo) s += '<path transform="translate(60 52) scale(1.6667)" fill="' + o.logoFill + '" d="' + o.logo + '"/>';
+  else s += '<text x="80" y="73" fill="' + C.text + '" font-size="' + (o.hub.length > 3 ? 15 : 19) + '" font-weight="700" text-anchor="middle" dominant-baseline="central" font-family="Segoe UI, Roboto, Arial, sans-serif">' + o.hub + '</text>';
+  s += '<text x="80" y="114" fill="' + o.readoutColor + '" font-size="' + (o.mini ? 26 : 22) + '" font-weight="600" text-anchor="middle" dominant-baseline="central" font-family="Cascadia Mono, Consolas, Roboto Mono, monospace">' + o.readout + '</text>';
+  return s + '</svg>';
+}
+
+// ---------- Dados (leitura real de 29/10, via API local) ----------
+function series(base, amp, n, seed) {
+  var out = [], x = seed;
+  for (var i = 0; i < n; i++) { x = (x * 9301 + 49297) % 233280; out.push(clamp(base + amp * Math.sin(i / 6 + seed) + (x / 233280 - .5) * amp)); }
+  return out;
+}
+var AI = [
+  { id: 'claude', name: 'Claude Code', pct: 43, reset: '2h 18min', week: 18, weekReset: 'ter 09:00', brand: '#D97757', fill: '#D97757', logo: LOGO_CLAUDE },
+  { id: 'codex', name: 'Codex', pct: 7, reset: '3h 40min', week: 31, weekReset: 'dom 11:00', brand: '#10A37F', fill: C.text, logo: LOGO_OPENAI }
+];
+var H = [
+  { hub: 'CPU', title: 'Processador', pct: 73, readout: '73%', warn: 70, danger: 90, det: 'chrome 27%', hist: series(62, 20, 48, 3) },
+  { hub: 'RAM', title: 'Memória', pct: 85, readout: '85%', warn: 75, danger: 90, det: '2,7 GB livres de 32', hist: series(80, 6, 48, 7) },
+  { hub: 'C:', title: 'Disco C:', pct: 93, readout: '93%', warn: 85, danger: 95, det: '21 GB livres de 279', hist: series(92, 1, 48, 2) },
+  { hub: 'GHz', title: 'Velocidade', pct: 54, readout: '2,7', warn: null, det: 'modo equilibrado', hist: series(50, 14, 48, 5), scale: ['0', '2,5', '5'] }
+];
+var ALERTS = [
+  { lv: 'danger', a: 'Memória do kernel em 2,3 GB', b: 'Reinicie; se voltar a crescer, investigue drivers' },
+  { lv: 'warn', a: 'Memória comprometida em 85%', b: 'Feche apps que não está usando' },
+  { lv: 'warn', a: 'Disco C: com 7% livre', b: 'Limpe Temp e caches ou mova arquivos para outro disco' },
+  { lv: 'warn', a: 'Ligado há 13 dias', b: 'Reinicie para liberar memória' },
+  { lv: 'warn', a: '572 processos abertos', b: 'Feche apps e terminais esquecidos' },
+  { lv: 'warn', a: '37 processos auxiliares há mais de 1 dia', b: 'Feche terminais e reabra apps como o Codex' }
+];
+var PROCS = [['chrome', 62, 27, '18,5 GB'], ['claude', 15, 4, '3,5 GB'], ['ChatGPT', 15, 2, '3,3 GB'], ['Taskmgr', 1, 3, '170 MB']];
+var CHIPS = [['Ligado', '13d 0h', 'w'], ['Proc.', '572', 'w'], ['Kernel', '2,3 GB', 'd']];
+
+function level(m) { return m.warn == null ? C.blue : m.pct >= m.danger ? C.danger : m.pct >= m.warn ? C.warn : C.ok; }
+function aiGauge(p, mini) { return gauge({ pct: p.pct, warn: 60, danger: 80, color: p.brand, logo: p.logo, logoFill: p.fill, readout: p.pct + '%', readoutColor: p.pct < 60 ? C.ok : p.pct < 80 ? C.warn : C.danger, mini: mini }); }
+function hGauge(m, mini) { return gauge({ pct: m.pct, warn: m.warn, danger: m.danger, color: C.blue, hub: m.hub, readout: m.readout, readoutColor: level(m), mini: mini, scale: m.scale }); }
+function week(p) { return '<div class="week-row"><span>semana · ' + p.weekReset + '</span><span class="pct">' + p.week + '%</span></div><div class="bar"><span style="width:' + p.week + '%"></span></div>'; }
+function spark(m, h) {
+  var w = 150, n = m.hist.length, c = level(m);
+  var pts = m.hist.map(function (v, i) { return (i * w / (n - 1)).toFixed(1) + ',' + (h - 2 - v / 100 * (h - 4)).toFixed(1); });
+  return '<svg class="spark" viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="none"><polygon points="0,' + h + ' ' + pts.join(' ') + ' ' + w + ',' + h + '" fill="' + c + '" fill-opacity=".14"/><polyline points="' + pts.join(' ') + '" fill="none" stroke="' + c + '" stroke-width="1.5" vector-effect="non-scaling-stroke"/></svg>';
+}
+// ---------- Termômetro da semana ----------
+// Degradê suave do verde (vazio) ao vermelho (limite), nas cores dos mostradores. O mercúrio sobe do
+// bulbo até o valor e a seta à direita aponta a altura, já na cor daquele ponto do degradê.
+var GRAD = [[0, [63, 185, 80]], [45, [168, 205, 70]], [62, [232, 212, 77]], [78, [239, 159, 39]], [100, [226, 75, 74]]];
+function gradAt(p) {
+  for (var i = 1; i < GRAD.length; i++) {
+    if (p <= GRAD[i][0]) {
+      var a = GRAD[i - 1], b = GRAD[i], t = (p - a[0]) / (b[0] - a[0]);
+      return 'rgb(' + [0, 1, 2].map(function (k) { return Math.round(a[1][k] + (b[1][k] - a[1][k]) * t); }).join(',') + ')';
+    }
+  }
+  return 'rgb(226,75,74)';
+}
+var T_TOP = 10, T_ZERO = 116, T_BULB = 134; // y do 100%, do 0% e do centro do bulbo (viewBox 64×152)
+function thermo(p) {
+  var v = clamp(p.week), y = T_ZERO - (T_ZERO - T_TOP) * v / 100, c = gradAt(v), id = 'tg-' + p.id;
+  var stops = GRAD.map(function (s) { return '<stop offset="' + s[0] + '%" stop-color="rgb(' + s[1].join(',') + ')"/>'; }).join('');
+  var s = '<svg viewBox="0 0 64 152">' +
+    '<defs><linearGradient id="' + id + '" gradientUnits="userSpaceOnUse" x1="0" y1="' + T_ZERO + '" x2="0" y2="' + T_TOP + '">' + stops + '</linearGradient></defs>';
+  // Escala à esquerda: marcas a cada 10%, maiores em 0, 50 e 100.
+  for (var i = 0; i <= 10; i++) {
+    var ty = T_ZERO - (T_ZERO - T_TOP) * i / 10, big = i % 5 === 0;
+    s += '<line x1="' + (big ? 0 : 2) + '" y1="' + ty + '" x2="5" y2="' + ty + '" stroke="' + (big ? '#8B949E' : '#4A5059') + '" stroke-width="' + (big ? 1.5 : 1) + '"/>';
+  }
+  // Vidro: cápsula + bulbo, com fundo escuro único.
+  s += '<rect x="7" y="2" width="18" height="124" rx="9" fill="#0B0D10" stroke="#3A4048" stroke-width="1.5"/>' +
+       '<circle cx="16" cy="' + T_BULB + '" r="15" fill="#0B0D10" stroke="#3A4048" stroke-width="1.5"/>' +
+       '<rect x="8.5" y="118" width="15" height="10" fill="#0B0D10"/>';
+  // Mercúrio: bulbo + coluna até o valor, pintados pelo degradê.
+  s += '<g class="merc"><rect x="11.5" y="' + y.toFixed(1) + '" width="9" height="' + (T_BULB - y).toFixed(1) + '" rx="4.5" fill="url(#' + id + ')"/></g>' +
+       '<circle cx="16" cy="' + T_BULB + '" r="11" fill="rgb(' + GRAD[0][1].join(',') + ')"/>' +
+       '<circle cx="12" cy="' + (T_BULB - 4) + '" r="3.5" fill="#fff" fill-opacity=".35"/>' +
+       '<rect x="12.5" y="6" width="2" height="108" rx="1" fill="#fff" fill-opacity=".10"/>';
+  // Seta com o valor, que sobe junto com o mercúrio.
+  s += '<g class="tag" style="--d:' + (T_ZERO - y).toFixed(1) + 'px"><path d="M27 ' + y.toFixed(1) + 'l6 -7h27a3 3 0 0 1 3 3v8a3 3 0 0 1 -3 3h-27z" fill="' + c + '"/>' +
+       '<text x="47" y="' + (y + 0.5).toFixed(1) + '" fill="#0B0D10" font-size="12" font-weight="700" text-anchor="middle" dominant-baseline="central" font-family="Cascadia Mono, Consolas, Roboto Mono, monospace">' + Math.round(v) + '%</text></g>';
+  return '<div class="thermo"><div class="cap">SEMANA</div>' + s + '</svg><div class="when">' + p.weekReset + '</div></div>';
+}
+var ICON_PULSE = '<svg viewBox="0 0 24 24"><path d="M3 12h4l3-7 4 14 3-7h4"/></svg>';
+function seeBtn() { return '<button class="see" data-see>' + ICON_PULSE + 'Ver saúde <span class="badge">' + ALERTS.length + ' alertas</span></button>'; }
+function chips() { return '<div class="chips">' + CHIPS.map(function (c) { return '<span class="chip ' + c[2] + '">' + c[0] + ' <b>' + c[1] + '</b></span>'; }).join('') + '</div>'; }
+function bottom() {
+  var a = ALERTS[0];
+  return '<footer class="bottom"><div class="alert"><i style="background:' + (a.lv === 'danger' ? C.danger : C.warn) + '"></i><span><b>' + a.a + '</b></span><small>+' + (ALERTS.length - 1) + ' alertas</small></div>' + chips() + seeBtn() + '</footer>';
+}
+
+// ---------- A: meio a meio ----------
+function layoutA() {
+  return '<div class="A"><div class="halves">' +
+    '<section class="ai">' + AI.map(function (p) {
+      return '<div class="aicol"><div class="g">' + aiGauge(p) + '</div><div class="reset">5h · <b>reseta em ' + p.reset + '</b></div><div class="week">' + week(p) + '</div></div>';
+    }).join('') + '</section><div class="vline"></div>' +
+    '<section class="health">' + H.map(function (m) {
+      return '<div class="hcell"><div class="g">' + hGauge(m, true) + '</div><div class="lbl">' + m.title + '</div><div class="det">' + m.det + '</div></div>';
+    }).join('') + '</section></div>' + bottom() + '</div>';
+}
+
+// ---------- B: IA compacta + saúde em destaque ----------
+function layoutB() {
+  return '<div class="B"><section class="ai">' + AI.map(function (p) {
+      return '<div class="aicard card"><div class="gwrap"><div class="g">' + aiGauge(p) + '</div><div class="reset">5h · <b>reseta em ' + p.reset + '</b></div></div>' + thermo(p) + '</div>';
+    }).join('') + '</section>' +
+    '<section class="right"><div class="hrow">' + H.map(function (m) {
+      return '<div class="hcell card"><div class="g">' + hGauge(m) + '</div><div class="lbl">' + m.title + '</div><div class="det">' + m.det + '</div>' + spark(m, 18) + '</div>';
+    }).join('') + '</div><div class="lower">' +
+    '<div class="card"><div class="head"><span class="sec">Alertas · ' + ALERTS.length + '</span>' + seeBtn().replace(' <span class="badge">' + ALERTS.length + ' alertas</span>', '') + '</div>' +
+      ALERTS.slice(0, 3).map(function (a) { return '<div class="item"><i style="background:' + (a.lv === 'danger' ? C.danger : C.warn) + '"></i><div><div class="a">' + a.a + '</div><div class="b">' + a.b + '</div></div></div>'; }).join('') +
+      '<div class="more">+' + (ALERTS.length - 3) + ' alertas no detalhe</div></div>' +
+    '<div class="card"><div class="head"><span class="sec">Mais pesados</span></div>' + PROCS.map(function (p) {
+      return '<div class="proc"><span>' + p[0] + ' <small>×' + p[1] + '</small></span><span class="v">' + p[2] + '%</span><span class="v">' + p[3] + '</span></div>';
+    }).join('') + chips() + '</div></div></section></div>';
+}
+
+// ---------- C: instrumentos em linha ----------
+function layoutC() {
+  var cols = AI.map(function (p) {
+    // Na C, a janela de 5 h também vira barra, para ocupar a altura como os gráficos da saúde.
+    var five = '<div class="week-row"><span>5h · reseta em ' + p.reset + '</span><span class="pct" style="color:' + (p.pct < 60 ? C.ok : p.pct < 80 ? C.warn : C.danger) + '">' + p.pct + '%</span></div>' +
+      '<div class="bar"><span style="width:' + p.pct + '%;background:' + p.brand + '"></span></div>';
+    return '<div class="col ai"><div class="g">' + aiGauge(p) + '</div><div class="foot">' + five + week(p) + '</div></div>';
+  }).join('') + '<div class="vline"></div>' + H.map(function (m) {
+    return '<div class="col h"><div class="g">' + hGauge(m, true) + '</div><div class="lbl">' + m.title + '</div><div class="det">' + m.det + '</div><div class="foot">' + spark(m, 34) + '<div class="cap"><span>24 h</span><span>agora</span></div></div></div>';
+  }).join('');
+  return '<div class="C"><div class="row">' + cols + '</div>' + bottom() + '</div>';
+}
+
+var LAYOUTS = { A: layoutA, B: layoutB, C: layoutC }, current = 'B', jitter = true;
+function render() {
+  document.getElementById('body').innerHTML = LAYOUTS[current]();
+  // Mercúrio sobe do bulbo até o valor ao abrir, como os ponteiros na atualização.
+  requestAnimationFrame(function () { requestAnimationFrame(function () {
+    Array.prototype.forEach.call(document.querySelectorAll('.thermo'), function (t) { t.classList.add('up'); });
+  }); });
+  needles = Array.prototype.map.call(document.querySelectorAll('.needle'), function (n, i) { return { el: n, a: parseFloat(n.getAttribute('data-a')), ph: i * 1.7 }; });
+  Array.prototype.forEach.call(document.querySelectorAll('[data-see]'), function (b) {
+    b.onclick = function () { var t = document.getElementById('toast'); t.style.display = 'block'; setTimeout(function () { t.style.display = 'none'; }, 1400); };
+  });
+}
+
+// Tremor dos ponteiros: o mesmo do app.js (duas ondas + ruído, ~±1,5°), agora em todos os mostradores.
+var needles = [];
+function shake() {
+  var now = performance.now();
+  for (var i = 0; i < needles.length; i++) {
+    var n = needles[i], j = jitter ? 0.9 * Math.sin(now * 0.019 + n.ph) + 0.45 * Math.sin(now * 0.043 + 1.3 + n.ph) + 0.35 * (Math.random() - 0.5) : 0;
+    n.el.style.transform = 'rotate(' + (n.a + j).toFixed(2) + 'deg)';
+  }
+  setTimeout(shake, 70);
+}
+
+var DAYS = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'], MONTHS = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
+function pad(n) { return (n < 10 ? '0' : '') + n; }
+function tick() {
+  var d = new Date();
+  document.getElementById('clock').innerHTML = pad(d.getHours()) + ':' + pad(d.getMinutes()) + '<small>' + pad(d.getSeconds()) + '</small>';
+  document.getElementById('date').textContent = DAYS[d.getDay()] + ', ' + d.getDate() + ' de ' + MONTHS[d.getMonth()];
+  document.getElementById('last').textContent = pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + '/' + d.getFullYear() + ' · ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+}
+function fit() {
+  var demoH = window.innerHeight > 560 ? 46 : 0, panel = document.getElementById('panel');
+  document.querySelector('.demo').style.display = demoH ? 'flex' : 'none';
+  var k = Math.min(window.innerWidth / 960, (window.innerHeight - demoH) / 480);
+  panel.style.transform = 'translate(' + ((window.innerWidth - 960 * k) / 2) + 'px,' + ((window.innerHeight - demoH - 480 * k) / 2) + 'px) scale(' + k + ')';
+}
+Array.prototype.forEach.call(document.querySelectorAll('[data-l]'), function (b) {
+  b.onclick = function () {
+    current = b.getAttribute('data-l');
+    Array.prototype.forEach.call(document.querySelectorAll('[data-l]'), function (x) { x.classList.toggle('on', x === b); });
+    render();
+  };
+});
+document.getElementById('jit').onclick = function () {
+  jitter = !jitter; this.classList.toggle('on', jitter); this.textContent = 'Ponteiros tremendo: ' + (jitter ? 'ligado' : 'desligado');
+};
+// Alterna a semana entre os valores reais e valores altos, para ver o degradê e a seta em outras alturas.
+var WEEKS = [[18, 31, 'valores reais'], [72, 96, 'valores altos (72% e 96%)'], [55, 84, 'valores médios (55% e 84%)']], wk = 0;
+document.getElementById('wk').onclick = function () {
+  wk = (wk + 1) % WEEKS.length; AI[0].week = WEEKS[wk][0]; AI[1].week = WEEKS[wk][1];
+  this.textContent = 'Semana: ' + WEEKS[wk][2]; render();
+};
+if (/shot=alto/.test(location.search)) { wk = 1; AI[0].week = WEEKS[1][0]; AI[1].week = WEEKS[1][1]; document.getElementById('wk').textContent = 'Semana: ' + WEEKS[1][2]; }
+var q = location.hash.replace('#', ''); if (LAYOUTS[q]) { current = q; Array.prototype.forEach.call(document.querySelectorAll('[data-l]'), function (x) { x.classList.toggle('on', x.getAttribute('data-l') === q); }); }
+window.addEventListener('resize', fit); fit();
+setInterval(tick, 1000); tick();
+render(); shake();
+</script>
+</body>
+</html>

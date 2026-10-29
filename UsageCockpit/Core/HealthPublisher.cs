@@ -53,7 +53,7 @@ public sealed record HealthAlert(string Code, string Level, string Title, string
 
 /// <summary>
 /// Envia a saúde do PC para POST {urlBase}/v1/health, com a mesma URL e a mesma chave do envio do uso.
-/// A cada 60 s e na hora (no máximo um envio a cada 30 s) quando o status ou o conjunto de alertas muda.
+/// A cada 15 s e na hora (no máximo um envio a cada 15 s) quando o status ou o conjunto de alertas muda.
 /// Ao contrário do uso, continua enviando com as consultas pausadas e fora do horário de trabalho.
 /// </summary>
 public sealed class HealthPublisher : ApiPublisher
@@ -61,8 +61,9 @@ public sealed class HealthPublisher : ApiPublisher
     public const string Route = "v1/health";
     public const int SchemaVersion = 1;
 
-    static readonly TimeSpan MinGap = TimeSpan.FromSeconds(30);
-    static readonly TimeSpan IntervalEvery = TimeSpan.FromSeconds(60);
+    // No mesmo ritmo em que o painel do Echo Show consulta a API (15 s): cada consulta traz dado novo.
+    static readonly TimeSpan MinGap = TimeSpan.FromSeconds(15);
+    static readonly TimeSpan IntervalEvery = TimeSpan.FromSeconds(15);
 
     readonly SystemHealthMonitor _monitor;
     string? _lastSignature;
@@ -168,7 +169,7 @@ public sealed class HealthPublisher : ApiPublisher
         var r = _monitor.Latest ?? throw new InvalidOperationException("Sem leitura da saúde do PC");
         var now = DateTimeOffset.Now;
 
-        // CPU média desde o envio anterior, no máximo 60 s. O teste não conta como envio.
+        // CPU média desde o envio anterior, no máximo 15 s. O teste não conta como envio.
         var window = now - _lastPayloadAt;
         if (window > IntervalEvery || window <= TimeSpan.Zero) window = IntervalEvery;
         if (reason != "test") _lastPayloadAt = now;

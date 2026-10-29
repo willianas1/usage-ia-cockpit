@@ -247,6 +247,7 @@ public partial class SettingsWindow : Window
         _settings.HealthPublishEnabled = HealthPublishCheck.IsChecked == true;
         _settings.Save();
         _health.Apply(); // liga ou desliga o coletor e manda um heartbeat
+        _publisher.HealthChanged(); // o painel do Echo Show escolhe o layout por este campo do uso
         ShowHealth();
         ShowHealthStatus();
     }

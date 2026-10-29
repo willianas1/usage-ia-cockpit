@@ -14,6 +14,7 @@ public sealed record PublishPayload(
     DateTimeOffset SentAt,
     string Reason,
     bool Paused,
+    bool HealthEnabled,
     IReadOnlyDictionary<string, PublishProvider> Providers);
 
 public sealed record PublishClient(string Name, string Version);
@@ -64,6 +65,12 @@ public sealed class UsagePublisher : ApiPublisher
     /// <summary>Pausou ou voltou: avisa a API uma vez (campo paused); pausado, nada mais é enviado.</summary>
     public void PauseChanged() => Enqueue("heartbeat");
 
+    /// <summary>
+    /// A saúde do PC foi ligada ou desligada: avisa a API (campo healthEnabled) mesmo com as consultas
+    /// pausadas, para o painel trocar de layout sem esperar a próxima consulta.
+    /// </summary>
+    public void HealthChanged() => Enqueue("heartbeat");
+
     /// <summary>Chamado periodicamente: manda um sinal de vida se nada foi enviado nos últimos 5 min.</summary>
     public void HeartbeatIfDue()
     {
@@ -95,6 +102,8 @@ public sealed class UsagePublisher : ApiPublisher
         DateTimeOffset.Now,
         reason,
         _vm.IsPaused,
+        // Só é "ligada" se a saúde também vai para a API: sem envio, o painel não teria o que mostrar.
+        Settings.HealthEnabled && Settings.HealthPublishEnabled,
         new Dictionary<string, PublishProvider>
         {
             ["claude"] = Describe(_vm.Claude, Settings.ShowClaude),
