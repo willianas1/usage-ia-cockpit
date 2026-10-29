@@ -174,6 +174,12 @@ public sealed class AppSettings
         set => PublishKeyProtected = string.IsNullOrEmpty(value) ? null : Secret.Protect(value);
     }
 
+    /// <summary>Coleta de indicadores de saúde do PC (CPU, memória, discos, energia). Desligada por padrão.</summary>
+    public bool HealthEnabled { get; set; }
+
+    /// <summary>Envia a saúde para {URL base}/v1/health, com a URL e a chave do envio para API.</summary>
+    public bool HealthPublishEnabled { get; set; } = true;
+
     [JsonIgnore]
     public static string Folder => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "UsageCockpit");

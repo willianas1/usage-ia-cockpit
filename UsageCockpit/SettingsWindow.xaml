@@ -1,7 +1,7 @@
 <Window x:Class="UsageCockpit.SettingsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Usage IA Cockpit — Configurações" Width="520" Height="500"
+        Title="Usage IA Cockpit — Configurações" Width="580" Height="540"
         ResizeMode="NoResize" WindowStartupLocation="CenterScreen" Topmost="True"
         Background="#15181D" Foreground="#D0D7DE" FontFamily="Segoe UI" FontSize="13">
     <Window.Resources>
@@ -27,6 +27,14 @@
         <Style TargetType="Button">
             <Setter Property="Padding" Value="10,4"/>
             <Setter Property="Margin" Value="0,0,6,6"/>
+        </Style>
+        <Style TargetType="TextBlock" x:Key="HealthLabel">
+            <Setter Property="Foreground" Value="#8B949E"/>
+            <Setter Property="Margin" Value="0,2,12,2"/>
+        </Style>
+        <Style TargetType="TextBlock" x:Key="HealthValue">
+            <Setter Property="Margin" Value="0,2,0,2"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
         </Style>
 
         <!-- Abas no tema escuro: o visual padrão do WPF é claro e destoa da janela -->
@@ -203,6 +211,57 @@
                         </DockPanel>
                         <TextBlock Text="Envia o uso atual para uma API sua, para usar em outras aplicações."
                                    Style="{StaticResource Hint}"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <TabItem Header="Saúde do PC">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="20,0,20,16">
+                        <TextBlock Text="MONITORAMENTO" Style="{StaticResource Section}"/>
+                        <CheckBox x:Name="HealthCheck" Content="Monitorar a saúde do PC" Click="Health_Click"/>
+                        <TextBlock Text="Lê CPU, memória, discos, modo de energia e os processos mais pesados, sem pedir administrador e sem fechar nada. Não aparece no painel: o resumo fica aqui embaixo."
+                                   Style="{StaticResource Hint}"/>
+                        <CheckBox x:Name="HealthPublishCheck" Content="Enviar a saúde para a API" Margin="0,10,0,0"
+                                  Click="Health_Click" IsEnabled="{Binding IsChecked, ElementName=HealthCheck}"/>
+                        <TextBlock Text="Só funciona com o envio para API ligado (aba Sistema › Envio para API): usa a mesma URL e a mesma chave e envia para {URL base}/v1/health a cada minuto, mesmo com as consultas pausadas. Vão números e nomes de executáveis, sem caminhos, linhas de comando nem nome de usuário."
+                                   Style="{StaticResource Hint}"/>
+
+                        <TextBlock Text="AGORA" Style="{StaticResource Section}"/>
+                        <TextBlock x:Name="HealthEmpty" Style="{StaticResource Hint}" Margin="0,0,0,4"/>
+                        <Grid x:Name="HealthSummary">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition/>
+                                <RowDefinition/>
+                                <RowDefinition/>
+                                <RowDefinition/>
+                                <RowDefinition/>
+                            </Grid.RowDefinitions>
+                            <TextBlock Grid.Row="0" Text="CPU" Style="{StaticResource HealthLabel}"/>
+                            <TextBlock Grid.Row="0" Grid.Column="1" x:Name="HealthCpuText" Style="{StaticResource HealthValue}"/>
+                            <TextBlock Grid.Row="1" Text="Memória comprometida" Style="{StaticResource HealthLabel}"/>
+                            <TextBlock Grid.Row="1" Grid.Column="1" x:Name="HealthMemoryText" Style="{StaticResource HealthValue}"/>
+                            <TextBlock Grid.Row="2" Text="Disco do sistema" Style="{StaticResource HealthLabel}"/>
+                            <TextBlock Grid.Row="2" Grid.Column="1" x:Name="HealthDiskText" Style="{StaticResource HealthValue}"/>
+                            <TextBlock Grid.Row="3" Text="Velocidade da CPU" Style="{StaticResource HealthLabel}"/>
+                            <TextBlock Grid.Row="3" Grid.Column="1" x:Name="HealthSpeedText" Style="{StaticResource HealthValue}"/>
+                            <TextBlock Grid.Row="4" Text="Modo de energia" Style="{StaticResource HealthLabel}"/>
+                            <TextBlock Grid.Row="4" Grid.Column="1" x:Name="HealthPowerText" Style="{StaticResource HealthValue}"/>
+                        </Grid>
+
+                        <TextBlock Text="ALERTAS" Style="{StaticResource Section}"/>
+                        <StackPanel x:Name="HealthAlertsPanel"/>
+
+                        <TextBlock Text="ÚLTIMO ENVIO" Style="{StaticResource Section}"/>
+                        <DockPanel>
+                            <Button x:Name="HealthTestButton" Content="Testar envio" DockPanel.Dock="Right" Margin="8,0,0,0"
+                                    Click="HealthTest_Click"/>
+                            <TextBlock x:Name="HealthPublishStatus" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                        </DockPanel>
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>

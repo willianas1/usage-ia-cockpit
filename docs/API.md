@@ -229,3 +229,109 @@ while ($true) { $c = $l.GetContext(); $r = [IO.StreamReader]::new($c.Request.Inp
 ```
 
 No app, use a URL base `http://localhost:8787` e qualquer chave.
+
+## Saúde do PC (`/v1/health`)
+
+Além do uso, o app pode enviar indicadores de saúde do PC: CPU, velocidade do processador, memória, discos, modo de energia, contagens de processos e os processos mais pesados, já com alertas calculados. Serve para mostrar num painel (como o do Echo Show) quando o PC está lento por falta de memória, disco cheio, modo de economia de energia ou tempo demais sem reiniciar.
+
+O contrato completo, compartilhado com a API e com o painel, está em [`docs/propostas/contrato-saude-pc.md`](propostas/contrato-saude-pc.md). Esta seção resume o que o app envia.
+
+### Configuração no app
+
+Em **Configurações › Saúde do PC**:
+
+| Opção | O que faz | Padrão |
+|---|---|---|
+| Monitorar a saúde do PC | Liga o coletor. Desligado, nada é lido. | Desligado |
+| Enviar a saúde para a API | Envia para `{URL base}/v1/health`. Usa a URL e a chave de **Sistema › Envio para API**, que precisa estar ligado. | Ligado |
+
+A mesma aba mostra um resumo ao vivo (CPU, memória comprometida, disco do sistema, velocidade da CPU, modo de energia e alertas atuais), o status do último envio e o botão **Testar envio**, que manda a leitura atual com `reason: "test"`.
+
+### O que é enviado (e o que não é)
+
+São enviados só números e **nomes de executáveis** (por exemplo `chrome`, sem `.exe`), agrupados por nome.
+
+**Nunca são enviados** caminhos de arquivos ou de executáveis, linhas de comando, títulos de janelas, nome de usuário, nome do computador, rótulos de volume (só a letra, como `C:`) nem o conteúdo de nenhum programa.
+
+A coleta só lê: não pede administrador, não encerra processos e não executa PowerShell nem outros programas.
+
+### Requisição
+
+```http
+POST {URL base}/v1/health
+Authorization: Bearer <chave>
+Content-Type: application/json; charset=utf-8
+User-Agent: UsageCockpit/<versão>
+```
+
+```json
+{
+  "schemaVersion": 1,
+  "client": { "name": "UsageCockpit", "version": "0.7.0" },
+  "sentAt": "2026-10-29T12:06:05.1234567-03:00",
+  "reason": "interval",
+  "status": "danger",
+  "uptimeSeconds": 1116000,
+  "cpu": { "percent": 74.2, "speedPercent": 97, "speedMHz": 1650, "baseMHz": 1700 },
+  "memory": {
+    "totalBytes": 34037719040, "availableBytes": 8160437862, "usedPercent": 76.0,
+    "commitBytes": 58626303590, "commitLimitBytes": 71403061248, "commitPercent": 82.1,
+    "kernelNonPagedBytes": 2504976384
+  },
+  "power": { "source": "ac", "mode": "efficiency", "batteryPercent": 100 },
+  "disks": [
+    { "name": "C:", "system": true, "totalBytes": 299356848128, "freeBytes": 7086696448, "usedPercent": 97.6 },
+    { "name": "D:", "system": false, "totalBytes": 209715200000, "freeBytes": 98569336832, "usedPercent": 53.0 }
+  ],
+  "counts": { "processes": 643, "threads": 9364, "handles": 399013, "longRunningHelpers": 47 },
+  "topProcesses": [
+    { "name": "chrome", "instances": 46, "cpuPercent": 32.1, "memoryBytes": 15232000000 }
+  ],
+  "alerts": [
+    { "code": "disk_low", "level": "danger", "title": "Disco C: com 2% livre", "action": "Limpe Temp e caches ou mova arquivos para outro disco" }
+  ]
+}
+```
+
+Datas em ISO 8601 com fuso. Campos que podem ser `null` sempre aparecem. Ignore campos desconhecidos.
+
+| Campo | Descrição | De onde vem |
+|---|---|---|
+| `reason` | `interval` (a cada 60 s), `alert` (o `status` ou o conjunto de `code` dos alertas mudou), `heartbeat` (a configuração foi salva) ou `test` (botão Testar envio; não deve gravar estado nem histórico). | |
+| `status` | `ok`, `warn` ou `danger`: o pior `level` entre os alertas. | |
+| `uptimeSeconds` | Tempo desde o boot. | `GetTickCount64` |
+| `cpu.percent` | Uso total médio desde o envio anterior (no máximo 60 s), de 0 a 100. | `GetSystemTimes`, a cada 5 s |
+| `cpu.speedPercent` | "% Processor Performance" do Windows; passa de 100 com turbo. `null` se indisponível. | Contador do PDH pelo nome em inglês (não depende do idioma), a cada 30 s |
+| `cpu.speedMHz` | `baseMHz × speedPercent / 100`. | |
+| `cpu.baseMHz` | Clock base do processador. | `CallNtPowerInformation` |
+| `memory.*` | Memória física total e disponível, memória comprometida (commit) e o limite dela, e o pool não paginado do kernel (`null` se indisponível). | `GlobalMemoryStatusEx` e `GetPerformanceInfo` |
+| `power.source` | `ac`, `battery` ou `unknown`. | `GetSystemPowerStatus` |
+| `power.mode` | Modo de energia efetivo do Windows 11: `efficiency`, `balanced`, `performance` ou `unknown`. | `PowerGetEffectiveOverlayScheme` |
+| `power.batteryPercent` | 0 a 100, ou `null` sem bateria. | `GetSystemPowerStatus` |
+| `disks` | Discos fixos prontos (até 26). `name` é só a letra; `system: true` no disco do Windows. | `DriveInfo`, a cada 30 s |
+| `counts` | Processos, threads e handles do sistema; `longRunningHelpers` conta `node`, `node_repl`, `cmd`, `powershell`, `pwsh`, `conhost` e `bash` abertos há mais de 24 h. | `GetPerformanceInfo` e lista de processos |
+| `topProcesses` | Até 8, agrupados pelo nome do executável e ordenados por `cpuPercent` e depois `memoryBytes`. `cpuPercent` é a média dos últimos 30 s, de 0 a 100 do PC inteiro; `memoryBytes` é a memória privada somada. | Lista de processos, a cada 30 s |
+| `alerts` | Até 12, um por `code`, `danger` antes de `warn`. | Calculados no app (abaixo) |
+
+### Alertas
+
+| `code` | `warn` | `danger` |
+|---|---|---|
+| `cpu_high` | média de 5 min ≥ 70% | ≥ 90% |
+| `memory_high` | `commitPercent` ≥ 75 | ≥ 90 |
+| `disk_low` | um disco com `usedPercent` ≥ 85 (vale o pior disco) | ≥ 95 |
+| `power_efficiency` | modo de eficiência ligado na tomada | — |
+| `uptime_long` | ligado há 7 dias ou mais | 14 dias ou mais |
+| `kernel_pool_high` | `kernelNonPagedBytes` ≥ 1 GB | ≥ 2 GB |
+| `processes_high` | 500 processos ou mais | 800 ou mais |
+| `helpers_stale` | 20 ou mais `longRunningHelpers` | — |
+
+O `cpu_high` só aparece depois de 5 minutos de amostras (logo depois de abrir o app ou de voltar da suspensão, ainda não há média). `title` e `action` vêm em português, prontos para exibir.
+
+### Quando o app envia
+
+- A cada 60 s e, na hora, quando o `status` ou o conjunto de alertas muda, com no máximo um envio a cada 30 s.
+- **Continua enviando com as consultas de IA pausadas** e fora do horário de trabalho: a saúde não depende delas.
+- As respostas são tratadas como no `/v1/usage`: `2xx` é sucesso; `401`/`403` param o envio da saúde até a configuração ser salva de novo; `429` respeita o `Retry-After`; outras falhas são tentadas de novo com espera crescente.
+
+Para ver o JSON gerado no seu PC sem enviar nada, rode `UsageIACockpit.exe --health saude.json`: o app faz uma leitura real (cerca de 5 s), grava o arquivo e fecha.

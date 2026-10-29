@@ -22,6 +22,7 @@ public partial class App : Application
     AppSettings _settings = new();
     MainViewModel? _vm;
     UsagePublisher? _publisher;
+    HealthPublisher? _health;
     OverlayWindow? _overlay;
     SettingsWindow? _settingsWindow;
     Forms.NotifyIcon? _tray;
@@ -45,6 +46,13 @@ public partial class App : Application
             return;
         }
 
+        if (e.Args.Length >= 2 && e.Args[0] == "--health")
+        {
+            await HealthJsonAsync(e.Args[1]);
+            Shutdown();
+            return;
+        }
+
         _single = new Mutex(true, @"Local\UsageCockpit", out var isFirst);
         if (!isFirst)
         {
@@ -59,6 +67,10 @@ public partial class App : Application
         var publisher = _publisher = new UsagePublisher(_settings, _vm);
         _vm.Refreshed += () => publisher.Publish("refresh");
         _vm.ActivityChanged += () => publisher.Publish("activity");
+        // Saúde do PC: independente das consultas de IA (continua com elas pausadas).
+        _health = new HealthPublisher(_settings, new SystemHealthMonitor());
+        if (_settings.HealthEnabled)
+            _health.Monitor.Start();
         _overlay = new OverlayWindow(_settings, _vm);
         _overlay.SettingsRequested += OpenSettings;
         _overlay.MinimizedToTray += NotifyMinimized;
@@ -102,13 +114,13 @@ public partial class App : Application
 
     void OpenSettings()
     {
-        if (_vm == null || _overlay == null || _publisher == null) return;
+        if (_vm == null || _overlay == null || _publisher == null || _health == null) return;
         if (_settingsWindow is { IsLoaded: true })
         {
             _settingsWindow.Activate();
             return;
         }
-        _settingsWindow = new SettingsWindow(_settings, _vm, _overlay, RestartPoll, _publisher);
+        _settingsWindow = new SettingsWindow(_settings, _vm, _overlay, RestartPoll, _publisher, _health);
         _settingsWindow.Show();
     }
 
@@ -178,6 +190,7 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        _health?.Monitor.Dispose();
         _tray?.Dispose();
         _single?.Dispose();
         base.OnExit(e);
@@ -278,6 +291,23 @@ public partial class App : Application
 
         File.WriteAllText(Path.Combine(dir, "status.txt"),
             $"{vm.Claude.Tooltip}\n\n{vm.Codex.Tooltip}\n");
+    }
+
+    /// <summary>
+    /// Modo de verificação da saúde do PC: faz uma leitura real (cerca de 5 s) e grava o JSON exatamente
+    /// como seria enviado para /v1/health, sem enviar nada. Uso: UsageIACockpit.exe --health arquivo.json
+    /// </summary>
+    static async Task HealthJsonAsync(string path)
+    {
+        using var monitor = new SystemHealthMonitor();
+        var publisher = new HealthPublisher(new AppSettings { ReadOnly = true }, monitor);
+        var first = new TaskCompletionSource();
+        monitor.Sampled += () => first.TrySetResult();
+        monitor.Start();
+        await Task.WhenAny(first.Task, Task.Delay(TimeSpan.FromSeconds(20)));
+        var dir = Path.GetDirectoryName(Path.GetFullPath(path));
+        if (dir != null) Directory.CreateDirectory(dir);
+        File.WriteAllText(path, publisher.PreviewJson() ?? "{}");
     }
 
     static void Save(FrameworkElement view, string path)

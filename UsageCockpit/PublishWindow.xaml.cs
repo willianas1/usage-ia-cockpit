@@ -85,7 +85,7 @@ public partial class PublishWindow : Window
         _settings.PublishKey = key;
         _settings.Save();
         _publisher.Reconfigure();
-        Close();
+        DialogResult = true; // fecha e avisa quem abriu que a configuração mudou
     }
 
     void Cancel_Click(object sender, RoutedEventArgs e) => Close();

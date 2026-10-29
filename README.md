@@ -52,6 +52,7 @@ O painel fica por cima de todas as janelas, em qualquer canto de qualquer monito
 - **Pausar as consultas:** o botão ⏸ do modo completo, ou o clique direito, para as consultas e os envios para a API. Pausado, os ponteiros param de tremer, os valores ficam cinza e o botão vira ▶ para continuar. Com o **horário de trabalho** ligado, o app pausa sozinho no fim do expediente, avisa num balão do ícone da bandeja e volta no início do próximo.
 - **Nunca fica em branco:** se uma consulta falhar, o painel mostra a última leitura boa com um aviso ⚠. Se a leitura tiver mais de 15 minutos, a conta fica levemente esmaecida.
 - **Envio para API (opcional):** manda o uso atual para uma API sua, para usar os mesmos números em um dashboard, bot ou widget. Veja [docs/API.md](docs/API.md).
+- **Saúde do PC (opcional):** acompanha CPU, memória, discos, modo de energia e os processos mais pesados, com alertas como disco cheio ou PC ligado há muitos dias. Não aparece no painel: o resumo fica em Configurações › Saúde do PC, e os dados podem ir para a mesma API, em `/v1/health`. Veja [docs/API.md](docs/API.md#saúde-do-pc-v1health).
 - **Leve:** cerca de 2% de um núcleo de CPU em repouso. A renderização usa a placa de vídeo, e as animações param com o painel minimizado.
 
 ---
@@ -213,6 +214,8 @@ Todas as opções ficam na janela **Configurações** e valem na hora, enquanto 
 | Horário de trabalho | Fora do horário escolhido, em passos de 30 minutos, as consultas e os envios pausam sozinhos. Um ▶ fora do horário continua consultando até o fim do próximo expediente, e uma pausa pelo botão só termina pelo botão | Desligado, das 8:00 às 18:00 |
 | Iniciar com o Windows | Abre o app ao entrar no Windows | Desligado |
 | Envio para API | Envia o uso atual para uma API sua, para usar em outras aplicações. Veja [docs/API.md](docs/API.md) | Desligado |
+| Monitorar a saúde do PC | Lê CPU, memória, discos, energia e processos, sem administrador, e mostra um resumo com alertas na aba Saúde do PC | Desligado |
+| Enviar a saúde para a API | Envia a saúde para `{URL base}/v1/health` a cada minuto, mesmo com as consultas pausadas. Precisa do envio para API ligado | Ligado |
 
 Arquivos do app em `%APPDATA%\UsageCockpit\`:
 
@@ -248,6 +251,7 @@ O app **não pede login nem senha**. Ele usa o login que o Claude Code e o Codex
 - **Nada sai do seu computador**, a não ser as consultas de uso feitas diretamente para a Anthropic e para a OpenAI, com o seu próprio token.
 - **Sem servidores próprios:** não há servidor intermediário, telemetria nem coleta de dados.
 - **Envio para API (opcional, desligado por padrão):** se você ligar, o app envia percentuais, horários de reset e se a ferramenta está em uso para a URL que **você** configurar. Tokens, logins e conversas nunca são enviados. A chave da sua API fica cifrada com a sua conta do Windows (DPAPI). Detalhes em [docs/API.md](docs/API.md).
+- **Saúde do PC (opcional, desligada por padrão):** só lê indicadores do Windows. Se o envio estiver ligado, vão números e nomes de executáveis (como `chrome`), sem caminhos, linhas de comando, nome de usuário ou rótulo de volume.
 - **Conteúdo das conversas:** o app não lê o conteúdo das suas conversas. Ele só percebe que os arquivos foram alterados, para saber se a ferramenta está trabalhando, e lê o trecho de limites dos logs do Codex.
 
 ---
@@ -286,7 +290,7 @@ dotnet run --project UsageCockpit
 - **Instalador:** o `-Installer` requer o [Inno Setup 6](https://jrsoftware.org/isinfo.php), que pode ser instalado com `winget install JRSoftware.InnoSetup`.
 - **Tamanho:** os dois arquivos incluem o .NET, então quem for usar não precisa instalar nada. O instalador (cerca de 48 MB) é o recomendado: o app instalado abre mais rápido e usa menos memória. O portátil (cerca de 146 MB) é um exe único sem compactação, porque exe que se descompacta sozinho costuma ser acusado por antivírus.
 - **Assinatura:** `-CertThumbprint <SHA1>` (certificado instalado no Windows) ou `-PfxPath cert.pfx` (senha na variável `SIGN_PFX_PASSWORD`) assina os executáveis com o `signtool` do Windows SDK, com carimbo de tempo. Sem esses parâmetros, nada é assinado.
-- **Modo de verificação:** `UsageIACockpit.exe --snapshot <pasta>` busca os dados reais e salva imagens PNG de todos os modos, sem abrir o painel.
+- **Modo de verificação:** `UsageIACockpit.exe --snapshot <pasta>` busca os dados reais e salva imagens PNG de todos os modos, sem abrir o painel. `UsageIACockpit.exe --health <arquivo.json>` faz uma leitura da saúde do PC e grava o JSON que seria enviado para `/v1/health`, sem enviar.
 
 ---
 
@@ -313,7 +317,10 @@ UsageCockpit/
     ActivityMonitor.cs  detecta se a ferramenta está trabalhando agora
     Models.cs           configurações, cache da última leitura
     ViewModels.cs       estado exibido, atualização e textos
+    ApiPublisher.cs     envio HTTP comum (agrupamento, espera crescente, 401/403, 429)
     UsagePublisher.cs   envio opcional do uso para uma API externa (contrato em docs/API.md)
+    SystemHealthMonitor.cs  coleta da saúde do PC e cálculo dos alertas
+    HealthPublisher.cs  envio opcional da saúde do PC para /v1/health
     Placement.cs        monitores, posição, DPI e janela sempre visível (Win32)
   Controls/
     Gauge.cs            mostrador com ponteiro, faixas, varredura e anel de atividade

@@ -2,6 +2,8 @@ using System;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Documents;
+using System.Windows.Media;
 using Microsoft.Win32;
 using UsageCockpit.Core;
 
@@ -18,10 +20,11 @@ public partial class SettingsWindow : Window
     readonly OverlayWindow _overlay;
     readonly Action _pollChanged;
     readonly UsagePublisher _publisher;
+    readonly HealthPublisher _health;
     readonly bool _loading;
 
     public SettingsWindow(AppSettings settings, MainViewModel vm, OverlayWindow overlay, Action pollChanged,
-        UsagePublisher publisher)
+        UsagePublisher publisher, HealthPublisher health)
     {
         InitializeComponent();
         _settings = settings;
@@ -29,8 +32,13 @@ public partial class SettingsWindow : Window
         _overlay = overlay;
         _pollChanged = pollChanged;
         _publisher = publisher;
+        _health = health;
         ShowPublishStatus();
         publisher.OutcomeChanged += ShowPublishStatus;
+        ShowHealth();
+        ShowHealthStatus();
+        health.Monitor.Sampled += ShowHealth;
+        health.OutcomeChanged += ShowHealthStatus;
 
         _loading = true;
         FullMode.IsChecked = vm.Size == PanelSize.Full;
@@ -66,6 +74,8 @@ public partial class SettingsWindow : Window
         WorkStartCombo.SelectedItem = settings.WorkStart;
         WorkEndCombo.SelectedItem = settings.WorkEnd;
         WorkHoursCheck.IsChecked = settings.WorkHoursEnabled;
+        HealthCheck.IsChecked = settings.HealthEnabled;
+        HealthPublishCheck.IsChecked = settings.HealthPublishEnabled;
         _loading = false;
     }
 
@@ -208,8 +218,13 @@ public partial class SettingsWindow : Window
         return key?.GetValue(RunValue) != null;
     }
 
-    void Publish_Click(object sender, RoutedEventArgs e) =>
-        new PublishWindow(_settings, _publisher) { Owner = this }.ShowDialog();
+    void Publish_Click(object sender, RoutedEventArgs e)
+    {
+        // A saúde usa a mesma URL e a mesma chave: salvar lá também reinicia o envio dela.
+        if (new PublishWindow(_settings, _publisher) { Owner = this }.ShowDialog() == true)
+            _health.Reconfigure();
+        ShowHealthStatus();
+    }
 
     void ShowPublishStatus()
     {
@@ -220,10 +235,129 @@ public partial class SettingsWindow : Window
             : $"Ligado · erro: {o.Message}";
     }
 
+    static readonly Brush Warn = new SolidColorBrush(Color.FromRgb(0xEF, 0x9F, 0x27));
+    static readonly Brush Danger = new SolidColorBrush(Color.FromRgb(0xE2, 0x4B, 0x4A));
+    static readonly Brush Ok = new SolidColorBrush(Color.FromRgb(0x3F, 0xB9, 0x50));
+    static readonly Brush Muted = new SolidColorBrush(Color.FromRgb(0x8B, 0x94, 0x9E));
+
+    void Health_Click(object sender, RoutedEventArgs e)
+    {
+        if (_loading) return;
+        _settings.HealthEnabled = HealthCheck.IsChecked == true;
+        _settings.HealthPublishEnabled = HealthPublishCheck.IsChecked == true;
+        _settings.Save();
+        _health.Apply(); // liga ou desliga o coletor e manda um heartbeat
+        ShowHealth();
+        ShowHealthStatus();
+    }
+
+    async void HealthTest_Click(object sender, RoutedEventArgs e)
+    {
+        HealthTestButton.IsEnabled = false;
+        HealthPublishStatus.Text = "Testando…";
+        HealthPublishStatus.Foreground = Foreground;
+        try
+        {
+            var o = await _health.TestAsync();
+            HealthPublishStatus.Text = o.Ok ? $"Teste OK: a API aceitou o envio ({o.At:HH:mm:ss})" : $"Teste falhou: {o.Message}";
+            HealthPublishStatus.Foreground = o.Ok ? Foreground : Warn;
+        }
+        finally
+        {
+            HealthTestButton.IsEnabled = _settings.HealthEnabled;
+        }
+    }
+
+    void ShowHealthStatus()
+    {
+        var o = _health.LastOutcome;
+        HealthTestButton.IsEnabled = _settings.HealthEnabled;
+        HealthPublishStatus.Foreground = Foreground;
+        if (!_settings.HealthEnabled)
+            HealthPublishStatus.Text = "Monitoramento desligado";
+        else if (!_settings.HealthPublishEnabled)
+            HealthPublishStatus.Text = "Envio da saúde desligado";
+        else if (!_settings.PublishEnabled)
+            HealthPublishStatus.Text = "Ligue o envio para API na aba Sistema para enviar a saúde";
+        else if (o == null)
+            HealthPublishStatus.Text = "Aguardando o primeiro envio";
+        else if (o.Ok)
+            HealthPublishStatus.Text = o.Message;
+        else
+        {
+            HealthPublishStatus.Text = $"Erro: {o.Message} ({o.At:HH:mm:ss})";
+            HealthPublishStatus.Foreground = Warn;
+        }
+    }
+
+    void ShowHealth()
+    {
+        var r = _health.Monitor.Latest;
+        HealthAlertsPanel.Children.Clear();
+        if (r == null)
+        {
+            HealthEmpty.Text = _settings.HealthEnabled ? "Lendo… a primeira leitura leva cerca de 5 s."
+                : "Ligue o monitoramento para ver o resumo.";
+            HealthEmpty.Visibility = Visibility.Visible;
+            HealthSummary.Visibility = Visibility.Collapsed;
+            HealthAlertsPanel.Children.Add(new TextBlock { Text = "—", Foreground = Muted });
+            return;
+        }
+
+        HealthEmpty.Visibility = Visibility.Collapsed;
+        HealthSummary.Visibility = Visibility.Visible;
+        HealthCpuText.Text = $"{_health.Monitor.CpuAverage(TimeSpan.FromMinutes(1)):0}% no último minuto";
+
+        var m = r.Memory;
+        HealthMemoryText.Text = $"{m.CommitPercent:0}% · {Gb(m.CommitBytes)} de {Gb(m.CommitLimitBytes)}";
+
+        HealthDiskText.Text = r.SystemDisk is { } d
+            ? $"{d.Name} {d.UsedPercent:0}% usado · {Gb(d.FreeBytes)} livres"
+            : "—";
+
+        HealthSpeedText.Text = r.SpeedMHz is { } mhz && r.BaseMHz is { } baseMhz
+            ? $"{mhz / 1000:0.00} GHz · {r.SpeedPercent:0}% do clock base ({baseMhz / 1000:0.00} GHz)"
+            : r.BaseMHz is { } b ? $"— · clock base {b / 1000:0.00} GHz" : "—";
+
+        var mode = r.Power.Mode switch
+        {
+            "efficiency" => "Eficiência",
+            "balanced" => "Equilibrado",
+            "performance" => "Desempenho",
+            _ => "Desconhecido",
+        };
+        var source = r.Power.Source switch
+        {
+            "ac" => " · na tomada",
+            "battery" => r.Power.BatteryPercent is { } pct ? $" · na bateria ({pct}%)" : " · na bateria",
+            _ => "",
+        };
+        HealthPowerText.Text = mode + source;
+
+        if (r.Alerts.Count == 0)
+        {
+            HealthAlertsPanel.Children.Add(new TextBlock { Text = "● Nenhum alerta", Foreground = Ok });
+            return;
+        }
+        foreach (var a in r.Alerts)
+        {
+            var line = new TextBlock { TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 6) };
+            line.Inlines.Add(new Run("● ") { Foreground = a.Level == "danger" ? Danger : Warn });
+            line.Inlines.Add(new Run(a.Title));
+            line.Inlines.Add(new LineBreak());
+            line.Inlines.Add(new Run(a.Action) { Foreground = Muted, FontSize = 11 });
+            HealthAlertsPanel.Children.Add(line);
+        }
+    }
+
+    static string Gb(long bytes) => $"{bytes / (double)(1L << 30):0.0} GB";
+
     void Close_Click(object sender, RoutedEventArgs e) => Close();
 
     protected override void OnClosed(EventArgs e)
     {
+        _health.Monitor.Sampled -= ShowHealth;
+        _health.OutcomeChanged -= ShowHealthStatus;
         _publisher.OutcomeChanged -= ShowPublishStatus;
         _settings.Save();
         base.OnClosed(e);
