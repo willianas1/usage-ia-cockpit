@@ -210,12 +210,12 @@ Todas as opções ficam na janela **Configurações** e valem na hora, enquanto 
 | Monitor | Em qual monitor o painel fica | Principal |
 | Posição rápida | Leva o painel para um dos cantos ou para o centro do monitor | — |
 | Grudar nas bordas | Encaixa o painel nas bordas ao arrastar | Ligado |
-| Consultar a cada | 30 segundos, 1, 2, 5, 10, 15 ou 30 minutos | 5 min |
+| Consultar a cada | 15 ou 30 segundos, 1, 2, 5, 10, 15 ou 30 minutos | 5 min |
 | Horário de trabalho | Fora do horário escolhido, em passos de 30 minutos, as consultas e os envios pausam sozinhos. Um ▶ fora do horário continua consultando até o fim do próximo expediente, e uma pausa pelo botão só termina pelo botão | Desligado, das 8:00 às 18:00 |
 | Iniciar com o Windows | Abre o app ao entrar no Windows | Desligado |
 | Envio para API | Envia o uso atual para uma API sua, para usar em outras aplicações. Veja [docs/API.md](docs/API.md) | Desligado |
 | Monitorar a saúde do PC | Lê CPU, memória, discos, energia e processos, sem administrador, e mostra um resumo com alertas na aba Saúde do PC | Desligado |
-| Enviar a saúde para a API | Envia a saúde para `{URL base}/v1/health` a cada minuto, mesmo com as consultas pausadas. Precisa do envio para API ligado | Ligado |
+| Enviar a saúde para a API | Envia a saúde para `{URL base}/v1/health` a cada 15 s. Pausa junto com as consultas, pelo botão ou fora do horário de trabalho. Precisa do envio para API ligado | Ligado |
 
 Arquivos do app em `%APPDATA%\UsageCockpit\`:
 
@@ -237,7 +237,7 @@ O app **não pede login nem senha**. Ele usa o login que o Claude Code e o Codex
 | Codex | `%USERPROFILE%\.codex\auth.json` | `GET https://chatgpt.com/backend-api/wham/usage` |
 
 - **Credenciais:** os tokens são só lidos. O app nunca renova nem grava as credenciais, para não derrubar a sessão das ferramentas.
-- **Frequência:** as consultas acontecem no intervalo configurado, no mínimo 30 segundos, e logo depois que uma ferramenta termina de trabalhar, no máximo uma vez por minuto. Com as consultas pausadas, só o "Atualizar agora" consulta.
+- **Frequência:** as consultas acontecem no intervalo configurado, no mínimo 15 segundos, e logo depois que uma ferramenta termina de trabalhar, no máximo uma vez por minuto. Com as consultas pausadas, só o "Atualizar agora" consulta.
 - **Limite de consultas:** se o servidor responder "muitas consultas" (HTTP 429), o app respeita o tempo de espera e mostra o último valor salvo.
 - **Plano B do Codex:** se a API do Codex falhar, o app lê os limites gravados nos logs locais em `%USERPROFILE%\.codex\sessions`.
 - **Detecção de atividade:** o app observa as escritas nos arquivos de conversa em `%USERPROFILE%\.claude\projects` e `%USERPROFILE%\.codex\sessions`.

@@ -67,8 +67,8 @@ public partial class App : Application
         var publisher = _publisher = new UsagePublisher(_settings, _vm);
         _vm.Refreshed += () => publisher.Publish("refresh");
         _vm.ActivityChanged += () => publisher.Publish("activity");
-        // Saúde do PC: independente das consultas de IA (continua com elas pausadas).
-        _health = new HealthPublisher(_settings, new SystemHealthMonitor());
+        // Saúde do PC: o envio pausa junto com as consultas (botão ou fim do horário de trabalho).
+        var health = _health = new HealthPublisher(_settings, new SystemHealthMonitor());
         if (_settings.HealthEnabled)
             _health.Monitor.Start();
         _overlay = new OverlayWindow(_settings, _vm);
@@ -80,10 +80,12 @@ public partial class App : Application
         _vm.PausedChanged += () =>
         {
             publisher.PauseChanged();
+            health.SetPaused(_vm.IsPaused);
             UpdateTrayText();
         };
         _vm.PausedByWorkHours += NotifyPausedByWorkHours;
         _vm.CheckWorkHours();
+        health.SetPaused(_vm.IsPaused);
 
         _poll.Tick += async (_, _) => await _vm.RefreshAsync(force: false);
         RestartPoll();

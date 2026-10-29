@@ -131,5 +131,5 @@ O payload do `/v1/usage` ganha o campo de raiz `healthEnabled` (booleano): `true
 
 - Configurações › nova aba **Saúde do PC**: "Monitorar a saúde do PC" (desligado por padrão) e "Enviar a saúde para a API" (usa URL e chave de Configurações › Envio para API).
 - Coleta sem administrador e sem depender do idioma do Windows. CPU a cada 5 s; processos, WMI e discos a cada 30 s. Meta de custo: menos de 0,5% de CPU.
-- Envia a cada 15 s e na hora (respeitando 15 s entre envios) quando o `status` ou o conjunto de `code` dos alertas muda. **Continua enviando com as consultas de IA pausadas** e fora do horário de trabalho.
+- Envia a cada 15 s e na hora (respeitando 15 s entre envios) quando o `status` ou o conjunto de `code` dos alertas muda. **Pausa junto com as consultas de IA** (botão ou fim do horário de trabalho), a partir da 0.9; até a 0.8 continuava enviando.
 - Só lê: não encerra processos, não executa PowerShell nem outros programas.

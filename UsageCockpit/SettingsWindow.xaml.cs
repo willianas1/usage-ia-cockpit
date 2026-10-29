@@ -11,7 +11,7 @@ namespace UsageCockpit;
 
 public partial class SettingsWindow : Window
 {
-    static readonly int[] PollOptions = { 30, 60, 120, 300, 600, 900, 1800 };
+    static readonly int[] PollOptions = { 15, 30, 60, 120, 300, 600, 900, 1800 };
     const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
     const string RunValue = "UsageCockpit";
 
@@ -280,6 +280,8 @@ public partial class SettingsWindow : Window
             HealthPublishStatus.Text = "Envio da saúde desligado";
         else if (!_settings.PublishEnabled)
             HealthPublishStatus.Text = "Ligue o envio para API na aba Sistema para enviar a saúde";
+        else if (_health.Paused)
+            HealthPublishStatus.Text = "Envio pausado junto com as consultas";
         else if (o == null)
             HealthPublishStatus.Text = "Aguardando o primeiro envio";
         else if (o.Ok)

@@ -153,7 +153,7 @@ Os percentuais refletem a conta inteira, inclusive o uso feito em outros lugares
 | `heartbeat` | Se nada foi enviado nos últimos 5 minutos, logo depois de salvar a configuração e ao pausar ou continuar as consultas. |
 | `test` | O botão **Testar conexão**. |
 
-Envios próximos são agrupados, com no máximo um a cada 30 segundos, o menor intervalo de consulta. O envio acontece em segundo plano e nunca trava o painel.
+Envios próximos são agrupados, com no máximo um a cada 15 segundos, o menor intervalo de consulta. O envio acontece em segundo plano e nunca trava o painel.
 
 ### Consultas pausadas
 
@@ -333,7 +333,7 @@ O `cpu_high` só aparece depois de 5 minutos de amostras (logo depois de abrir o
 ### Quando o app envia
 
 - A cada 15 s (o mesmo ritmo em que o painel do Echo Show consulta) e, na hora, quando o `status` ou o conjunto de alertas muda, com no máximo um envio a cada 15 s.
-- **Continua enviando com as consultas de IA pausadas** e fora do horário de trabalho: a saúde não depende delas.
+- **Pausa junto com as consultas de IA** (botão ou fim do horário de trabalho) e volta a enviar na hora ao continuar. Assim, fora do expediente nada chega à API e o painel do Echo Show entra em espera.
 - As respostas são tratadas como no `/v1/usage`: `2xx` é sucesso; `401`/`403` param o envio da saúde até a configuração ser salva de novo; `429` respeita o `Retry-After`; outras falhas são tentadas de novo com espera crescente.
 
 Para ver o JSON gerado no seu PC sem enviar nada, rode `UsageIACockpit.exe --health saude.json`: o app faz uma leitura real (cerca de 5 s), grava o arquivo e fecha.

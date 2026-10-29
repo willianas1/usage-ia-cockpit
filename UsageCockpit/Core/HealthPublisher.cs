@@ -54,7 +54,8 @@ public sealed record HealthAlert(string Code, string Level, string Title, string
 /// <summary>
 /// Envia a saúde do PC para POST {urlBase}/v1/health, com a mesma URL e a mesma chave do envio do uso.
 /// A cada 15 s e na hora (no máximo um envio a cada 15 s) quando o status ou o conjunto de alertas muda.
-/// Ao contrário do uso, continua enviando com as consultas pausadas e fora do horário de trabalho.
+/// Pausa junto com as consultas (botão ou fim do horário de trabalho): o painel do Echo Show percebe
+/// que nada mais chega e para de consultar a API até alguém atualizá-lo.
 /// </summary>
 public sealed class HealthPublisher : ApiPublisher
 {
@@ -77,6 +78,20 @@ public sealed class HealthPublisher : ApiPublisher
     }
 
     public SystemHealthMonitor Monitor => _monitor;
+
+    /// <summary>Consultas pausadas: o coletor segue (resumo nas configurações), mas nada é enviado.</summary>
+    public bool Paused { get; private set; }
+
+    /// <summary>Pausou ou voltou. Ao voltar, envia na hora para o painel ter a leitura atual.</summary>
+    public void SetPaused(bool paused)
+    {
+        if (Paused == paused) return;
+        Paused = paused;
+        if (paused)
+            _waitingReason = null;
+        else if (Configured)
+            Request("heartbeat");
+    }
 
     /// <summary>Envio ligado nas três chaves: saúde monitorada, saúde enviada e envio para API configurado.</summary>
     protected override bool Configured =>
@@ -102,8 +117,10 @@ public sealed class HealthPublisher : ApiPublisher
     public void Reconfigure()
     {
         ResetFailures();
-        if (Configured)
+        if (Configured && !Paused)
             Request("heartbeat");
+        else if (Configured)
+            _waitingReason = null;
         else
         {
             _waitingReason = null;
@@ -124,8 +141,8 @@ public sealed class HealthPublisher : ApiPublisher
 
     void OnSampled()
     {
-        if (_monitor.Latest is not { } r) return;
-        var signature = r.Status + ":" + string.Join(",", r.Alerts.Select(a => a.Code).OrderBy(c => c, StringComparer.Ordinal));
+        if (_monitor.Latest is not { } r || Paused) return;
+        var signature =r.Status + ":" + string.Join(",", r.Alerts.Select(a => a.Code).OrderBy(c => c, StringComparer.Ordinal));
 
         if (_waitingReason is { } waiting)
         {

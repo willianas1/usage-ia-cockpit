@@ -224,7 +224,7 @@
                                    Style="{StaticResource Hint}"/>
                         <CheckBox x:Name="HealthPublishCheck" Content="Enviar a saúde para a API" Margin="0,10,0,0"
                                   Click="Health_Click" IsEnabled="{Binding IsChecked, ElementName=HealthCheck}"/>
-                        <TextBlock Text="Só funciona com o envio para API ligado (aba Sistema › Envio para API): usa a mesma URL e a mesma chave e envia para {URL base}/v1/health a cada minuto, mesmo com as consultas pausadas. Vão números e nomes de executáveis, sem caminhos, linhas de comando nem nome de usuário."
+                        <TextBlock Text="Só funciona com o envio para API ligado (aba Sistema › Envio para API): usa a mesma URL e a mesma chave e envia para {URL base}/v1/health a cada 15 s e pausa junto com as consultas (botão ou fim do horário de trabalho). Vão números e nomes de executáveis, sem caminhos, linhas de comando nem nome de usuário."
                                    Style="{StaticResource Hint}"/>
 
                         <TextBlock Text="AGORA" Style="{StaticResource Section}"/>

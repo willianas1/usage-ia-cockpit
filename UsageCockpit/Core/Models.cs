@@ -137,7 +137,7 @@ public sealed class AppSettings
     public bool StaticNeedles { get; set; }
 
     /// <summary>Menor intervalo de consulta permitido, para não tomar 429 dos provedores.</summary>
-    public const int MinPollSeconds = 30;
+    public const int MinPollSeconds = 15;
 
     public int PollSeconds { get; set; } = 300;
 
