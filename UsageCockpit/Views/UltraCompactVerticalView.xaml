@@ -10,7 +10,7 @@
     -->
     <UserControl.Resources>
         <DataTemplate x:Key="ProviderNumbers">
-            <StackPanel Background="Transparent" Style="{StaticResource StaleFade}">
+            <StackPanel Background="Transparent" Style="{StaticResource StaleFade}" c:Instrument.Disabled="{Binding NeedsLogin}">
                 <Grid HorizontalAlignment="Center">
                     <Button Style="{StaticResource LogoButton}" ToolTip="{StaticResource ProviderTip}"
                             ToolTipService.Placement="Left" ToolTipService.HorizontalOffset="-6" Click="Logo_Click">

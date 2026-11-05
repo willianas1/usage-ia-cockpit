@@ -28,6 +28,7 @@ public partial class FullView : UserControl
     IOverlayCommands? Commands => Window.GetWindow(this) as IOverlayCommands;
 
     void Refresh_Click(object sender, RoutedEventArgs e) => Commands?.RefreshNow();
+    void Renew_Click(object sender, RoutedEventArgs e) => LogoClick.Refresh(sender);
     void Pause_Click(object sender, RoutedEventArgs e) => Commands?.TogglePause();
     void Monitor_Click(object sender, RoutedEventArgs e) => Commands?.ShowMonitorMenu(MonitorButton);
     void Compact_Click(object sender, RoutedEventArgs e) => Commands?.ToggleMode();
@@ -54,7 +55,10 @@ public partial class VerticalView : UserControl
     void Resize_Delta(object sender, DragDeltaEventArgs e) => ResizeGrip.Apply(this, e, Commands);
 }
 
-/// <summary>Clique no logo de uma conta, nos modos compactos: atualiza só aquela conta.</summary>
+/// <summary>
+/// Clique no logo de uma conta (modos compactos) ou em Renovar login: atualiza só aquela conta,
+/// renovando o login antes se ele expirou.
+/// </summary>
 static class LogoClick
 {
     public static void Refresh(object sender)

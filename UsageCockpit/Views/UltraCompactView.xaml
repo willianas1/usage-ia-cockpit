@@ -14,7 +14,8 @@
     -->
     <UserControl.Resources>
         <DataTemplate x:Key="ProviderNumbers">
-            <StackPanel Orientation="Horizontal" Background="Transparent" Style="{StaticResource StaleFade}">
+            <StackPanel Orientation="Horizontal" Background="Transparent" Style="{StaticResource StaleFade}"
+                        c:Instrument.Disabled="{Binding NeedsLogin}">
                 <Button Style="{StaticResource LogoButton}" ToolTip="{StaticResource ProviderTip}" Click="Logo_Click"
                         VerticalAlignment="Center" Margin="0,0,3,0">
                     <c:LogoBadge Logo="{Binding Logo}" LogoFill="{Binding LogoBrush}" Brand="{Binding Brand}"

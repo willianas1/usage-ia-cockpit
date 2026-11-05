@@ -306,6 +306,8 @@ public partial class OverlayWindow : Window, IOverlayCommands
         menu.Items.Add(new Separator());
         menu.Items.Add(Item(_vm.IsPaused ? "Continuar as consultas" : "Pausar as consultas", TogglePause));
         menu.Items.Add(Item("Atualizar agora", RefreshNow));
+        if (_vm.Claude.CanRenew && _settings.ShowClaude)
+            menu.Items.Add(Item("Renovar login do Claude Code", () => RefreshProvider(_vm.Claude)));
         menu.Items.Add(Item("Configurações…", OpenSettings));
         // Aberto pela bandeja com o painel oculto, o mesmo item traz o painel de volta.
         menu.Items.Add(IsVisible

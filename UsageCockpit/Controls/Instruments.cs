@@ -58,6 +58,32 @@ public abstract class Instrument : FrameworkElement
 
     public static event EventHandler? StaticNeedlesChanged;
 
+    /// <summary>
+    /// Uma conta parada (login expirado): os instrumentos dela ficam cinza e sem tremor, como na pausa,
+    /// mas só os dela. Herdada: basta marcar o painel da conta, e todos os instrumentos dentro dele seguem.
+    /// </summary>
+    public static readonly DependencyProperty DisabledProperty = DependencyProperty.RegisterAttached(
+        "Disabled", typeof(bool), typeof(Instrument),
+        new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.Inherits));
+
+    public static bool GetDisabled(DependencyObject d) => (bool)d.GetValue(DisabledProperty);
+    public static void SetDisabled(DependencyObject d, bool value) => d.SetValue(DisabledProperty, value);
+
+    /// <summary>Desenha em cinza: consultas pausadas ou esta conta parada.</summary>
+    protected bool Off => Inactive || GetDisabled(this);
+
+    /// <summary>Sem tremor: opção do usuário, consultas pausadas ou esta conta parada.</summary>
+    protected bool Still => StaticNeedles || GetDisabled(this);
+
+    protected override void OnPropertyChanged(DependencyPropertyChangedEventArgs e)
+    {
+        base.OnPropertyChanged(e);
+        if (e.Property == DisabledProperty)
+            OnDisabledChanged();
+    }
+
+    protected virtual void OnDisabledChanged() => InvalidateVisual();
+
     protected static Pen MakePen(Brush b, double w, PenLineCap cap = PenLineCap.Flat)
     {
         var p = new Pen(b, w) { StartLineCap = cap, EndLineCap = cap };
@@ -113,10 +139,12 @@ public sealed class MiniBar : Instrument
         InvalidateVisual();
     }
 
+    protected override void OnDisabledChanged() => OnStaticChanged(this, EventArgs.Empty);
+
     // Sem tremor, a barra só usa o relógio durante a varredura.
     void UpdateHook()
     {
-        var on = IsLoaded && (!StaticNeedles || Sweeping);
+        var on = IsLoaded && (!Still || Sweeping);
         if (on == _hooked) return;
         _hooked = on;
         if (on) Ticker.Tick += OnTick;
@@ -154,7 +182,7 @@ public sealed class MiniBar : Instrument
         var t = Ticker.Now;
         var since = t - _sweepStart;
         var sweeping = since < DownSeconds + UpSeconds;
-        if (!sweeping && StaticNeedles)
+        if (!sweeping && Still)
         {
             _sweepFactor = 1;
             UpdateHook();
@@ -165,7 +193,7 @@ public sealed class MiniBar : Instrument
         _sweepFactor = !sweeping ? 1
             : since < DownSeconds ? 1 - since / DownSeconds
             : 1 - Math.Pow(1 - (since - DownSeconds) / UpSeconds, 3);
-        _jitter = StaticNeedles ? 0 : 0.8 * Math.Sin(t * 17 + Percent) + 0.4 * (Noise.NextDouble() - 0.5);
+        _jitter = Still ? 0 : 0.8 * Math.Sin(t * 17 + Percent) + 0.4 * (Noise.NextDouble() - 0.5);
         InvalidateVisual();
     }
 
@@ -178,8 +206,8 @@ public sealed class MiniBar : Instrument
         dc.DrawRectangle(Palette.Track, null, new Rect(0, 0, w, 5));
         if (HasData)
         {
-            var fill = Math.Clamp(w * P / 100 * _sweepFactor + (StaticNeedles ? 0 : _jitter), 0, w);
-            var color = Inactive ? Palette.NoData : IsWeek ? Palette.Week(P) : Palette.Bar(P, Brand);
+            var fill = Math.Clamp(w * P / 100 * _sweepFactor + (Still ? 0 : _jitter), 0, w);
+            var color = Off ? Palette.NoData : IsWeek ? Palette.Week(P) : Palette.Bar(P, Brand);
             dc.DrawRectangle(color, null, new Rect(0, 0, fill, 5));
         }
         dc.Pop();
@@ -214,7 +242,7 @@ public sealed class WeekBar : Instrument
         dc.DrawRectangle(Palette.Track, null, new Rect(0, 0, w, H));
         dc.DrawRectangle(Palette.WeekWarnSoft, null, new Rect(warn, 0, danger - warn, H));
         dc.DrawRectangle(Palette.WeekDangerSoft, null, new Rect(danger, 0, w - danger, H));
-        if (HasData && Inactive)
+        if (HasData && Off)
         {
             dc.DrawRectangle(Palette.NoData, null, new Rect(0, 0, w * P / 100, H));
         }

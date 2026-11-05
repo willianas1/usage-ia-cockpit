@@ -37,6 +37,8 @@ public sealed class ProviderViewModel : Observable
     UsageSnapshot? _last;
     DateTimeOffset _nextAllowed = DateTimeOffset.MinValue;
     string? _error;
+    string? _errorCode;
+    DateTime? _credentialsAtFailure;
 
     readonly ActivityMonitor _activity;
     bool _isActive;
@@ -134,7 +136,7 @@ public sealed class ProviderViewModel : Observable
     }
 
     public bool HasData => _last != null;
-    bool ShowsColor => HasData && !IsPaused;
+    bool ShowsColor => HasData && !IsPaused && !NeedsLogin;
     public double SessionPercent => _last?.SessionPercent ?? 0;
     public double WeekPercent => _last?.WeekPercent ?? 0;
     public string SessionPercentText => _last == null ? "--" : $"{Math.Round(SessionPercent)}%";
@@ -143,13 +145,34 @@ public sealed class ProviderViewModel : Observable
     public Brush WeekLevelBrush => Palette.Level(WeekPercent, ShowsColor);
     public Brush WeekBrush => Palette.Week(WeekPercent, ShowsColor);
     public Brush WeekBandBrush => Palette.WeekBand(WeekPercent, ShowsColor);
-    public string SessionResetText => "reseta em " + Until(_last?.SessionResetsAt);
+    public string SessionResetText => NeedsLogin ? "login expirado" : "reseta em " + Until(_last?.SessionResetsAt);
     public string WeekResetText => "reseta " + When(_last?.WeekResetsAt);
-    public string SessionResetShort => Until(_last?.SessionResetsAt);
+    public string SessionResetShort => NeedsLogin ? "sem login" : Until(_last?.SessionResetsAt);
 
     /// <summary>Mensagem curta exibida abaixo do provedor quando a última consulta falhou.</summary>
     public string? Error { get => _error; private set { if (Set(ref _error, value)) Raise(nameof(HasError)); } }
     public bool HasError => !string.IsNullOrEmpty(_error);
+
+    /// <summary>Tipo da última falha (<see cref="ErrorCodes"/>), ou nulo se a consulta deu certo.</summary>
+    public string? ErrorCode => _errorCode;
+
+    /// <summary>
+    /// O login expirou ou foi recusado: os números ficam cinza e parados, e as consultas automáticas
+    /// param até o arquivo de login mudar (o usuário abriu a ferramenta) ou ele pedir para renovar.
+    /// </summary>
+    public bool NeedsLogin => _errorCode == ErrorCodes.LoginRequired;
+
+    /// <summary>O app consegue renovar este login sozinho (botão Renovar login, clique no logo).</summary>
+    public bool CanRenew => NeedsLogin && _provider is ILoginRenewer;
+
+    /// <summary>Login expirado sem renovação pelo app: mostra o que o usuário precisa fazer.</summary>
+    public bool ShowLoginHint => NeedsLogin && _provider is not ILoginRenewer;
+
+    public string LoginHint => _provider.LoginHint;
+
+    /// <summary>Última linha do balão dos modos compactos: o que o clique no logo faz agora.</summary>
+    public string LogoClickHint => CanRenew ? "Clique no logo para renovar o login."
+        : NeedsLogin ? LoginHint : "Clique no logo para atualizar esta conta.";
 
     /// <summary>Leitura antiga (mais de 2 ciclos sem atualizar, ou vinda dos logs locais).</summary>
     public bool IsStale => _last != null && (DateTimeOffset.Now - _last.FetchedAt > TimeSpan.FromMinutes(15));
@@ -159,12 +182,26 @@ public sealed class ProviderViewModel : Observable
         : $"{Label}\nSessão 5h: {SessionPercentText} · {SessionResetText}\nSemana: {WeekPercentText} · {WeekResetText}\n" +
           $"Atualizado {Ago(_last.FetchedAt)}{(_last.Source == "logs" ? " (logs locais)" : "")}" +
           (HasError ? $"\n{Error}" : "") +
+          (NeedsLogin ? $"\nConsultas paradas até renovar o login. {LoginHint}" : "") +
           (IsPaused ? "\nConsultas pausadas" : "");
 
+    /// <summary>
+    /// Consulta o provedor. Com o login expirado, a consulta automática só acontece depois que o
+    /// arquivo de login muda; a pedida pelo usuário (force) antes tenta renovar o login, se der.
+    /// </summary>
     public async Task RefreshAsync(bool force, CancellationToken ct)
     {
-        if (!force && DateTimeOffset.Now < _nextAllowed)
+        if (!force && (DateTimeOffset.Now < _nextAllowed || (NeedsLogin && !CredentialsChanged)))
         {
+            RaiseAll();
+            return;
+        }
+
+        if (force && NeedsLogin && _provider is ILoginRenewer renewer
+            && await renewer.RenewLoginAsync(ct) is { } renewError)
+        {
+            Error = renewError;
+            _credentialsAtFailure = _provider.CredentialsWrittenAt;
             RaiseAll();
             return;
         }
@@ -174,16 +211,28 @@ public sealed class ProviderViewModel : Observable
         {
             _last = result.Snapshot;
             Error = null;
+            _errorCode = null;
             SnapshotCache.Put(_provider.Name, result.Snapshot);
         }
         else
         {
             Error = result.Error;
+            _errorCode = result.ErrorCode ?? ErrorCodes.Other;
+            if (NeedsLogin)
+                _credentialsAtFailure = _provider.CredentialsWrittenAt;
         }
         if (result.RetryAfter is { } wait)
             _nextAllowed = DateTimeOffset.Now + wait;
         RaiseAll();
     }
+
+    bool CredentialsChanged => _provider.CredentialsWrittenAt != _credentialsAtFailure;
+
+    /// <summary>
+    /// Login expirado e a ferramenta regravou o arquivo de login (o usuário abriu o claude, por exemplo):
+    /// vale consultar de novo, sem esperar o próximo ciclo.
+    /// </summary>
+    public bool LoginMayBeBack => NeedsLogin && CredentialsChanged;
 
     /// <summary>Reavalia textos relativos ("reseta em 38min") sem consultar a rede.</summary>
     public void Tick() => RaiseAll();
@@ -196,6 +245,8 @@ public sealed class ProviderViewModel : Observable
                      nameof(WeekPercentText), nameof(SessionLevelBrush), nameof(WeekLevelBrush), nameof(WeekBrush), nameof(WeekBandBrush),
                      nameof(SessionResetText), nameof(WeekResetText), nameof(IsStale), nameof(Tooltip),
                      nameof(ShortStatus), nameof(SessionResetShort), nameof(UpdatedText),
+                     nameof(ErrorCode), nameof(NeedsLogin), nameof(CanRenew), nameof(ShowLoginHint),
+                     nameof(LogoClickHint),
                  })
             Raise(p);
     }
@@ -544,6 +595,9 @@ public sealed class MainViewModel : Observable
         Claude.Tick();
         Codex.Tick();
         Raise(nameof(UpdatedText));
+        // Consulta pela rodada normal, para o envio à API e a bandeja verem a conta destravar.
+        if ((_settings.ShowClaude && Claude.LoginMayBeBack) || (_settings.ShowCodex && Codex.LoginMayBeBack))
+            _ = RefreshAsync(force: false);
     }
 
     static Brush Frozen(Color c)

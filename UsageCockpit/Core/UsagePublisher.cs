@@ -26,6 +26,7 @@ public sealed record PublishProvider(
     DateTimeOffset? LastActivityAt,
     string Status,
     string? Error,
+    string? ErrorCode,
     PublishUsage? Usage);
 
 public sealed record PublishUsage(DateTimeOffset FetchedAt, string Source, PublishUsageWindow Session, PublishUsageWindow Week);
@@ -114,7 +115,7 @@ public sealed class UsagePublisher : ApiPublisher
     {
         // Conta desligada não é consultada nem observada: vai sem leitura e sem atividade.
         if (!enabled)
-            return new PublishProvider(p.Label, false, false, null, "no_data", null, null);
+            return new PublishProvider(p.Label, false, false, null, "no_data", null, null, null);
 
         var s = p.Last;
         var status = s == null ? "no_data" : p.HasError ? "error" : p.IsStale ? "stale" : "ok";
@@ -123,7 +124,9 @@ public sealed class UsagePublisher : ApiPublisher
             s.Source,
             new PublishUsageWindow(s.SessionPercent, s.SessionResetsAt?.ToLocalTime(), 5 * 60),
             new PublishUsageWindow(s.WeekPercent, s.WeekResetsAt?.ToLocalTime(), 7 * 24 * 60));
-        return new PublishProvider(p.Label, true, p.IsActive, p.LastActivityAt, status, p.Error, usage);
+        // Sem leitura, a falha não aparece no status (no_data), mas o errorCode ainda vai.
+        return new PublishProvider(p.Label, true, p.IsActive, p.LastActivityAt, status, p.Error,
+            p.HasError ? p.ErrorCode : null, usage);
     }
 }
 

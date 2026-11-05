@@ -4,7 +4,8 @@
              xmlns:c="clr-namespace:UsageCockpit.Controls">
     <UserControl.Resources>
         <DataTemplate x:Key="ProviderColumn">
-            <StackPanel Width="172" ToolTip="{Binding Tooltip}" Style="{StaticResource StaleFade}" Background="Transparent">
+            <StackPanel Width="172" ToolTip="{Binding Tooltip}" Style="{StaticResource StaleFade}" Background="Transparent"
+                        c:Instrument.Disabled="{Binding NeedsLogin}">
                 <Grid Width="160" HorizontalAlignment="Center">
                     <c:Gauge Height="128"
                              Percent="{Binding SessionPercent}" HasData="{Binding HasData}"
@@ -18,9 +19,31 @@
                 </Grid>
                 <TextBlock HorizontalAlignment="Center" FontSize="11" Margin="0,0,0,8"
                            Foreground="{StaticResource MutedBrush}">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding NeedsLogin}" Value="True">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
                     <Run Text="5h ·"/>
                     <Run Text="{Binding SessionResetText, Mode=OneWay}" Foreground="{StaticResource TextBrush}"/>
                 </TextBlock>
+                <!-- Login expirado: medidores cinza e parados; o lugar do "reseta em" vira a saída -->
+                <Button Style="{StaticResource PillButton}" HorizontalAlignment="Center" Margin="0,-2,0,6"
+                        ToolTip="Roda claude auth status, que renova o login sem abrir sessão"
+                        Click="Renew_Click" Visibility="{Binding CanRenew, Converter={StaticResource BoolToVis}}">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="&#xE8D7;" FontFamily="{StaticResource IconFont}" FontSize="11"
+                                   VerticalAlignment="Center" Margin="0,0,5,0"/>
+                        <TextBlock Text="Renovar login" FontSize="11" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+                <TextBlock Text="{Binding LoginHint}" HorizontalAlignment="Center" FontSize="11" Margin="0,0,0,8"
+                           TextAlignment="Center" TextWrapping="Wrap" Foreground="{StaticResource WarnBrush}"
+                           Visibility="{Binding ShowLoginHint, Converter={StaticResource BoolToVis}}"/>
                 <Grid Margin="6,0">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>

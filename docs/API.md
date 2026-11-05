@@ -60,6 +60,7 @@ O app não segue redirecionamentos, para que a chave não seja reenviada a outro
       "lastActivityAt": "2026-10-22T14:32:01.0000000-03:00",
       "status": "ok",
       "error": null,
+      "errorCode": null,
       "usage": {
         "fetchedAt": "2026-10-22T14:31:40.0000000-03:00",
         "source": "api",
@@ -74,6 +75,7 @@ O app não segue redirecionamentos, para que a chave não seja reenviada a outro
       "lastActivityAt": null,
       "status": "error",
       "error": "Sem conexão com a OpenAI",
+      "errorCode": "network",
       "usage": {
         "fetchedAt": "2026-10-22T14:20:10.0000000-03:00",
         "source": "logs",
@@ -111,6 +113,7 @@ Todas as datas seguem a ISO 8601 com fuso (o fuso local do PC que enviou). Campo
 | `lastActivityAt` | data ou `null` | Última atividade vista **desde que o app abriu**. |
 | `status` | texto | `ok`, `stale`, `error` ou `no_data`. Veja abaixo. |
 | `error` | texto ou `null` | A mensagem exibida no painel quando a última consulta falhou, em português. |
+| `errorCode` | texto ou `null` | O tipo da falha, para o painel decidir o que mostrar sem ler a mensagem: `login_required`, `rate_limited`, `network` ou `other`. É `null` quando a última consulta deu certo. Veja [Login expirado](#login-expirado). Apps anteriores à 0.10 não mandam o campo. |
 | `usage` | objeto ou `null` | A última leitura boa. É `null` se nunca houve leitura. |
 
 **`status`**, avaliado nesta ordem:
@@ -134,6 +137,12 @@ Todas as datas seguem a ISO 8601 com fuso (o fuso local do PC que enviou). Campo
 | `week.percent` | número | Uso da janela semanal, de 0 a 100, sem arredondar. |
 | `week.resetsAt` | data ou `null` | Quando a janela semanal reinicia. |
 | `week.windowMinutes` | número | Sempre `10080`. |
+
+### Login expirado
+
+Com `errorCode: "login_required"`, o login da ferramenta venceu ou foi recusado (no Claude Code, o token de `~/.claude/.credentials.json`). As consultas automáticas dessa conta param, e `usage` continua com a última leitura boa, que vai ficando velha. No app, os medidores da conta ficam cinza e parados, com o botão **Renovar login**. O painel deve fazer o mesmo: mostrar a leitura em cinza, sem animação, com um aviso de login expirado no lugar do horário de reset.
+
+A conta volta sozinha quando o login é renovado: pelo botão do app, que roda `claude auth status`, ou ao abrir o Claude Code no PC.
 
 ### Limites do `inUse`
 

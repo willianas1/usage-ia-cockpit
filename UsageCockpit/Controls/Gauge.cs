@@ -175,6 +175,8 @@ public sealed class Gauge : Instrument
         InvalidateVisual();
     }
 
+    protected override void OnDisabledChanged() => OnStaticChanged(this, EventArgs.Empty);
+
     // A varredura acontece mesmo com os ponteiros sem tremor: mostra que a atualização foi feita.
     void StartSweep()
     {
@@ -189,7 +191,7 @@ public sealed class Gauge : Instrument
     // Sem tremor, o relógio só é usado enquanto o anel gira ou o ponteiro está indo a um valor.
     void UpdateHook()
     {
-        var on = IsLoaded && (!StaticNeedles || IsActive || Moving);
+        var on = IsLoaded && (!Still || IsActive || Moving);
         if (on == _hooked) return;
         _hooked = on;
         if (on)
@@ -248,14 +250,14 @@ public sealed class Gauge : Instrument
         if (double.IsNaN(_drawnShown) || Math.Abs(_drawnShown - _shown) > 0.2 || (settled && _drawnShown != _shown))
             InvalidateVisual();
 
-        if (settled && StaticNeedles)
+        if (settled && Still)
             UpdateHook();
     }
 
     void UpdateNeedle(double now = 0)
     {
         // Tremor constante: duas senoides fora de fase + um pouco de ruído, cerca de ±1,5°.
-        var jitter = _hooked && HasData && !StaticNeedles
+        var jitter = _hooked && HasData && !Still
             ? 0.9 * Math.Sin(now * 19) + 0.45 * Math.Sin(now * 43 + 1.3) + 0.35 * (Noise.NextDouble() - 0.5)
             : 0;
         _rotation.Angle = Start + Sweep * Shown / 100 + jitter;
@@ -291,7 +293,7 @@ public sealed class Gauge : Instrument
         // Arco do valor: cor da marca até 60%, amarelo até 80% e vermelho daí em diante,
         // como a faixa de rotação de um conta-giros.
         // Consultas pausadas: o arco fica cinza, sem as cores das faixas.
-        if (HasData && shown > 0.5 && Inactive)
+        if (HasData && shown > 0.5 && Off)
         {
             dc.DrawGeometry(null, MakePen(Palette.NoData, 8), Arc(R, Start, AngleOf(Math.Min(shown, 100))));
         }
@@ -321,7 +323,7 @@ public sealed class Gauge : Instrument
 
         // O número acompanha o ponteiro durante a varredura.
         var readout = HasData ? $"{Math.Round(Math.Clamp(shown, 0, 100))}%" : "--";
-        DrawText(dc, readout, ReadoutFace, 22, Palette.Level(P, HasData && !Inactive), new Point(Cx, Cy + 42), dpi);
+        DrawText(dc, readout, ReadoutFace, 22, Palette.Level(P, HasData && !Off), new Point(Cx, Cy + 42), dpi);
         dc.Pop();
     }
 
@@ -330,7 +332,7 @@ public sealed class Gauge : Instrument
     {
         dc.DrawGeometry(null, InnerTrackPen, InnerTrackArc);
         if (!HasData || value <= 0.5) return;
-        if (Inactive)
+        if (Off)
         {
             dc.DrawGeometry(null, MakePen(Palette.NoData, InnerWidth), Arc(InnerR, Start, AngleOf(value)));
             return;

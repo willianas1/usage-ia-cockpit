@@ -42,13 +42,38 @@
             </Setter>
         </Style>
 
+        <!-- Botão com texto, em pílula com a borda de aviso: ação que destrava uma conta (Renovar login) -->
+        <Style x:Key="PillButton" TargetType="Button">
+            <Setter Property="Foreground" Value="{StaticResource WarnBrush}"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bg" Background="Transparent" BorderBrush="{StaticResource WarnBrush}"
+                                BorderThickness="1" CornerRadius="10" Padding="9,2,10,3">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bg" Property="Background" Value="{DynamicResource ButtonHoverBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Bg" Property="Opacity" Value="0.5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <!--
             Balão com os indicadores completos de uma conta, aberto pelo logo nos modos compactos.
             Pincéis dinâmicos: o balão é criado de novo a cada uso e acompanha o tema.
         -->
         <ToolTip x:Key="ProviderTip" x:Shared="False" Background="{DynamicResource TipBackground}"
                  BorderBrush="{DynamicResource TipBorder}" Padding="10,8">
-            <StackPanel Width="210">
+            <StackPanel Width="210" c:Instrument.Disabled="{Binding NeedsLogin}">
                 <TextBlock Text="{Binding Label}" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,8"
                            Foreground="{Binding LogoBrush}"/>
                 <DockPanel Margin="0,0,0,4">
@@ -73,7 +98,7 @@
                 <TextBlock Text="{Binding Error}" FontSize="11" Margin="0,6,0,0" TextWrapping="Wrap"
                            Foreground="{StaticResource WarnBrush}"
                            Visibility="{Binding HasError, Converter={StaticResource BoolToVis}}"/>
-                <TextBlock Text="Clique no logo para atualizar esta conta." FontSize="11" Margin="0,6,0,0"
+                <TextBlock Text="{Binding LogoClickHint}" FontSize="11" Margin="0,6,0,0" TextWrapping="Wrap"
                            Foreground="{DynamicResource MutedBrush}"/>
             </StackPanel>
         </ToolTip>

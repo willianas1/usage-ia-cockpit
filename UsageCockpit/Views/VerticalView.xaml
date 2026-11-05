@@ -5,7 +5,7 @@
     <UserControl.Resources>
         <!-- Uma conta: mini velocímetro da sessão de 5h (arco externo) com o uso semanal no arco interno -->
         <DataTemplate x:Key="ProviderGauge">
-            <StackPanel Background="Transparent" Style="{StaticResource StaleFade}">
+            <StackPanel Background="Transparent" Style="{StaticResource StaleFade}" c:Instrument.Disabled="{Binding NeedsLogin}">
                 <Grid HorizontalAlignment="Center">
                     <c:Gauge Width="100" Height="80" ShowScaleLabels="False"
                              Percent="{Binding SessionPercent}" HasData="{Binding HasData}"

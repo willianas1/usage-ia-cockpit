@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -14,6 +15,19 @@ public interface IUsageProvider
 {
     string Name { get; }
     Task<FetchResult> FetchAsync(CancellationToken ct);
+
+    /// <summary>O que fazer quando o login expira, em uma frase (vai no balão e no painel).</summary>
+    string LoginHint { get; }
+
+    /// <summary>Quando o arquivo de login foi gravado pela última vez. Nulo se ele não existe.</summary>
+    DateTime? CredentialsWrittenAt { get; }
+}
+
+/// <summary>Provedor cujo login o app consegue renovar sozinho, pela ferramenta oficial.</summary>
+public interface ILoginRenewer
+{
+    /// <summary>Renova o login. Retorna nulo quando deu certo, ou a mensagem do que falhou.</summary>
+    Task<string?> RenewLoginAsync(CancellationToken ct);
 }
 
 static class Http
@@ -40,13 +54,110 @@ static class Http
 /// <summary>
 /// Lê o token que o Claude Code salva em ~/.claude/.credentials.json e consulta o mesmo
 /// endpoint usado pelo comando /usage. O token nunca é renovado nem gravado por este app,
-/// para não invalidar a sessão do próprio Claude Code.
+/// para não invalidar a sessão do próprio Claude Code. Para renovar, o app roda o próprio
+/// Claude Code (claude auth status), que troca o token e grava o arquivo ele mesmo.
 /// </summary>
-public sealed class ClaudeProvider : IUsageProvider
+public sealed class ClaudeProvider : IUsageProvider, ILoginRenewer
 {
     public string Name => "Claude Code";
 
+    public string LoginHint => "Clique em Renovar login, ou rode claude num terminal.";
+
     static string CredentialsPath => Http.Home(".claude", ".credentials.json");
+
+    public DateTime? CredentialsWrittenAt => File.Exists(CredentialsPath) ? File.GetLastWriteTimeUtc(CredentialsPath) : null;
+
+    static readonly TimeSpan RenewTimeout = TimeSpan.FromSeconds(30);
+
+    /// <summary>
+    /// Roda "claude auth status" sem janela. Só de consultar o login, o Claude Code renova o token
+    /// vencido com o refresh token e grava o .credentials.json, sem abrir sessão nem gastar uso.
+    /// </summary>
+    public async Task<string?> RenewLoginAsync(CancellationToken ct)
+    {
+        if (FindClaude() is not { } exe)
+            return "Não achei o Claude Code: rode claude num terminal";
+
+        // O .cmd do npm só roda pelo cmd.exe; o claude.exe do instalador nativo roda direto.
+        var viaCmd = exe.EndsWith(".cmd", StringComparison.OrdinalIgnoreCase);
+        var psi = new ProcessStartInfo(viaCmd ? "cmd.exe" : exe)
+        {
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            WorkingDirectory = Http.Home(),
+        };
+        if (viaCmd) { psi.ArgumentList.Add("/c"); psi.ArgumentList.Add(exe); }
+        psi.ArgumentList.Add("auth");
+        psi.ArgumentList.Add("status");
+
+        try
+        {
+            using var proc = Process.Start(psi);
+            if (proc == null)
+                return "Não consegui abrir o Claude Code: rode claude num terminal";
+            // Lê a saída para o processo não travar com o buffer cheio; o conteúdo não interessa.
+            var drain = Task.WhenAll(proc.StandardOutput.ReadToEndAsync(ct), proc.StandardError.ReadToEndAsync(ct));
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            timeout.CancelAfter(RenewTimeout);
+            try
+            {
+                await proc.WaitForExitAsync(timeout.Token);
+                await drain;
+            }
+            catch (OperationCanceledException)
+            {
+                try { proc.Kill(entireProcessTree: true); } catch (InvalidOperationException) { }
+                return "O Claude Code demorou para responder: rode claude num terminal";
+            }
+        }
+        catch (Exception e) when (e is System.ComponentModel.Win32Exception or IOException)
+        {
+            return "Não consegui abrir o Claude Code: rode claude num terminal";
+        }
+
+        return TokenValid() ? null : "O login não foi renovado: rode claude num terminal e faça /login";
+    }
+
+    static bool TokenValid()
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(File.ReadAllText(CredentialsPath));
+            return doc.RootElement.TryGetProperty("claudeAiOauth", out var oauth)
+                && oauth.TryGetProperty("expiresAt", out var exp)
+                && DateTimeOffset.FromUnixTimeMilliseconds(exp.GetInt64()) > DateTimeOffset.UtcNow;
+        }
+        catch (Exception e) when (e is IOException or JsonException or InvalidOperationException
+                                      or UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>O claude do PATH; senão, os lugares padrão do instalador nativo e do npm.</summary>
+    static string? FindClaude()
+    {
+        var dirs = (Environment.GetEnvironmentVariable("PATH") ?? "")
+            .Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Append(Http.Home(".local", "bin"))
+            .Append(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "npm"));
+        foreach (var dir in dirs)
+            foreach (var name in new[] { "claude.exe", "claude.cmd" })
+            {
+                try
+                {
+                    var path = Path.Combine(dir, name);
+                    if (File.Exists(path)) return path;
+                }
+                catch (ArgumentException)
+                {
+                    // Pasta com caractere inválido no PATH: ignora.
+                }
+            }
+        return null;
+    }
 
     public async Task<FetchResult> FetchAsync(CancellationToken ct)
     {
@@ -54,21 +165,21 @@ public sealed class ClaudeProvider : IUsageProvider
         try
         {
             if (!File.Exists(CredentialsPath))
-                return FetchResult.Fail("Faça login no Claude Code (claude)");
+                return FetchResult.NeedsLogin("Faça login no Claude Code (claude)");
 
             using var doc = JsonDocument.Parse(await File.ReadAllTextAsync(CredentialsPath, ct));
             if (!doc.RootElement.TryGetProperty("claudeAiOauth", out var oauth)
                 || !oauth.TryGetProperty("accessToken", out var at))
-                return FetchResult.Fail("Login do Claude Code não encontrado");
+                return FetchResult.NeedsLogin("Login do Claude Code não encontrado");
 
             token = at.GetString() ?? "";
             if (oauth.TryGetProperty("expiresAt", out var exp)
                 && DateTimeOffset.FromUnixTimeMilliseconds(exp.GetInt64()) <= DateTimeOffset.UtcNow)
-                return FetchResult.Fail("Token expirado: abra o Claude Code para renovar");
+                return FetchResult.NeedsLogin("Login do Claude Code expirado");
         }
         catch (Exception e) when (e is IOException or JsonException)
         {
-            return FetchResult.Fail("Não consegui ler o login do Claude Code");
+            return FetchResult.Fail("Não consegui ler o login do Claude Code", ErrorCodes.Other);
         }
 
         using var req = new HttpRequestMessage(HttpMethod.Get, "https://api.anthropic.com/api/oauth/usage");
@@ -79,11 +190,11 @@ public sealed class ClaudeProvider : IUsageProvider
         {
             using var res = await Http.Client.SendAsync(req, ct);
             if (res.StatusCode == HttpStatusCode.TooManyRequests)
-                return FetchResult.Fail("Muitas consultas, aguardando", Http.RetryAfter(res));
+                return FetchResult.Fail("Muitas consultas, aguardando", ErrorCodes.RateLimited, Http.RetryAfter(res));
             if (res.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
-                return FetchResult.Fail("Token recusado: abra o Claude Code para renovar");
+                return FetchResult.NeedsLogin("Login do Claude Code recusado");
             if (!res.IsSuccessStatusCode)
-                return FetchResult.Fail($"Erro {(int)res.StatusCode} ao consultar o uso");
+                return FetchResult.Fail($"Erro {(int)res.StatusCode} ao consultar o uso", ErrorCodes.Other);
 
             using var body = JsonDocument.Parse(await res.Content.ReadAsStringAsync(ct));
             var root = body.RootElement;
@@ -93,7 +204,7 @@ public sealed class ClaudeProvider : IUsageProvider
         }
         catch (Exception e) when (e is HttpRequestException or TaskCanceledException or JsonException)
         {
-            return FetchResult.Fail("Sem conexão com a Anthropic");
+            return FetchResult.Fail("Sem conexão com a Anthropic", ErrorCodes.Network);
         }
     }
 
@@ -116,7 +227,11 @@ public sealed class CodexProvider : IUsageProvider
 {
     public string Name => "Codex";
 
+    public string LoginHint => "Rode codex login num terminal.";
+
     static string AuthPath => Http.Home(".codex", "auth.json");
+
+    public DateTime? CredentialsWrittenAt => File.Exists(AuthPath) ? File.GetLastWriteTimeUtc(AuthPath) : null;
     static string SessionsPath => Http.Home(".codex", "sessions");
 
     public async Task<FetchResult> FetchAsync(CancellationToken ct)
@@ -135,17 +250,17 @@ public sealed class CodexProvider : IUsageProvider
         try
         {
             if (!File.Exists(AuthPath))
-                return FetchResult.Fail("Faça login no Codex (ChatGPT): rode codex login");
+                return FetchResult.NeedsLogin("Faça login no Codex (ChatGPT): rode codex login");
             using var doc = JsonDocument.Parse(await File.ReadAllTextAsync(AuthPath, ct));
             if (!doc.RootElement.TryGetProperty("tokens", out var t) || t.ValueKind != JsonValueKind.Object)
-                return FetchResult.Fail("Codex (ChatGPT) sem login do ChatGPT (só API key)");
+                return FetchResult.NeedsLogin("Codex (ChatGPT) sem login do ChatGPT (só API key)");
             token = t.GetProperty("access_token").GetString() ?? "";
             account = t.TryGetProperty("account_id", out var a) ? a.GetString() ?? "" : "";
         }
         catch (Exception e) when (e is IOException or JsonException or InvalidOperationException
                                   or System.Collections.Generic.KeyNotFoundException)
         {
-            return FetchResult.Fail("Não consegui ler o login do Codex (ChatGPT)");
+            return FetchResult.Fail("Não consegui ler o login do Codex (ChatGPT)", ErrorCodes.Other);
         }
 
         using var req = new HttpRequestMessage(HttpMethod.Get, "https://chatgpt.com/backend-api/wham/usage");
@@ -159,22 +274,22 @@ public sealed class CodexProvider : IUsageProvider
         {
             using var res = await Http.Client.SendAsync(req, ct);
             if (res.StatusCode == HttpStatusCode.TooManyRequests)
-                return FetchResult.Fail("Muitas consultas, aguardando", Http.RetryAfter(res));
+                return FetchResult.Fail("Muitas consultas, aguardando", ErrorCodes.RateLimited, Http.RetryAfter(res));
             if (res.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
-                return FetchResult.Fail("Token recusado: rode o Codex (ChatGPT) para renovar");
+                return FetchResult.NeedsLogin("Login do Codex (ChatGPT) recusado: rode codex login");
             if (!res.IsSuccessStatusCode)
-                return FetchResult.Fail($"Erro {(int)res.StatusCode} ao consultar o uso");
+                return FetchResult.Fail($"Erro {(int)res.StatusCode} ao consultar o uso", ErrorCodes.Other);
 
             using var body = JsonDocument.Parse(await res.Content.ReadAsStringAsync(ct));
             if (!body.RootElement.TryGetProperty("rate_limit", out var rl) || rl.ValueKind != JsonValueKind.Object)
-                return FetchResult.Fail("Resposta sem limites de uso");
+                return FetchResult.Fail("Resposta sem limites de uso", ErrorCodes.Other);
             var (s, sr) = Window(rl, "primary_window", "reset_at");
             var (w, wr) = Window(rl, "secondary_window", "reset_at");
             return FetchResult.Ok(new UsageSnapshot(s, sr, w, wr, DateTimeOffset.Now, "api"));
         }
         catch (Exception e) when (e is HttpRequestException or TaskCanceledException or JsonException)
         {
-            return FetchResult.Fail("Sem conexão com a OpenAI");
+            return FetchResult.Fail("Sem conexão com a OpenAI", ErrorCodes.Network);
         }
     }
 

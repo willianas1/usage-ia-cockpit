@@ -14,11 +14,26 @@ public sealed record UsageSnapshot(
     DateTimeOffset FetchedAt,
     string Source);
 
+/// <summary>Tipo da falha de uma consulta. Vai para a API no campo errorCode (docs/API.md).</summary>
+public static class ErrorCodes
+{
+    /// <summary>Sem login, token vencido ou recusado: as consultas não voltam sozinhas.</summary>
+    public const string LoginRequired = "login_required";
+    public const string RateLimited = "rate_limited";
+    public const string Network = "network";
+    public const string Other = "other";
+}
+
 /// <summary>Resultado de uma tentativa de leitura. Snapshot nulo significa falha.</summary>
-public sealed record FetchResult(UsageSnapshot? Snapshot, string? Error, TimeSpan? RetryAfter = null)
+public sealed record FetchResult(UsageSnapshot? Snapshot, string? Error, TimeSpan? RetryAfter = null,
+    string? ErrorCode = null)
 {
     public static FetchResult Ok(UsageSnapshot s) => new(s, null);
-    public static FetchResult Fail(string error, TimeSpan? retryAfter = null) => new(null, error, retryAfter);
+
+    public static FetchResult Fail(string error, string code, TimeSpan? retryAfter = null) =>
+        new(null, error, retryAfter, code);
+
+    public static FetchResult NeedsLogin(string error) => Fail(error, ErrorCodes.LoginRequired);
 }
 
 /// <summary>

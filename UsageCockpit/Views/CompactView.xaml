@@ -4,7 +4,8 @@
              xmlns:c="clr-namespace:UsageCockpit.Controls">
     <UserControl.Resources>
         <DataTemplate x:Key="ProviderBars">
-            <StackPanel Orientation="Horizontal" Background="Transparent" Style="{StaticResource StaleFade}">
+            <StackPanel Orientation="Horizontal" Background="Transparent" Style="{StaticResource StaleFade}"
+                        c:Instrument.Disabled="{Binding NeedsLogin}">
                 <!-- Em uso: anel colorido girando em volta do logo. Clique: atualiza esta conta. -->
                 <Button Style="{StaticResource LogoButton}" ToolTip="{StaticResource ProviderTip}" Click="Logo_Click"
                         VerticalAlignment="Center" Margin="0,0,8,0">
