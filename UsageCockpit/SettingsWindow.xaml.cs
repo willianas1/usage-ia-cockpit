@@ -21,10 +21,12 @@ public partial class SettingsWindow : Window
     readonly Action _pollChanged;
     readonly UsagePublisher _publisher;
     readonly HealthPublisher _health;
+    readonly AgentsPublisher _agents;
+    readonly Action _agentsChanged;
     readonly bool _loading;
 
     public SettingsWindow(AppSettings settings, MainViewModel vm, OverlayWindow overlay, Action pollChanged,
-        UsagePublisher publisher, HealthPublisher health)
+        UsagePublisher publisher, HealthPublisher health, AgentsPublisher agents, Action agentsChanged)
     {
         InitializeComponent();
         _settings = settings;
@@ -33,7 +35,11 @@ public partial class SettingsWindow : Window
         _pollChanged = pollChanged;
         _publisher = publisher;
         _health = health;
+        _agents = agents;
+        _agentsChanged = agentsChanged;
         ShowPublishStatus();
+        ShowAgentsStatus();
+        agents.OutcomeChanged += ShowAgentsStatus;
         publisher.OutcomeChanged += ShowPublishStatus;
         ShowHealth();
         ShowHealthStatus();
@@ -120,6 +126,8 @@ public partial class SettingsWindow : Window
         }
         _vm.ShowClaude = claude;
         _vm.ShowCodex = codex;
+        _agentsChanged(); // tarefas só das contas ligadas; os hooks do Claude saem se ele for desligado
+        ShowAgentsStatus();
     }
 
     void Scale_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
@@ -222,8 +230,23 @@ public partial class SettingsWindow : Window
     {
         // A saúde usa a mesma URL e a mesma chave: salvar lá também reinicia o envio dela.
         if (new PublishWindow(_settings, _publisher) { Owner = this }.ShowDialog() == true)
+        {
             _health.Reconfigure();
+            _agentsChanged();
+        }
         ShowHealthStatus();
+        ShowAgentsStatus();
+    }
+
+    /// <summary>Envio das tarefas do Claude Code e do Codex (/v1/agents), que segue o envio para API.</summary>
+    void ShowAgentsStatus()
+    {
+        var o = _agents.LastOutcome;
+        AgentsStatus.Text = !_settings.PublishEnabled ? "Tarefas: ligue o envio para API para mandar as tarefas ao painel"
+            : _agents.Paused ? "Tarefas: envio pausado junto com as consultas"
+            : o == null ? "Tarefas: aguardando o primeiro envio"
+            : o.Ok ? $"Tarefas: {o.Message.ToLowerInvariant()}"
+            : $"Tarefas: erro: {o.Message}";
     }
 
     void ShowPublishStatus()

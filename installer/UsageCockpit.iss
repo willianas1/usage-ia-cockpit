@@ -65,6 +65,8 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: 
 Filename: "{app}\{#AppExe}"; Description: "Abrir o Usage IA Cockpit agora"; Flags: nowait postinstall skipifsilent
 
 [UninstallRun]
+; Tira do ~/.claude/settings.json os hooks de permissão que o app instalou (os outros hooks ficam).
+Filename: "{app}\{#AppExe}"; Parameters: "--remove-hooks"; Flags: runhidden waituntilterminated; RunOnceId: "RemoveHooks"
 Filename: "{cmd}"; Parameters: "/C taskkill /IM {#AppExe} /F"; Flags: runhidden; RunOnceId: "KillApp"
 
 [UninstallDelete]

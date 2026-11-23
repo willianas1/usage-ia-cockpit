@@ -52,6 +52,7 @@ O painel fica por cima de todas as janelas, em qualquer canto de qualquer monito
 - **Pausar as consultas:** o botão ⏸ do modo completo, ou o clique direito, para as consultas e os envios para a API. Pausado, os ponteiros param de tremer, os valores ficam cinza e o botão vira ▶ para continuar. Com o **horário de trabalho** ligado, o app pausa sozinho no fim do expediente, avisa num balão do ícone da bandeja e volta no início do próximo.
 - **Nunca fica em branco:** se uma consulta falhar, o painel mostra a última leitura boa com um aviso ⚠. Se a leitura tiver mais de 15 minutos, a conta fica levemente esmaecida.
 - **Envio para API (opcional):** manda o uso atual para uma API sua, para usar os mesmos números em um dashboard, bot ou widget. Veja [docs/API.md](docs/API.md).
+- **Tarefas do Claude Code e do Codex:** com o envio para API ligado, manda para `/v1/agents` o que cada ferramenta está executando, as perguntas e pedidos de permissão pendentes, as tarefas concluídas nas últimas 2 h e os tokens de cada uma. O painel do Echo Show lista as tarefas e avisa quando chega uma pergunta ou uma tarefa termina. Veja [docs/API.md](docs/API.md#tarefas-do-claude-code-e-do-codex-v1agents).
 - **Saúde do PC (opcional):** acompanha CPU, memória, discos, modo de energia e os processos mais pesados, com alertas como disco cheio ou PC ligado há muitos dias. Não aparece no painel: o resumo fica em Configurações › Saúde do PC, e os dados podem ir para a mesma API, em `/v1/health`. Veja [docs/API.md](docs/API.md#saúde-do-pc-v1health).
 - **Leve:** cerca de 2% de um núcleo de CPU em repouso. A renderização usa a placa de vídeo, e as animações param com o painel minimizado.
 
@@ -252,7 +253,8 @@ O app **não pede login nem senha**. Ele usa o login que o Claude Code e o Codex
 - **Sem servidores próprios:** não há servidor intermediário, telemetria nem coleta de dados.
 - **Envio para API (opcional, desligado por padrão):** se você ligar, o app envia percentuais, horários de reset e se a ferramenta está em uso para a URL que **você** configurar. Tokens, logins e conversas nunca são enviados. A chave da sua API fica cifrada com a sua conta do Windows (DPAPI). Detalhes em [docs/API.md](docs/API.md).
 - **Saúde do PC (opcional, desligada por padrão):** só lê indicadores do Windows. Se o envio estiver ligado, vão números e nomes de executáveis (como `chrome`), sem caminhos, linhas de comando, nome de usuário ou rótulo de volume.
-- **Conteúdo das conversas:** o app não lê o conteúdo das suas conversas. Ele só percebe que os arquivos foram alterados, para saber se a ferramenta está trabalhando, e lê o trecho de limites dos logs do Codex.
+- **Conteúdo das conversas:** sem o envio para API, o app só percebe que os arquivos das conversas foram alterados, para saber se a ferramenta está trabalhando, e lê o trecho de limites dos logs do Codex. Com o envio ligado, ele lê os arquivos do Claude Code e do Codex no PC para montar as tarefas e manda textos curtos (nome da sessão, pergunta pendente, último pedido e início da resposta final, cortados) e os tokens. O restante da conversa, arquivos e saídas de ferramentas não saem do PC.
+- **Hooks do Claude Code:** com o envio ligado, o app acrescenta ao `~/.claude/settings.json` dois hooks (`PermissionRequest` e `Notification`) para saber quando uma sessão pede permissão. Os outros hooks continuam lá, o arquivo original fica copiado em `settings.json.usage-ia-cockpit.bak` e o desinstalador tira as entradas.
 
 ---
 
@@ -290,7 +292,7 @@ dotnet run --project UsageCockpit
 - **Instalador:** o `-Installer` requer o [Inno Setup 6](https://jrsoftware.org/isinfo.php), que pode ser instalado com `winget install JRSoftware.InnoSetup`.
 - **Tamanho:** os dois arquivos incluem o .NET, então quem for usar não precisa instalar nada. O instalador (cerca de 48 MB) é o recomendado: o app instalado abre mais rápido e usa menos memória. O portátil (cerca de 146 MB) é um exe único sem compactação, porque exe que se descompacta sozinho costuma ser acusado por antivírus.
 - **Assinatura:** `-CertThumbprint <SHA1>` (certificado instalado no Windows) ou `-PfxPath cert.pfx` (senha na variável `SIGN_PFX_PASSWORD`) assina os executáveis com o `signtool` do Windows SDK, com carimbo de tempo. Sem esses parâmetros, nada é assinado.
-- **Modo de verificação:** `UsageIACockpit.exe --snapshot <pasta>` busca os dados reais e salva imagens PNG de todos os modos, sem abrir o painel. `UsageIACockpit.exe --health <arquivo.json>` faz uma leitura da saúde do PC e grava o JSON que seria enviado para `/v1/health`, sem enviar.
+- **Modo de verificação:** `UsageIACockpit.exe --snapshot <pasta>` busca os dados reais e salva imagens PNG de todos os modos, sem abrir o painel. `UsageIACockpit.exe --health <arquivo.json>` faz uma leitura da saúde do PC e grava o JSON que seria enviado para `/v1/health`, sem enviar. `UsageIACockpit.exe --agents <arquivo.json>` faz o mesmo com as tarefas do Claude Code e do Codex (`/v1/agents`).
 
 ---
 
@@ -321,6 +323,9 @@ UsageCockpit/
     UsagePublisher.cs   envio opcional do uso para uma API externa (contrato em docs/API.md)
     SystemHealthMonitor.cs  coleta da saúde do PC e cálculo dos alertas
     HealthPublisher.cs  envio opcional da saúde do PC para /v1/health
+    AgentTasks.cs       leitura das tarefas do Claude Code e do Codex (estado, pergunta, tokens)
+    AgentsPublisher.cs  envio das tarefas para /v1/agents
+    ClaudeHooks.cs      hooks de permissão do Claude Code (--claude-hook, --remove-hooks)
     Placement.cs        monitores, posição, DPI e janela sempre visível (Win32)
   Controls/
     Gauge.cs            mostrador com ponteiro, faixas, varredura e anel de atividade

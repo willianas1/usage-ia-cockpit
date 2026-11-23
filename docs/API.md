@@ -10,6 +10,8 @@ São enviados apenas dados consolidados: percentuais de uso, horários de reset,
 
 **Nunca são enviados** tokens ou logins dos provedores, IDs de conta, e-mail, nomes de projetos, caminhos de arquivo nem o conteúdo das conversas.
 
+As [tarefas do Claude Code e do Codex](#tarefas-do-claude-code-e-do-codex-v1agents) vão por outra rota (`/v1/agents`) e incluem textos curtos das conversas (nome da sessão, pergunta pendente, último pedido e início da resposta final).
+
 ## Configuração no app
 
 Abra **Configurações › Envio para API › Configurar…** e preencha:
@@ -346,3 +348,110 @@ O `cpu_high` só aparece depois de 5 minutos de amostras (logo depois de abrir o
 - As respostas são tratadas como no `/v1/usage`: `2xx` é sucesso; `401`/`403` param o envio da saúde até a configuração ser salva de novo; `429` respeita o `Retry-After`; outras falhas são tentadas de novo com espera crescente.
 
 Para ver o JSON gerado no seu PC sem enviar nada, rode `UsageIACockpit.exe --health saude.json`: o app faz uma leitura real (cerca de 5 s), grava o arquivo e fecha.
+
+## Tarefas do Claude Code e do Codex (`/v1/agents`)
+
+Com o envio para API ligado, o app também manda as **tarefas** do Claude Code e do Codex: o que está executando agora, o que parou esperando uma resposta sua e o que terminou nas últimas 2 horas, com os tokens gastos. O painel do Echo Show usa isso para listar as tarefas, avisar quando chega uma pergunta e quando uma tarefa termina.
+
+Uma tarefa é o pedido mais recente de cada sessão do Claude Code (ou conversa do Codex): do momento em que você mandou a mensagem até a resposta terminar. Os tokens são os desse pedido.
+
+### O que é enviado
+
+Diferente do `/v1/usage` e do `/v1/health`, aqui vão **textos das conversas**, cortados no app:
+
+| Campo | Conteúdo | Limite |
+|---|---|---|
+| `name` | Nome da sessão no Claude Code ou da conversa no Codex | 200 caracteres |
+| `project` | Nome da pasta do projeto (sem o caminho) | 120 |
+| `question.text` | Texto da pergunta pendente, ou o comando/arquivo do pedido de permissão | 600 |
+| `question.options` | Opções da pergunta (até 6) | 80 cada |
+| `prompt` | Seu último pedido na sessão | 300 |
+| `summary` | Início da resposta final, só em tarefas concluídas | 400 |
+
+**Nunca são enviados** o id real da sessão (vai um código derivado dele, como `c-1a2b3c4d5e6f`), caminhos completos, o restante da conversa, conteúdo de arquivos nem saídas de ferramentas. Tudo é lido no próprio PC, dos arquivos que o Claude Code e o Codex já gravam.
+
+### De onde vem cada informação
+
+| | Claude Code | Codex |
+|---|---|---|
+| Sessões abertas, nome e estado | `~/.claude/sessions/<pid>.json` (`name`, `status`: busy, idle, waiting) | `~/.codex/sessions/**/rollout-*.jsonl` (`task_started`, `task_complete`) e `~/.codex/session_index.jsonl` (nome) |
+| Pergunta pendente | Ferramenta `AskUserQuestion` sem resposta no transcript | Ferramenta `request_user_input` sem resposta no rollout |
+| Pedido de permissão | Hooks `PermissionRequest` e `Notification` (abaixo) ou `status: waiting` | Não fica gravado: não é detectado |
+| Tokens | `message.usage` de cada resposta, uma vez por `message.id`, mais os subagentes (`<sessão>/subagents/*.jsonl`) | Diferença do `total_token_usage` entre o início e o fim do pedido |
+| % do limite de 5 h | — | Diferença do `rate_limits.primary.used_percent` no mesmo intervalo (aproximado com outras tarefas rodando junto) |
+
+### Hooks do Claude Code
+
+O pedido de permissão não aparece no transcript. Para detectá-lo, o app acrescenta ao `~/.claude/settings.json` dois hooks que rodam `UsageIACockpit.exe --claude-hook`:
+
+- `PermissionRequest` (matcher `*`): traz a ferramenta e o comando, arquivo ou URL.
+- `Notification`: só os tipos `permission_prompt` e `elicitation_dialog` contam; `idle_prompt` é ignorado.
+
+O hook grava um arquivo pequeno por sessão em `%APPDATA%\UsageCockpit\hooks` e sai sem responder nada, então não muda a decisão de permissão. A instalação:
+
+- acontece quando o envio para API está ligado e a conta do Claude está ativa; desligando qualquer um dos dois, as entradas saem;
+- preserva os outros hooks do arquivo e guarda uma cópia do original em `settings.json.usage-ia-cockpit.bak` na primeira vez;
+- é desfeita pelo desinstalador (`UsageIACockpit.exe --remove-hooks`).
+
+Limitação: depois que você aprova a permissão, o aviso só some quando a ferramenta termina e o resultado entra na conversa. Um comando longo aprovado continua aparecendo como "pede permissão" até acabar.
+
+### Requisição
+
+```http
+POST {URL base}/v1/agents
+Authorization: Bearer <chave>
+Content-Type: application/json; charset=utf-8
+```
+
+```json
+{
+  "schemaVersion": 1,
+  "client": { "name": "UsageCockpit", "version": "0.11.0" },
+  "sentAt": "2026-11-23T12:10:04.1234567-03:00",
+  "reason": "change",
+  "paused": false,
+  "rates": { "claude": 88.4, "codex": 64 },
+  "tasks": [
+    {
+      "id": "c-1a2b3c4d5e6f",
+      "provider": "claude",
+      "name": "Echo Show Claude/Codex monitoring expansion",
+      "project": "monitor-uso-ia",
+      "state": "waiting",
+      "since": "2026-11-23T12:09:10.0000000-03:00",
+      "startedAt": "2026-11-23T12:01:00.0000000-03:00",
+      "endedAt": null,
+      "question": { "kind": "question", "text": "Quer que eu monte a proposta com essas regras?", "tool": null, "options": ["Montar proposta", "Agora não"] },
+      "prompt": "Pode implementar a sua proposta nas três aplicações, desktop, API e painel.",
+      "summary": null,
+      "tokens": { "input": 31200, "cacheWrite": 85000, "output": 9800, "cacheRead": 2400000 },
+      "tokensPerSecond": 0,
+      "limitPercent": null
+    }
+  ]
+}
+```
+
+| Campo | Descrição |
+|---|---|
+| `reason` | `change` (tarefa nova, mudança de estado ou de pergunta), `progress` (tokens de tarefas executando), `heartbeat` (sinal de vida), `paused` (consultas pausadas) ou `test` (não grava nada) |
+| `paused` | `true` quando as consultas do app estão pausadas; `tasks` vai vazio |
+| `rates.claude`, `rates.codex` | Tokens de saída por segundo, somando as tarefas executando da ferramenta (média de ~30 s). `null` com a conta desligada |
+| `tasks[].state` | `running`, `waiting` (pergunta ou permissão pendente) ou `done` (terminou há menos de 2 h) |
+| `tasks[].since` | Quando entrou no estado atual. `startedAt`: início do pedido; `endedAt`: fim, só em `done` |
+| `tasks[].question` | Só em `waiting`. `kind`: `question` (pergunta com opções), `permission` (com `tool`, ex.: `Bash`) ou `input` (o Claude Code espera algo que não deu para identificar) |
+| `tasks[].tokens` | `input`: entrada nova; `cacheWrite`: entrada gravada no cache; `output`: saída (inclui raciocínio); `cacheRead`: contexto lido do cache. O painel mostra `input + cacheWrite + output` |
+| `tasks[].tokensPerSecond` | Saída por segundo da tarefa; `null` em `done` |
+| `tasks[].limitPercent` | Só no Codex: quanto do limite de 5 h o pedido consumiu |
+
+A lista vem ordenada (perguntas, execuções, concluídas) e tem no máximo 16 tarefas. O corpo pode passar de 16 KB; a API aceita até 64 KB nesta rota.
+
+### Quando o app envia
+
+- **Na hora** (no máximo um envio a cada 2 s) quando surge ou some uma tarefa, muda o estado ou chega outra pergunta.
+- A cada **10 s** enquanto há tarefa executando e os tokens mudaram.
+- Sinal de vida a cada **60 s** com tarefa ativa, ou a cada **5 min** sem nenhuma.
+- **Pausa junto com as consultas** (botão ou fim do horário de trabalho): manda uma vez `paused: true`, sem tarefas, e para de ler os arquivos.
+- O app lê os arquivos uma vez por segundo, numa thread de fundo; nada é executado.
+
+Para ver o JSON no seu PC sem enviar nada, rode `UsageIACockpit.exe --agents tarefas.json`: o app lê as tarefas por cerca de 5 s, grava o arquivo e fecha.

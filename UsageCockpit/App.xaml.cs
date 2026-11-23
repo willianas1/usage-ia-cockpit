@@ -23,6 +23,7 @@ public partial class App : Application
     MainViewModel? _vm;
     UsagePublisher? _publisher;
     HealthPublisher? _health;
+    AgentsPublisher? _agents;
     OverlayWindow? _overlay;
     SettingsWindow? _settingsWindow;
     Forms.NotifyIcon? _tray;
@@ -33,6 +34,23 @@ public partial class App : Application
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+
+        // Chamado pelo Claude Code a cada pedido de permissão (hook): grava o aviso e sai na hora.
+        if (e.Args.Length >= 1 && e.Args[0] == ClaudeHooks.HookArg)
+        {
+            ClaudeHooks.Handle();
+            Shutdown();
+            return;
+        }
+
+        // Desinstalação: tira do ~/.claude/settings.json só os hooks deste app.
+        if (e.Args.Length >= 1 && e.Args[0] == ClaudeHooks.RemoveArg)
+        {
+            ClaudeHooks.Remove();
+            Shutdown();
+            return;
+        }
+
         DispatcherUnhandledException += (_, ex) =>
         {
             Directory.CreateDirectory(AppSettings.Folder);
@@ -49,6 +67,13 @@ public partial class App : Application
         if (e.Args.Length >= 2 && e.Args[0] == "--health")
         {
             await HealthJsonAsync(e.Args[1]);
+            Shutdown();
+            return;
+        }
+
+        if (e.Args.Length >= 2 && e.Args[0] == "--agents")
+        {
+            await AgentsJsonAsync(e.Args[1]);
             Shutdown();
             return;
         }
@@ -71,6 +96,9 @@ public partial class App : Application
         var health = _health = new HealthPublisher(_settings, new SystemHealthMonitor());
         if (_settings.HealthEnabled)
             _health.Monitor.Start();
+        // Tarefas do Claude Code e do Codex: o monitor lê numa thread de fundo; o envio fica na da interface.
+        var agents = _agents = new AgentsPublisher(_settings, new AgentTasksMonitor());
+        agents.Monitor.Updated += () => Dispatcher.BeginInvoke(agents.OnUpdated);
         _overlay = new OverlayWindow(_settings, _vm);
         _overlay.SettingsRequested += OpenSettings;
         _overlay.MinimizedToTray += NotifyMinimized;
@@ -81,11 +109,14 @@ public partial class App : Application
         {
             publisher.PauseChanged();
             health.SetPaused(_vm.IsPaused);
+            agents.SetPaused(_vm.IsPaused);
             UpdateTrayText();
         };
         _vm.PausedByWorkHours += NotifyPausedByWorkHours;
         _vm.CheckWorkHours();
         health.SetPaused(_vm.IsPaused);
+        agents.SetPaused(_vm.IsPaused);
+        ApplyAgents();
 
         _poll.Tick += async (_, _) => await _vm.RefreshAsync(force: false);
         RestartPoll();
@@ -107,6 +138,22 @@ public partial class App : Application
         UpdateTrayText();
     }
 
+    /// <summary>
+    /// Configuração do envio ou das contas mudou: liga/desliga o monitor de tarefas, reenvia o estado e
+    /// instala (ou tira) os hooks de permissão do Claude Code, fora da thread da interface.
+    /// </summary>
+    void ApplyAgents()
+    {
+        if (_agents == null) return;
+        _agents.Reconfigure();
+        var install = _settings.PublishEnabled && _settings.ShowClaude;
+        Task.Run(() =>
+        {
+            if (install) ClaudeHooks.Ensure();
+            else ClaudeHooks.Remove();
+        });
+    }
+
     void RestartPoll()
     {
         _poll.Stop();
@@ -122,7 +169,7 @@ public partial class App : Application
             _settingsWindow.Activate();
             return;
         }
-        _settingsWindow = new SettingsWindow(_settings, _vm, _overlay, RestartPoll, _publisher, _health);
+        _settingsWindow = new SettingsWindow(_settings, _vm, _overlay, RestartPoll, _publisher, _health, _agents!, ApplyAgents);
         _settingsWindow.Show();
     }
 
@@ -193,6 +240,7 @@ public partial class App : Application
     protected override void OnExit(ExitEventArgs e)
     {
         _health?.Monitor.Dispose();
+        _agents?.Monitor.Dispose();
         _tray?.Dispose();
         _single?.Dispose();
         base.OnExit(e);
@@ -310,6 +358,23 @@ public partial class App : Application
         var dir = Path.GetDirectoryName(Path.GetFullPath(path));
         if (dir != null) Directory.CreateDirectory(dir);
         File.WriteAllText(path, publisher.PreviewJson() ?? "{}");
+    }
+
+    /// <summary>
+    /// Modo de verificação das tarefas: lê o Claude Code e o Codex por cerca de 5 s (para medir tokens/s)
+    /// e grava o JSON exatamente como seria enviado para /v1/agents, sem enviar nada.
+    /// Uso: UsageIACockpit.exe --agents arquivo.json
+    /// </summary>
+    static async Task AgentsJsonAsync(string path)
+    {
+        using var monitor = new AgentTasksMonitor();
+        var publisher = new AgentsPublisher(new AppSettings { ReadOnly = true }, monitor);
+        monitor.Start();
+        await Task.Delay(TimeSpan.FromSeconds(5));
+        monitor.Stop();
+        var dir = Path.GetDirectoryName(Path.GetFullPath(path));
+        if (dir != null) Directory.CreateDirectory(dir);
+        File.WriteAllText(path, publisher.PreviewJson());
     }
 
     static void Save(FrameworkElement view, string path)

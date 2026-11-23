@@ -211,6 +211,9 @@
                         </DockPanel>
                         <TextBlock Text="Envia o uso atual para uma API sua, para usar em outras aplicações."
                                    Style="{StaticResource Hint}"/>
+                        <TextBlock x:Name="AgentsStatus" Margin="0,10,0,0" TextWrapping="Wrap"/>
+                        <TextBlock Text="Com o envio ligado, também vão as tarefas do Claude Code e do Codex (nome, estado, pergunta pendente e tokens) para o painel do Echo Show. Para avisar quando o Claude Code pede permissão, o app acrescenta dois hooks ao ~/.claude/settings.json (os outros hooks continuam lá)."
+                                   Style="{StaticResource Hint}"/>
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
