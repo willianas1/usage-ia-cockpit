@@ -859,8 +859,8 @@ sealed class ClaudeTasks
 /// <summary>
 /// Codex: cada conversa grava ~/.codex/sessions/**/rollout-*.jsonl com task_started, token_count
 /// (total acumulado e percentual dos limites), agent_message e task_complete. O nome da conversa
-/// fica em ~/.codex/session_index.jsonl. Pedidos de aprovação não ficam no arquivo; só a
-/// ferramenta request_user_input (pergunta ao usuário) aparece.
+/// fica em ~/.codex/session_index.jsonl. Pedidos de aprovação não ficam no arquivo; só as
+/// ferramentas request_user_input e request_user_input_async (pergunta ao usuário) aparecem.
 /// </summary>
 sealed class CodexTasks
 {
@@ -940,6 +940,8 @@ sealed class CodexTasks
         double? _limit;
         double? _limitBase;
         readonly Dictionary<string, (AgentQuestion Question, DateTimeOffset At)> _questions = new();
+        /// <summary>call_id das perguntas do request_user_input_async, respondidas por mensagem do usuário.</summary>
+        readonly HashSet<string> _async = new(StringComparer.Ordinal);
         readonly RateMeter _rate = new();
 
         public CodexThread(string file)
@@ -981,11 +983,17 @@ sealed class CodexTasks
             if (type == "response_item")
             {
                 var kind = AgentText.Str(p, "type");
-                if (kind is "function_call" or "custom_tool_call" && AgentText.Str(p, "name") is "request_user_input" or "request_user_input_async"
+                if (kind is "function_call" or "custom_tool_call" && AgentText.Str(p, "name") is { } tool and ("request_user_input" or "request_user_input_async")
                     && AgentText.Str(p, "call_id") is { } call && UserInput(p) is { } q)
+                {
                     _questions[call] = (q, at);
-                else if (kind is "function_call_output" or "custom_tool_call_output" && AgentText.Str(p, "call_id") is { } done)
+                    if (tool == "request_user_input_async") _async.Add(call);
+                }
+                // A pergunta assíncrona recebe {"accepted":true} na hora; a resposta vem depois, como mensagem do usuário.
+                else if (kind is "function_call_output" or "custom_tool_call_output" && AgentText.Str(p, "call_id") is { } done && !_async.Contains(done))
                     _questions.Remove(done);
+                else if (kind == "message" && AgentText.Str(p, "role") == "user" && _async.Count > 0)
+                    AnswerAsync(MessageText(AgentText.Obj(p, "content")));
                 return;
             }
             if (type != "event_msg") return;
@@ -1004,6 +1012,7 @@ sealed class CodexTasks
                     _limit = null;
                     _limitBase = null;
                     _questions.Clear();
+                    _async.Clear();
                     _rate.Reset();
                     break;
                 case "user_message":
@@ -1015,6 +1024,16 @@ sealed class CodexTasks
                     break;
                 case "agent_message":
                     _lastText = AgentText.Str(p, "message") ?? _lastText;
+                    break;
+                case "item_completed":
+                    // Codex mais novo: o pedido do usuário vem como item UserMessage, sem o evento user_message.
+                    var item = AgentText.Obj(p, "item");
+                    if (AgentText.Str(item, "type") == "UserMessage" && MessageText(AgentText.Obj(item, "content")) is { } text
+                        && !text.Contains(ReplyTag, StringComparison.Ordinal) && AgentText.Clip(text, 300) is { } asked)
+                    {
+                        _prompt = asked;
+                        _firstPrompt ??= asked;
+                    }
                     break;
                 case "token_count":
                     var info = AgentText.Obj(p, "info");
@@ -1040,14 +1059,47 @@ sealed class CodexTasks
                     _active = false;
                     _endedAt = at;
                     _lastText = AgentText.Str(p, "last_agent_message") ?? _lastText;
-                    _questions.Clear();
+                    // A pergunta assíncrona continua aberta no Codex depois que o pedido termina.
+                    foreach (var call in _questions.Keys.Where(k => !_async.Contains(k)).ToList())
+                        _questions.Remove(call);
                     break;
                 case "turn_aborted":
                     _active = false;
                     _endedAt = at;
                     _questions.Clear();
+                    _async.Clear();
                     break;
             }
+        }
+
+        const string ReplyTag = "<send_user_message_question_reply>";
+
+        /// <summary>
+        /// Mensagem do usuário com pergunta assíncrona aberta. A resposta pelo cartão do Codex vem como
+        /// &lt;send_user_message_question_reply&gt; com o call_id da pergunta no questionItemId: tira só
+        /// essas. Outra mensagem qualquer encerra as perguntas abertas (o usuário seguiu sem responder).
+        /// </summary>
+        void AnswerAsync(string? text)
+        {
+            var answered = text is not null && text.Contains(ReplyTag, StringComparison.Ordinal)
+                ? _async.Where(call => text.Contains(call, StringComparison.Ordinal)).ToList()
+                : _async.ToList();
+            foreach (var call in answered)
+            {
+                _async.Remove(call);
+                _questions.Remove(call);
+            }
+        }
+
+        /// <summary>Texto de um content (lista de partes com "text") de mensagem do rollout.</summary>
+        static string? MessageText(JsonElement content)
+        {
+            if (content.ValueKind != JsonValueKind.Array) return null;
+            var sb = new StringBuilder();
+            foreach (var part in content.EnumerateArray())
+                if (AgentText.Str(part, "text") is { Length: > 0 } t)
+                    sb.Append(t);
+            return sb.Length > 0 ? sb.ToString() : null;
         }
 
         /// <summary>Argumentos do request_user_input (JSON em texto): question/questions/prompt e options.</summary>
@@ -1062,7 +1114,7 @@ sealed class CodexTasks
                 var q = a;
                 var list = AgentText.Obj(a, "questions");
                 if (list.ValueKind == JsonValueKind.Array && list.GetArrayLength() > 0) q = list[0];
-                var text = AgentText.Str(q, "question") ?? AgentText.Str(q, "prompt") ?? AgentText.Str(q, "message") ?? AgentText.Str(a, "question");
+                var text = AgentText.Str(q, "question") ?? AgentText.Str(q, "title") ?? AgentText.Str(q, "prompt") ?? AgentText.Str(q, "message") ?? AgentText.Str(a, "question");
                 var options = new List<string>();
                 var opts = AgentText.Obj(q, "options");
                 if (opts.ValueKind == JsonValueKind.Array)
@@ -1086,7 +1138,7 @@ sealed class CodexTasks
             string state;
             DateTimeOffset since;
             AgentQuestion? question = null;
-            if (_active && _questions.Count > 0)
+            if (_questions.Count > 0)
             {
                 var q = _questions.Values.OrderByDescending(x => x.At).First();
                 state = AgentStates.Waiting;
