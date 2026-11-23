@@ -353,7 +353,7 @@ Para ver o JSON gerado no seu PC sem enviar nada, rode `UsageIACockpit.exe --hea
 
 Com o envio para API ligado, o app também manda as **tarefas** do Claude Code e do Codex: o que está executando agora, o que parou esperando uma resposta sua e o que terminou nas últimas 2 horas, com os tokens gastos. O painel do Echo Show usa isso para listar as tarefas, avisar quando chega uma pergunta e quando uma tarefa termina.
 
-Uma tarefa é o pedido mais recente de cada sessão do Claude Code (ou conversa do Codex): do momento em que você mandou a mensagem até a resposta terminar. Os tokens são os desse pedido.
+Uma tarefa é o pedido mais recente de cada sessão do Claude Code (ou conversa do Codex): do momento em que você mandou a mensagem até a resposta terminar. Vão os tokens desse pedido (`tokens`) e os da conversa inteira (`conversation`).
 
 ### O que é enviado
 
@@ -377,7 +377,8 @@ Diferente do `/v1/usage` e do `/v1/health`, aqui vão **textos das conversas**, 
 | Sessões abertas, nome e estado | `~/.claude/sessions/<pid>.json` (`name`, `status`: busy, idle, waiting) | `~/.codex/sessions/**/rollout-*.jsonl` (`task_started`, `task_complete`) e `~/.codex/session_index.jsonl` (nome) |
 | Pergunta pendente | Ferramenta `AskUserQuestion` sem resposta no transcript | Ferramenta `request_user_input` sem resposta no rollout |
 | Pedido de permissão | Hooks `PermissionRequest` e `Notification` (abaixo) ou `status: waiting` | Não fica gravado: não é detectado |
-| Tokens | `message.usage` de cada resposta, uma vez por `message.id`, mais os subagentes (`<sessão>/subagents/*.jsonl`) | Diferença do `total_token_usage` entre o início e o fim do pedido |
+| Tokens do pedido | `message.usage` de cada resposta do pedido, uma vez por `message.id`, mais os subagentes (`<sessão>/subagents/*.jsonl`) | Diferença do `total_token_usage` entre o início e o fim do pedido |
+| Tokens da conversa | Soma de todas as respostas da sessão e dos subagentes (lê até 64 MB do transcript; acima disso, o começo fica de fora) | O `total_token_usage` mais recente |
 | % do limite de 5 h | — | Diferença do `rate_limits.primary.used_percent` no mesmo intervalo (aproximado com outras tarefas rodando junto) |
 
 ### Hooks do Claude Code
@@ -406,7 +407,7 @@ Content-Type: application/json; charset=utf-8
 ```json
 {
   "schemaVersion": 1,
-  "client": { "name": "UsageCockpit", "version": "0.11.0" },
+  "client": { "name": "UsageCockpit", "version": "0.12.0" },
   "sentAt": "2026-11-23T12:10:04.1234567-03:00",
   "reason": "change",
   "paused": false,
@@ -425,6 +426,7 @@ Content-Type: application/json; charset=utf-8
       "prompt": "Pode implementar a sua proposta nas três aplicações, desktop, API e painel.",
       "summary": null,
       "tokens": { "input": 31200, "cacheWrite": 85000, "output": 9800, "cacheRead": 2400000 },
+      "conversation": { "input": 412000, "cacheWrite": 690000, "output": 183000, "cacheRead": 36000000 },
       "tokensPerSecond": 0,
       "limitPercent": null
     }
@@ -441,6 +443,7 @@ Content-Type: application/json; charset=utf-8
 | `tasks[].since` | Quando entrou no estado atual. `startedAt`: início do pedido; `endedAt`: fim, só em `done` |
 | `tasks[].question` | Só em `waiting`. `kind`: `question` (pergunta com opções), `permission` (com `tool`, ex.: `Bash`) ou `input` (o Claude Code espera algo que não deu para identificar) |
 | `tasks[].tokens` | `input`: entrada nova; `cacheWrite`: entrada gravada no cache; `output`: saída (inclui raciocínio); `cacheRead`: contexto lido do cache. O painel mostra `input + cacheWrite + output` |
+| `tasks[].conversation` | Mesmos campos de `tokens`, somando a conversa inteira (todos os pedidos da sessão). Apps anteriores à 0.12 não mandam; o painel usa então os do pedido |
 | `tasks[].tokensPerSecond` | Saída por segundo da tarefa; `null` em `done` |
 | `tasks[].limitPercent` | Só no Codex: quanto do limite de 5 h o pedido consumiu |
 

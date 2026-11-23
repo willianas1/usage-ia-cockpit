@@ -33,7 +33,8 @@ public sealed record AgentQuestion(string Kind, string Text, string? Tool, IRead
 
 /// <summary>
 /// Uma tarefa: o pedido mais recente de uma sessão do Claude Code ou de uma conversa do Codex.
-/// State: running, waiting ou done. Since: quando entrou no estado atual.
+/// State: running, waiting ou done. Since: quando entrou no estado atual. Tokens: do pedido atual;
+/// Conversation: da conversa inteira (todos os pedidos da sessão).
 /// </summary>
 public sealed record AgentTask(
     string Id,
@@ -48,6 +49,7 @@ public sealed record AgentTask(
     string? Prompt,
     string? Summary,
     AgentTokens Tokens,
+    AgentTokens? Conversation,
     double? TokensPerSecond,
     double? LimitPercent);
 
@@ -496,6 +498,8 @@ sealed class ClaudeTasks
         string? _lastText;
         DateTimeOffset? _lastProgressAt;
         readonly Dictionary<string, AgentTokens> _usage = new();
+        // Conversa inteira: cada resposta (e de subagentes) uma vez, por message.id.
+        readonly Dictionary<string, AgentTokens> _all = new();
         readonly Dictionary<string, (string Name, JsonElement Input, DateTimeOffset At)> _pending = new();
         readonly RateMeter _rate = new();
         string? _lastStatus;
@@ -523,12 +527,17 @@ sealed class ClaudeTasks
             if (_main == null && now >= _nextLookup)
             {
                 _nextLookup = now.AddSeconds(10);
-                if (FindTranscript() is { } path) _main = new JsonlTail(path);
+                // Lê a conversa inteira (até 64 MB) para somar os tokens de todos os pedidos.
+                if (FindTranscript() is { } path) _main = new JsonlTail(path, 64 * 1024 * 1024);
             }
             if (_main == null) return;
 
             var docs = _main.ReadNew(out var restarted);
-            if (restarted) ResetTurn(null);
+            if (restarted)
+            {
+                ResetTurn(null);
+                _all.Clear();
+            }
             foreach (var doc in docs)
                 using (doc)
                     Apply(doc.RootElement, subagent: false);
@@ -542,7 +551,7 @@ sealed class ClaudeTasks
                     if (Directory.Exists(dir))
                         foreach (var f in Directory.GetFiles(dir, "*.jsonl"))
                             if (!_subagents.ContainsKey(f))
-                                _subagents[f] = new JsonlTail(f, 2 * 1024 * 1024);
+                                _subagents[f] = new JsonlTail(f, 32 * 1024 * 1024);
                 }
                 catch (IOException)
                 {
@@ -595,9 +604,9 @@ sealed class ClaudeTasks
 
             if (subagent)
             {
-                // Subagentes: só o consumo, a partir do início do pedido atual.
-                if (type == "assistant" && at is { } t && _turnStart is { } start && t >= start)
-                    AddUsage(message);
+                // Subagentes: só o consumo. Entra na conversa sempre e no pedido atual se for depois dele.
+                if (type == "assistant")
+                    AddUsage(message, turn: at is { } t && _turnStart is { } start && t >= start);
                 return;
             }
 
@@ -631,8 +640,8 @@ sealed class ClaudeTasks
             if (type == "assistant")
             {
                 _lastProgressAt = at ?? _lastProgressAt;
+                AddUsage(message, turn: _turnStart != null);
                 if (_turnStart == null) return;
-                AddUsage(message);
                 var content = AgentText.Obj(message, "content");
                 if (content.ValueKind != JsonValueKind.Array) return;
                 foreach (var b in content.EnumerateArray())
@@ -646,21 +655,24 @@ sealed class ClaudeTasks
             }
         }
 
-        void AddUsage(JsonElement message)
+        void AddUsage(JsonElement message, bool turn)
         {
             var usage = AgentText.Obj(message, "usage");
             if (usage.ValueKind != JsonValueKind.Object) return;
             // A mesma resposta aparece em várias linhas: conta uma vez por id (a última leitura vale).
             var id = AgentText.Str(message, "id") ?? Guid.NewGuid().ToString();
-            _usage[id] = new AgentTokens(
+            var tokens = new AgentTokens(
                 AgentText.Long(usage, "input_tokens"), AgentText.Long(usage, "cache_creation_input_tokens"),
                 AgentText.Long(usage, "output_tokens"), AgentText.Long(usage, "cache_read_input_tokens"));
+            _all[id] = tokens;
+            if (turn) _usage[id] = tokens;
         }
 
         public AgentTask? ToTask(DateTimeOffset now, HookMark? mark)
         {
             if (_info is not { } info || _turnStart is not { } start) return null;
             var tokens = _usage.Values.Aggregate(AgentTokens.Zero, (a, b) => a.Plus(b));
+            var conversation = _all.Values.Aggregate(AgentTokens.Zero, (a, b) => a.Plus(b));
             var question = Question(info, mark);
             var idle = info.Status == "idle" && question == null;
 
@@ -699,6 +711,7 @@ sealed class ClaudeTasks
                 _prompt,
                 state == AgentStates.Done ? AgentText.Summary(_lastText) : null,
                 tokens,
+                conversation,
                 rate,
                 null);
         }
@@ -1033,6 +1046,7 @@ sealed class CodexTasks
                 _prompt,
                 state == AgentStates.Done ? AgentText.Summary(_lastText) : null,
                 tokens,
+                _total,
                 rate,
                 limit is > 0 ? limit : null);
         }

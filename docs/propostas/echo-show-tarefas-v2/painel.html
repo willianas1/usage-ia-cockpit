@@ -1,0 +1,3044 @@
+<!-- Gerado a partir do painel implementado (usage-ia-cockpit-echo-show) com dados simulados. Não editar à mão. -->
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="theme-color" content="#000000">
+  <title>Painel Echo Show · Tarefas v2 (protótipo)</title>
+  <style>
+/* Tema escuro do UsageCockpit (Palette.cs / App.xaml), em escala para 960×480. */
+:root {
+  --panel: #0F1216;
+  --panel-border: #2D333B;
+  --muted: #8B949E;
+  --text: #D0D7DE;
+  --warn: #EF9F27;
+  --ok: #3FB950;
+  --danger: #E24B4A;
+  --mono: "Cascadia Mono", Consolas, "Roboto Mono", "DejaVu Sans Mono", monospace;
+  --sans: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+html, body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #000;
+  color: var(--text);
+  font-family: var(--sans);
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Palco fixo de 960×480; o app.js só ajusta a escala se a janela tiver outro tamanho. */
+.panel {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 960px;
+  height: 480px;
+  transform-origin: 0 0;
+  padding: 4px 18px 14px;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+}
+
+.cockpit { display: flex; flex: 1; flex-direction: column; min-height: 0; }
+.login { display: flex; align-items: center; justify-content: center; gap: 72px; flex: 1; }
+.login-copy { width: 400px; }
+.login-brand { color: #4C9AFF; font-size: 14px; font-weight: 600; letter-spacing: 2px; }
+.login h1 { margin: 16px 0; font-size: 42px; line-height: 1.1; font-weight: 600; }
+.login p { color: var(--muted); font-size: 18px; line-height: 1.5; margin: 0; }
+.login .login-message { margin-top: 20px; min-height: 54px; max-width: 390px; font-size: 16px; color: var(--warn); }
+.login-form { width: 300px; display: flex; flex-direction: column; gap: 10px; }
+.login-form label { font-size: 16px; color: var(--muted); }
+.login-form input { width: 100%; height: 48px; border: 1px solid var(--panel-border); border-radius: 10px; background: #090C10; color: var(--text); text-align: center; font-size: 26px; letter-spacing: 6px; caret-color: transparent; }
+.keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.keypad button, .login-submit { border: 1px solid var(--panel-border); border-radius: 10px; color: var(--text); background: #1B222C; font-family: var(--sans); cursor: pointer; touch-action: manipulation; }
+.keypad button { height: 52px; font-size: 25px; }
+#pin-clear, #pin-back { font-size: 16px; }
+.login-submit { height: 50px; background: #285EA0; border-color: #407BC4; font-size: 20px; font-weight: 600; }
+.keypad button:active, .login-submit:active { background: #35475E; }
+.keypad button:disabled, .login-submit:disabled { opacity: 0.5; cursor: default; }
+button:focus-visible, input:focus-visible { outline: 2px solid #4C9AFF; outline-offset: 2px; }
+
+.top {
+  height: 72px;
+  flex-shrink: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.status.right { grid-column: 1; grid-row: 1; justify-content: flex-start; flex-wrap: wrap; row-gap: 0; }
+.monitor-status { flex-basis: 100%; margin-top: 3px; font-size: 11px; line-height: 1.2; }
+.monitor[data-state="active"] { color: var(--ok); border-color: var(--ok); }
+.monitor[data-state="waiting"] { color: var(--warn); }
+.monitor[aria-pressed="false"] { color: var(--muted); }
+.status-summary { grid-column: 3; grid-row: 1; justify-content: flex-end; min-width: 0; text-align: right; }
+.status-copy { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+#updated { overflow: hidden; text-overflow: ellipsis; }
+.last-updated { color: #6B7280; font-family: var(--mono); font-size: 11px; line-height: 1.2; }
+
+.dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #22272E;
+  flex: none;
+}
+.dot.online { background: var(--ok); }
+.dot.offline { background: var(--warn); }
+.dot.error { background: var(--danger); }
+.dot.sleep { background: #6B7280; }
+
+.clock {
+  font-family: var(--mono);
+  font-weight: 600;
+  font-size: 46px;
+  line-height: 1;
+  color: var(--text);
+  letter-spacing: 1px;
+}
+.clock-wrap { grid-column: 2; grid-row: 1; text-align: center; line-height: 1; }
+.clock small { font-size: 17px; color: var(--muted); vertical-align: baseline; letter-spacing: 0; }
+.date { margin-top: 3px; color: var(--muted); font-size: 13px; font-weight: 600; letter-spacing: 0.8px; }
+
+/* Layout B (com a saúde): topo de 64 px, botões de 40 px e relógio um pouco menor. */
+.lb .top { height: 64px; }
+.lb .fs, .lb .refresh { width: 40px; height: 40px; padding: 10px; }
+.lb .refresh { padding: 8px; }
+.lb .clock { font-size: 42px; }
+.lb .clock small { font-size: 16px; }
+.lb .date { font-size: 12px; }
+
+/* Área abaixo do topo: 920×388 no layout clássico e 920×396 no B.
+   Modo normal e tela de alertas ocupam o mesmo espaço. */
+.stage { flex: 1; min-height: 0; position: relative; }
+
+/* ---------- Layout clássico (sem a saúde): duas colunas de 410 px e a divisória ---------- */
+.columns {
+  position: absolute;
+  left: 0; top: 0; right: 0; bottom: 0;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  transform-origin: 0 100%;
+  transition: opacity 0.25s, transform 0.35s;
+}
+
+.column {
+  width: 410px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.column[hidden], .divider[hidden] { display: none; }
+.column.stale { opacity: 0.8; }
+.column.offline { opacity: 1; }
+.column.offline [data-v="readout"] { fill: var(--muted); }
+/* Sobrescreve as cores de faixa aplicadas em linha pelo painel. */
+.column.offline .week-row .pct { color: var(--muted) !important; }
+.column.offline .bar { background: #23282F; }
+.column.offline .bar span { background: var(--muted) !important; }
+/* Login expirado no PC: mostrador, semana e termômetro em cinza; o aviso e o texto ficam coloridos. */
+.column.login .gauge svg, .column.login .week, .column.login .thermo, .ai.login .hdial { filter: grayscale(1); }
+.column.login [data-v="readout"] { fill: var(--muted); }
+.column.login [data-v="session-reset"] { color: var(--warn); }
+
+.divider {
+  width: 1px;
+  align-self: stretch;
+  margin: 10px 28px 0;
+  background: var(--panel-border);
+}
+
+.gwrap { display: flex; flex-direction: column; align-items: center; min-width: 0; }
+
+.gauge {
+  position: relative;
+  width: 340px;
+  height: 272px;
+}
+.gauge svg { display: block; width: 100%; height: 100%; }
+
+.needle { will-change: transform; }
+.provider-hit { cursor: pointer; }
+.provider-logo { pointer-events: none; }
+
+/* Anel "em uso": camada própria, só ela gira (barato para a GPU do aparelho). */
+.ring {
+  position: absolute;
+  left: 50%;
+  top: 56.25%;
+  width: 38.5%;
+  margin-left: -19.25%;
+  margin-top: -19.25%;
+  aspect-ratio: 1;
+  display: none;
+  will-change: transform;
+  animation: spin 1.2s linear infinite;
+}
+.ring.on { display: block; }
+.ring svg { display: block; width: 100%; height: 100%; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.err {
+  position: absolute;
+  right: 6px;
+  top: 8px;
+  width: 26px;
+  height: 26px;
+  display: none;
+}
+.err.on { display: block; }
+
+.reset {
+  font-size: 20px;
+  color: var(--muted);
+  margin: 0 0 16px;
+  white-space: nowrap;
+}
+.reset b { font-weight: 400; color: var(--text); }
+
+.week { width: 370px; }
+.week-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 20px;
+  color: var(--muted);
+  margin-bottom: 6px;
+  white-space: nowrap;
+}
+.week-row .pct { font-family: var(--mono); }
+
+.bar {
+  position: relative;
+  height: 14px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: linear-gradient(to right,
+    #23282F 0 60%, rgba(232, 212, 77, 0.25) 60% 80%, rgba(214, 51, 132, 0.25) 80% 100%);
+}
+.bar span { position: absolute; top: 0; bottom: 0; }
+
+.fs {
+  width: 44px;
+  height: 44px;
+  padding: 12px;
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  background: #171B21;
+  color: var(--text);
+}
+.fs:active { background: #2A3038; }
+.fs svg { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; }
+
+.refresh {
+  width: 44px;
+  height: 44px;
+  padding: 10px;
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  background: #171B21;
+  color: var(--text);
+}
+.refresh:active { background: #2A3038; }
+.refresh:disabled { opacity: 0.65; }
+.refresh svg { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 2.1; stroke-linecap: round; stroke-linejoin: round; }
+.refresh.loading svg { animation: spin 0.9s linear infinite; }
+/* Em espera: o botão que acorda o painel ganha destaque. */
+.refresh.wake { border-color: #4C9AFF; color: #4C9AFF; }
+
+/* ---------- Saúde do PC ---------- */
+/* Animações só com transform/opacity; o restante muda só quando o valor muda. */
+
+.hdial svg { display: block; width: 100%; height: 100%; }
+.hneedle { transition: transform 0.9s cubic-bezier(0.34, 1.4, 0.64, 1), opacity 0.3s; }
+.hwarn { position: absolute; display: none; width: 20px; height: 20px; }
+.hwarn.on { display: block; }
+.hwarn svg { display: block; width: 100%; height: 100%; }
+
+/* PC offline: tudo cinza e ponteiros parados na última leitura. */
+.hoff .hneedle, .ai-mini.offline .hneedle { transition: none; }
+.hoff [data-d="readout"], .ai-mini.offline [data-d="readout"] { fill: var(--muted); }
+.hoff .hv { stroke: #59616B; }
+.hoff .hpv { fill: #59616B; }
+.hoff .hpb { fill: #2A3038; }
+.hoff .hb { stroke: #2A3038; }
+.hoff .ht { stroke: #6B7280; }
+.hoff .sl { stroke: #59616B; }
+.hoff .sf { fill: #59616B; }
+.hoff .hwarn path { stroke: #59616B; }
+.hoff .hcell .s.w { color: var(--muted); }
+
+/* ---------- Layout B (com a saúde) ---------- */
+/* Esquerda: dois cartões de IA de 322×195 (mostrador + termômetro da semana).
+   Direita: 4 cartões de saúde (172 px) e, embaixo, Alertas e Mais pesados (216 px). */
+.thermo, .hmain { display: none; }
+.lb .columns {
+  display: grid;
+  grid-template-columns: 322px minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+  column-gap: 12px;
+  row-gap: 6px;
+  align-items: stretch;
+}
+.lb .divider, .lb .week { display: none; }
+.lb .column {
+  width: auto;
+  min-width: 0;
+  min-height: 0;
+  grid-column: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 64px;
+  column-gap: 6px;
+  padding: 4px 10px 6px 6px;
+  background: #141920;
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+}
+.lb #col-claude { grid-row: 1; }
+.lb #col-codex { grid-row: 2; }
+.lb .columns.single .column { grid-row: 1 / 3; }
+.lb .gwrap { justify-content: center; }
+.lb .gauge { width: 210px; height: 168px; }
+.lb .reset { margin: -2px 0 0; font-size: 13px; line-height: 16px; }
+
+/* Termômetro da semana: cápsula de vidro, mercúrio em degradê (verde → vermelho) e seta com o valor.
+   O degradê fica parado; uma tampa da cor do vidro desce/sobe (transform) e revela o mercúrio. */
+.lb .thermo { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 0; }
+.thermo .cap { font-size: 10px; line-height: 12px; font-weight: 700; letter-spacing: 1.2px; color: #6B7280; margin-bottom: 2px; }
+.thermo svg { display: block; width: 64px; height: 152px; overflow: visible; }
+.thermo .when { font-size: 11px; line-height: 13px; color: var(--muted); margin-top: 2px; white-space: nowrap; }
+.thermo .tm { will-change: transform; transition: transform 1s cubic-bezier(0.34, 1.25, 0.64, 1), opacity 0.3s; }
+.thermo.down .tm { transition: transform 0.45s cubic-bezier(0.55, 0, 1, 0.45), opacity 0.3s; }
+.thermo.still .tm { transition: none; }
+.column.offline .tm-fill, .column.offline .ttag path { fill: #59616B; }
+
+.lb .hmain {
+  display: grid;
+  grid-column: 2;
+  grid-row: 1 / 3;
+  grid-template-rows: 172px minmax(0, 1fr);
+  row-gap: 8px;
+  min-width: 0;
+  min-height: 0;
+}
+.hmain .hcell { padding: 2px 6px 6px; }
+.hmain .hcell .hdial { width: 126px; height: 101px; }
+.hmain .hcell .t { margin-top: -6px; line-height: 18px; }
+.hmain .hcell .s { line-height: 15px; }
+.hmain .hcell .hwarn { right: 6px; top: 6px; }
+.hmain .spark { height: 18px; }
+.hmain .card { display: flex; flex-direction: column; padding: 8px 12px; }
+.sec { font-size: 11px; line-height: 14px; font-weight: 700; letter-spacing: 1.4px; color: #6B7280; text-transform: uppercase; white-space: nowrap; }
+.chead { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 4px; }
+.pcard .sec { margin: 3px 0 6px; }
+.alist { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.alist .alert-item { padding: 4px 0; }
+.alist .alert-item:first-of-type { padding-top: 2px; }
+.alist .alert-item .a { font-size: 13px; line-height: 17px; }
+.alist .alert-item .b { font-size: 11px; line-height: 15px; }
+.alist .hnote { padding: 8px 2px; font-size: 14px; }
+.afoot { display: flex; justify-content: space-between; gap: 8px; margin-top: auto; font-size: 11px; line-height: 14px; color: #6B7280; white-space: nowrap; }
+.afoot .e { color: var(--danger); }
+/* "+N alertas no detalhe": abre a tela de alertas; a área de toque é maior que o texto. */
+.amore { position: relative; flex: none; margin: 0; padding: 0; border: 0; background: none; font: inherit; color: #8FB8FF; cursor: pointer; touch-action: manipulation; }
+.amore::before { content: ""; position: absolute; left: -12px; right: -6px; top: -10px; bottom: -7px; }
+.hoff .amore { color: var(--muted); }
+.pcard .proc { font-size: 13px; line-height: 18px; padding: 2px 0; }
+.pcard .chips { margin-top: auto; padding-top: 6px; gap: 4px; }
+.pcard .chip { padding: 1px 6px; font-size: 11px; line-height: 16px; }
+
+/* "Ver todos os alertas": sempre visível no cartão de Alertas, com ou sem alertas e mesmo sem dados. */
+.health-open {
+  flex: none;
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  background: #171B21;
+  color: var(--text);
+  font: 600 13px var(--sans);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.health-open svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.health-open.warn { border-color: rgba(239, 159, 39, 0.7); background: #1B1915; }
+.health-open.danger { border-color: rgba(226, 75, 74, 0.7); background: #1B1416; }
+.hoff .health-open.warn, .hoff .health-open.danger { border-color: var(--panel-border); background: #171B21; }
+.health-open:active, .back:active { background: #2A3038; }
+
+/* Tela de alertas: a IA encolhe para o canto esquerdo; à direita, a lista completa e os detalhes. */
+.detail {
+  position: absolute;
+  left: 0; top: 0; right: 0; bottom: 0;
+  display: grid;
+  grid-template-columns: 176px minmax(0, 1fr);
+  column-gap: 10px;
+  padding-top: 2px;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.25s, visibility 0s 0.25s;
+}
+.expanded .detail { opacity: 1; visibility: visible; pointer-events: auto; transition: opacity 0.3s 0.1s, visibility 0s; }
+.expanded .columns { opacity: 0; visibility: hidden; transform: scale(0.32); pointer-events: none; transition: opacity 0.25s, transform 0.35s, visibility 0s 0.35s; }
+
+.ai-mini {
+  min-height: 0;
+  padding: 6px 8px 8px;
+  background: #141920;
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  transform: scale(0.85);
+  transform-origin: 0 100%;
+  transition: transform 0.35s;
+}
+.expanded .ai-mini { transform: none; }
+.ai { display: flex; flex-direction: column; align-items: center; }
+.ai .hdial { width: 135px; height: 108px; }
+.ai .line { margin-top: -2px; font-size: 13px; color: var(--muted); white-space: nowrap; }
+.ai .line b { font-family: var(--mono); font-weight: 600; color: #4C9AFF; }
+.ai-mini.offline .line b { color: var(--muted); }
+.back {
+  width: 100%;
+  height: 44px;
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  background: #171B21;
+  color: var(--text);
+  font: 600 15px var(--sans);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.back svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+
+/* 734×394 ao lado da IA: lista de alertas (flexível) e detalhes (256 px). */
+.alerts-screen { display: grid; grid-template-columns: minmax(0, 1fr) 256px; column-gap: 8px; min-height: 0; min-width: 0; }
+.alcard, .infocard { display: flex; flex-direction: column; padding: 8px 12px; }
+.alcard .chead { margin-bottom: 6px; min-height: 18px; }
+.al-status { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; line-height: 16px; color: #6B7280; }
+.al-status.e { color: var(--danger); }
+/* Até 6 alertas no tamanho cheio; 7 e 8 no compacto; acima disso, rolagem por toque só na lista. */
+.al-list { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; touch-action: pan-y; }
+.al-list::-webkit-scrollbar { width: 5px; }
+.al-list::-webkit-scrollbar-thumb { background: #3A4048; border-radius: 3px; }
+.al-list .alert-item { padding: 8px 6px 8px 0; }
+.al-list .alert-item:first-of-type { padding-top: 2px; }
+.al-list .alert-item i { width: 12px; height: 12px; margin: 5px 10px 0 2px; }
+.al-list .alert-item .a, .al-list .alert-item .b { white-space: normal; overflow: visible; overflow-wrap: anywhere; }
+.al-list .alert-item .a { font-size: 17px; line-height: 22px; }
+.al-list .alert-item .b { margin-top: 1px; font-size: 14px; line-height: 18px; }
+.al-list.dense .alert-item { padding: 4px 6px 4px 0; }
+.al-list.dense .alert-item i { width: 11px; height: 11px; margin-top: 4px; }
+.al-list.dense .alert-item .a { font-size: 15px; line-height: 19px; }
+.al-list.dense .alert-item .b { margin-top: 0; font-size: 13px; line-height: 16px; }
+.hnote.ok.big { padding: 18px 4px; font-size: 22px; font-weight: 600; }
+.hnote.ok.big svg { width: 28px; height: 28px; }
+.infocard .sec { margin: 1px 0 3px; }
+.infocard .sec ~ .sec { margin-top: 10px; }
+.infocard .proc { padding: 1px 0; }
+.fact { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 1px 0; border-top: 1px solid #1F252D; font-size: 13px; line-height: 18px; }
+.fact span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
+.fact b { flex: none; font-family: var(--mono); font-weight: 600; white-space: nowrap; }
+.fact.w b { color: var(--warn); }
+.fact.d b { color: #FF7B72; }
+.hoff .fact.w b, .hoff .fact.d b { color: var(--muted); }
+
+.hrow { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 8px; }
+.hcell { position: relative; min-width: 0; padding: 3px 8px 6px; background: #141920; border: 1px solid var(--panel-border); border-radius: 12px; display: flex; flex-direction: column; align-items: center; }
+.hcell .hdial { width: 124px; height: 99px; }
+.hcell .t { margin-top: -4px; font-size: 14px; font-weight: 600; white-space: nowrap; }
+.hcell .s { max-width: 100%; font-size: 12px; line-height: 15px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hcell .s.w { color: var(--warn); }
+.hcell .hwarn { right: 8px; top: 8px; }
+.spark { display: block; width: 100%; height: 22px; margin-top: 4px; }
+
+.lower { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); column-gap: 8px; min-height: 0; }
+.card { min-height: 0; min-width: 0; overflow: hidden; padding: 7px 12px; background: #141920; border: 1px solid var(--panel-border); border-radius: 12px; }
+.alert-item { display: flex; padding: 3px 0; border-top: 1px solid #1F252D; }
+.alert-item:first-of-type { border-top: 0; padding-top: 2px; }
+.alert-item i { flex: none; width: 10px; height: 10px; margin: 4px 9px 0 0; border-radius: 50%; background: var(--warn); }
+.alert-item i.d { background: var(--danger); }
+.hoff .alert-item i { background: #59616B; }
+.alert-item div { min-width: 0; }
+.alert-item .a, .alert-item .b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.alert-item .a { font-size: 14px; font-weight: 600; line-height: 18px; }
+.alert-item .b { font-size: 12px; line-height: 16px; color: var(--muted); }
+.hnote { padding: 14px 4px; font-size: 15px; line-height: 1.4; color: var(--muted); }
+.hnote small { display: block; margin-top: 6px; font-size: 13px; color: #6B7280; }
+.hnote.ok { display: flex; align-items: center; gap: 10px; color: var(--ok); }
+.hnote.ok svg { flex: none; width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.hoff .hnote.ok { color: var(--muted); }
+.proc { display: grid; grid-template-columns: minmax(0, 1fr) 44px 64px; column-gap: 6px; align-items: center; padding: 2px 0; font-size: 13px; line-height: 18px; }
+.proc .n { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.proc .n small { color: #6B7280; }
+.proc .v { font-family: var(--mono); text-align: right; color: var(--muted); }
+.proc.head { padding: 0 0 2px; font-size: 11px; color: #6B7280; }
+.chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+.chip { padding: 2px 7px; border: 1px solid var(--panel-border); border-radius: 999px; background: #1B222C; font-size: 12px; line-height: 17px; color: var(--muted); white-space: nowrap; }
+.chip b { font-weight: 600; color: var(--text); }
+.chip.w { border-color: rgba(239, 159, 39, 0.55); }
+.chip.w b { color: var(--warn); }
+.chip.d { border-color: rgba(226, 75, 74, 0.6); }
+.chip.d b { color: #FF7B72; }
+.hoff .chip.w, .hoff .chip.d { border-color: var(--panel-border); }
+.hoff .chip b, .hoff .chip.w b, .hoff .chip.d b { color: var(--muted); }
+
+/* Saúde: mostradores em duas linhas e ranking na lateral. */
+.lb .hmain { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); column-gap: 8px; }
+.hrow { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr)); gap: 8px; min-height: 0; }
+.health-side { display: flex; flex-direction: column; gap: 8px; min-width: 0; min-height: 0; }
+.health-side .health-open { width: 100%; min-height: 42px; justify-content: space-between; }
+.health-side .pcard { flex: 1; }
+.proc-sort { display: flex; gap: 4px; margin: 4px 0 8px; }
+.proc-sort button { min-height: 36px; flex: 1; padding: 3px 5px; border: 1px solid var(--panel-border); border-radius: 7px; background: #1B222C; color: var(--text); font: 600 12px var(--sans); cursor: pointer; touch-action: manipulation; }
+.proc-sort button[aria-pressed="true"] { background: #285EA0; border-color: #4C9AFF; color: #fff; }
+.pcard .proc { padding: 4px 0; }
+/* A tela de alertas ocupa apenas a área de saúde; a IA permanece no lugar. */
+.detail { left: 334px; grid-template-columns: minmax(0, 1fr); padding-top: 0; }
+.expanded .columns { opacity: 1; visibility: visible; transform: none; pointer-events: auto; }
+.expanded .hmain { visibility: hidden; pointer-events: none; }
+.detail .ai-mini, .detail .infocard { display: none; }
+.alerts-screen { grid-template-columns: minmax(0, 1fr); }
+.alcard .chead { justify-content: flex-start; gap: 12px; }
+.alcard .al-status { margin-left: auto; }
+.alcard .back { width: auto; flex: none; padding: 0 12px; }
+
+/* Ajustes de espaço para o painel de 960×480: mostradores mantidos, cards mais justos. */
+.panel { padding: 4px 10px 7px; }
+.lb .columns { grid-template-columns: 340px minmax(0, 1fr); column-gap: 10px; }
+.lb .hmain { grid-template-columns: minmax(0, 1.43fr) minmax(0, 1fr); }
+.hrow { gap: 6px; }
+.hmain .hcell { padding: 7px 3px 4px; }
+.hmain .hcell .hdial { width: 154px; height: 123px; flex: none; }
+.hmain .hcell .t { margin-top: -3px; flex: none; }
+.hmain .hcell .s { margin-top: 2px; font-size: 11px; flex: none; }
+.hmain .hcell .hspark { align-self: stretch; width: 100%; margin-top: 4px; flex: none; }
+.hmain .spark { height: 20px; margin-top: 0; }
+.hmain .hneedle { transition: opacity 0.3s; }
+.health-side { padding-top: 8px; }
+.health-side .health-open { min-height: 46px; padding: 0 9px; font-size: 11px; gap: 3px; }
+.alert-label { display: flex; align-items: center; gap: 5px; min-width: 0; }
+.alert-label svg { width: 17px; height: 17px; flex: none; fill: none; stroke: var(--warn); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.health-open.danger .alert-label svg { stroke: var(--danger); }
+.health-open:not(.warn):not(.danger) .alert-label svg { visibility: hidden; }
+.health-side .pcard { padding: 8px 9px; }
+.pcard .proc { grid-template-columns: minmax(0, 1fr) 39px 52px; column-gap: 3px; font-size: 12px; line-height: 18px; padding: 4px 0; }
+.pcard .proc.head { font-size: 11px; }
+.pcard .proc-sort button { font-size: 11px; padding: 3px; }
+.pcard .chips { gap: 3px; }
+.pcard .chip { padding: 1px 4px; font-size: 10px; }
+.detail { left: 350px; }
+
+/* ---------- Visão Tarefas (layout B): tarefas do Claude Code e do Codex no lugar de "Mais pesados" ----------
+   O botão de lista no topo alterna com a visão anterior (Mais pesados); a escolha fica no aparelho.
+   .vt só existe junto de .lb. .toff: tarefas sem envio recente do PC (cinza, como o PC offline). */
+.top { position: relative; }
+.vtoggle { display: none; }
+.lb .vtoggle { display: inline-block; }
+.vtoggle[aria-pressed="true"] { color: #4C9AFF; border-color: #4C9AFF; }
+
+#hb-tasks { display: none; }
+.vt #hb-procs { display: none; }
+.vt #hb-tasks { display: flex; }
+
+.tcard { flex: 1; flex-direction: column; padding: 8px 9px; }
+.tcard.ask { border-color: rgba(239, 159, 39, 0.7); }
+.tcard .chead { margin-bottom: 2px; }
+.tcount { font-size: 11px; line-height: 14px; color: #6B7280; white-space: nowrap; }
+.tcount b { font-weight: 600; }
+.tcount .q { color: var(--warn); }
+.tcount .r { color: #4C9AFF; }
+.tlist { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
+
+.task { display: flex; gap: 8px; align-items: flex-start; padding: 6px 0; border-top: 1px solid #1F252D; cursor: pointer; }
+.task:first-child { border-top: 0; }
+.task .tx { min-width: 0; flex: 1; }
+.tn { font-size: 13px; line-height: 17px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ts { font-size: 11px; line-height: 15px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.task.run .ts b { color: #4C9AFF; font-weight: 600; }
+.task.done .ts b { color: var(--ok); font-weight: 600; }
+.task.done .tn { color: #AEB6BF; font-weight: 400; }
+
+/* Ícone: logo do provedor + estado (anel girando, ? ou ✓). */
+.tico { position: relative; flex: none; width: 26px; height: 26px; margin-top: 2px; }
+.tico svg.logo { position: absolute; left: 5px; top: 5px; width: 16px; height: 16px; }
+.tico .spin { position: absolute; left: 0; top: 0; width: 26px; height: 26px; border-radius: 50%; border: 2px solid rgba(76, 154, 255, 0.18); border-top-color: #4C9AFF; will-change: transform; animation: spin 1.1s linear infinite; }
+.tico .badge { position: absolute; right: -3px; bottom: -3px; width: 14px; height: 14px; border-radius: 50%; font: 700 10px/14px var(--sans); text-align: center; color: #0F1216; }
+.task.ask .tico { border-radius: 50%; background: rgba(239, 159, 39, 0.14); }
+.task.ask .badge { background: var(--warn); }
+.task.done .badge { background: var(--ok); }
+.task.done svg.logo { opacity: 0.55; }
+
+/* Pergunta pendente: caixa âmbar com o texto. */
+.task.ask { margin: 2px 0 4px; padding: 6px 7px; border: 1px solid rgba(239, 159, 39, 0.7); border-radius: 9px; background: #1B1915; position: relative; }
+.task.ask + .task { border-top: 0; }
+.task.ask::after { content: ""; position: absolute; left: -1px; top: -1px; right: -1px; bottom: -1px; border-radius: 9px; border: 2px solid var(--warn); opacity: 0; animation: askpulse 2.2s ease-in-out infinite; pointer-events: none; }
+@keyframes askpulse { 0%, 100% { opacity: 0; } 50% { opacity: 0.75; } }
+.task.ask .ts { color: var(--warn); }
+.tq { margin-top: 3px; font-size: 12.5px; line-height: 16px; color: var(--text); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
+.tq.cmd { font-family: var(--mono); font-size: 11.5px; color: #F2CC8F; -webkit-line-clamp: 2; }
+
+.tfoot { display: flex; justify-content: space-between; gap: 8px; margin-top: auto; padding-top: 4px; font-size: 11px; line-height: 14px; color: #6B7280; white-space: nowrap; }
+.tempty { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; gap: 6px; color: var(--muted); font-size: 14px; text-align: center; }
+.tempty svg { width: 30px; height: 30px; fill: none; stroke: #3A4048; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.tempty small { font-size: 12px; color: #6B7280; }
+
+.hoff .task .spin, .toff .task .spin { animation: none; border-top-color: #59616B; border-color: #2A3038; }
+.hoff .task.ask, .toff .task.ask { border-color: var(--panel-border); background: #141920; }
+.hoff .task.ask::after, .toff .task.ask::after { display: none; }
+.hoff .task .badge, .toff .task .badge { background: #59616B; }
+.hoff .ts, .hoff .task.run .ts b, .hoff .task.done .ts b, .hoff .task.ask .ts, .toff .ts, .toff .task.run .ts b, .toff .task.done .ts b, .toff .task.ask .ts { color: var(--muted); }
+.hoff .tcard.ask, .toff .tcard.ask { border-color: var(--panel-border); }
+.hoff .tcount .q, .hoff .tcount .r, .toff .tcount .q, .toff .tcount .r { color: var(--muted); }
+
+/* ---------- Aviso no topo (pergunta nova ou tarefa concluída) ---------- */
+.tbanner { position: absolute; left: 0; right: 0; top: 6px; bottom: 6px; z-index: 5; display: flex; align-items: center; gap: 12px; padding: 0 10px 0 12px; border-radius: 12px; border: 1px solid; opacity: 0; transform: translateY(-70px); transition: transform 0.35s cubic-bezier(0.34, 1.3, 0.64, 1), opacity 0.25s; pointer-events: none; cursor: pointer; }
+.tbanner.on { opacity: 1; transform: none; pointer-events: auto; }
+.tbanner.ask { background: #221B10; border-color: var(--warn); }
+.tbanner.done { background: #102016; border-color: var(--ok); }
+.tbanner .tico { width: 36px; height: 36px; margin: 0; border-radius: 50%; }
+.tbanner .tico svg.logo { left: 8px; top: 8px; width: 20px; height: 20px; }
+.tbanner .tico .badge { width: 17px; height: 17px; font-size: 12px; line-height: 17px; right: -3px; bottom: -3px; }
+.tbanner.ask .tico { background: rgba(239, 159, 39, 0.16); }
+.tbanner.ask .badge { background: var(--warn); }
+.tbanner.done .tico { background: rgba(63, 185, 80, 0.14); }
+.tbanner.done .badge { background: var(--ok); }
+.tbanner .tx { min-width: 0; flex: 1; }
+.tbanner .k { font-size: 11px; line-height: 14px; font-weight: 700; letter-spacing: 1.3px; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tbanner.ask .k { color: var(--warn); }
+.tbanner.done .k { color: var(--ok); }
+.tbanner .m { margin-top: 2px; font-size: 19px; line-height: 24px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tbanner .go { flex: none; height: 38px; padding: 0 14px; border: 1px solid var(--panel-border); border-radius: 10px; background: #171B21; color: var(--text); font: 600 14px var(--sans); cursor: pointer; }
+.tbanner .x { flex: none; width: 38px; height: 38px; padding: 11px; border: 1px solid var(--panel-border); border-radius: 10px; background: #171B21; color: var(--muted); cursor: pointer; }
+.tbanner .x svg { display: block; width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; }
+
+/* ---------- Tela da tarefa (toque numa tarefa ou em "Ver") ---------- */
+#tdetail { position: absolute; left: 350px; z-index: 2; top: 0; right: 0; bottom: 0; display: grid; grid-template-columns: 232px minmax(0, 1fr); column-gap: 8px; opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 0.25s, visibility 0s 0.25s; }
+.texp #tdetail { opacity: 1; visibility: visible; pointer-events: auto; transition: opacity 0.3s 0.05s, visibility 0s; }
+.texp .hmain { visibility: hidden; pointer-events: none; }
+#tdetail .card { display: flex; flex-direction: column; padding: 8px 10px; }
+.tall { overflow-y: auto; -webkit-overflow-scrolling: touch; touch-action: pan-y; }
+.tall::-webkit-scrollbar { width: 4px; }
+.tall::-webkit-scrollbar-thumb { background: #3A4048; border-radius: 3px; }
+.tall .sec { margin: 6px 0 2px; }
+.tall .sec:first-child { margin-top: 0; }
+.tall .task { padding: 6px 6px; margin: 0 -4px; border-radius: 8px; border-top: 0; }
+.tall .task.sel { background: #1F2A38; }
+.tall .task.ask { margin: 2px -4px 4px; }
+.tall .task.ask.sel { background: #2A2111; }
+
+.tdcard .chead { justify-content: flex-start; gap: 10px; margin-bottom: 8px; }
+.tdcard .back { width: auto; height: 36px; padding: 0 12px; font-size: 14px; flex: none; }
+.tdhead { display: flex; gap: 10px; align-items: center; }
+.tdhead .tico { width: 34px; height: 34px; margin: 0; }
+.tdhead .tico svg.logo { left: 8px; top: 8px; width: 18px; height: 18px; }
+.tdhead .tico .spin { width: 34px; height: 34px; }
+.tdname { font-size: 18px; line-height: 22px; font-weight: 600; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.tdmeta { font-size: 12px; line-height: 16px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tdbody { margin-top: 10px; flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.tdbody .sec { margin: 8px 0 4px; }
+.tdbody .sec:first-child { margin-top: 0; }
+.tdq { font-size: 18px; line-height: 24px; color: var(--text); }
+.tdq.ask { padding: 8px 10px; border-left: 3px solid var(--warn); background: #1B1915; border-radius: 0 8px 8px 0; }
+.tdcmd { padding: 8px 10px; border-radius: 8px; background: #0B0E12; border: 1px solid #2A3038; font: 13px/18px var(--mono); color: #F2CC8F; white-space: pre-wrap; overflow-wrap: anywhere; }
+.tdtext { font-size: 14px; line-height: 20px; color: #AEB6BF; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 6; overflow: hidden; }
+.topts { display: flex; flex-wrap: wrap; gap: 6px; }
+.topts span { padding: 6px 12px; border: 1px dashed #3A4048; border-radius: 9px; color: var(--muted); font-size: 14px; }
+.tsoon { margin-top: 6px; font-size: 11px; color: #6B7280; }
+.tfacts { margin-top: 10px; }
+
+/* ---------- Visão Tarefas: IA mais estreita, saúde em uma coluna de 3 e lista larga ---------- */
+/* Larguras: IA 300 · saúde 244 · tarefas ~378 (antes: 340 · 4 mostradores · 239). */
+.lb.vt .columns { grid-template-columns: 300px minmax(0, 1fr); }
+.lb.vt .column { padding: 4px 8px 6px 2px; column-gap: 4px; }
+.lb.vt .gwrap { align-items: flex-start; }
+.lb.vt .reset { align-self: center; }
+.lb.vt .hmain { grid-template-columns: 244px minmax(0, 1fr); }
+/* CPU em cima, ocupando a largura toda; memória e disco lado a lado num só cartão. */
+.vt .hrow { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1.55fr) minmax(0, 1fr); column-gap: 0; }
+.vt .hrow .hcell { overflow: hidden; }
+.vt #hb-clk { display: none; }
+
+/* CPU: mostrador maior, com o GHz no centro, e gráfico do dia mais alto. */
+.vt #hb-cpu { grid-column: 1 / 3; padding: 4px 8px 6px; }
+.vt #hb-cpu .hdial { width: 190px; height: 152px; }
+.vt #hb-cpu .t { margin-top: -6px; }
+.vt #hb-cpu .hspark { flex: 1; min-height: 0; display: flex; align-items: flex-end; margin-top: 4px; }
+.vt #hb-cpu .spark { height: 100%; max-height: 40px; min-height: 20px; }
+.ghz { display: none; }
+.vt .ghz { display: inline; }
+.vt #hb-cpu [data-d="hub"] { display: none; }
+.hoff .ghz text { fill: var(--muted); }
+
+/* Memória + disco: as duas metades formam um cartão; sem títulos, só o espaço livre.
+   O gráfico do dia é só o da memória, na largura do cartão. */
+.vt #hb-ram { border-right: 0; border-radius: 12px 0 0 12px; overflow: visible; z-index: 1; padding: 6px 2px 36px 8px; }
+.vt #hb-disk { border-left: 0; border-radius: 0 12px 12px 0; padding: 6px 8px 36px 2px; }
+.vt #hb-ram .hdial, .vt #hb-disk .hdial { width: 112px; height: 90px; }
+.vt #hb-ram .t, .vt #hb-disk .t { display: none; }
+.vt #hb-ram .s, .vt #hb-disk .s { margin-top: 0; font-size: 12px; color: var(--text); }
+.vt #hb-disk .hspark { display: none; }
+.vt #hb-ram .hspark { position: absolute; left: 10px; bottom: 8px; width: calc(200% - 20px); margin: 0; }
+.vt #hb-ram .spark { height: 22px; }
+.vt #hb-ram::after { content: ""; position: absolute; right: 0; top: 14px; bottom: 40px; width: 1px; background: #1F252D; }
+
+/* Telas sobrepostas começam logo depois da IA. */
+.vt .detail, .vt #tdetail { left: 310px; }
+.vt #tdetail { grid-template-columns: 250px minmax(0, 1fr); }
+
+/* Coluna da direita alinhada ao topo dos cartões da IA e da saúde. */
+.vt .health-side { padding-top: 0; }
+
+/* Tokens: contagem na lista e na tela da tarefa; tokens/s nos mostradores (só na visão Tarefas). */
+.tk { font-family: var(--mono); font-size: 10.5px; color: var(--text); }
+.task.done .tk { color: #AEB6BF; }
+.hoff .tk, .toff .tk { color: var(--muted); }
+.tokbox { display: flex; gap: 6px; }
+.tokbox div { flex: 1; min-width: 0; padding: 5px 8px; border: 1px solid #2A3038; border-radius: 8px; background: #11161C; }
+.tokbox b { display: block; font: 600 17px/22px var(--mono); color: var(--text); }
+.tokbox span { display: block; font-size: 10.5px; line-height: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gauge svg { overflow: visible; }
+.tps { display: none; }
+.vt .tps { display: inline; }
+/* Logo menor (40 → 30) e centro menor (raio 27 → 22): sobra espaço para o % e os tokens/s. */
+.vt .gauge .provider-logo { transform: translate(65px, 57px) scale(1.25); }
+.vt .gauge circle[r="27"] { r: 22px; }
+.vt .ring { width: 32.2%; margin-left: -16.1%; margin-top: -16.1%; }
+.vt .gauge [data-v="readout"] { font-size: 20px; transform: translateY(-7px); }
+
+/* Selo de tokens na lista: raio e cor própria (violeta), à direita da tarefa. */
+.tchip { flex: none; align-self: center; display: flex; align-items: center; gap: 3px; padding: 2px 8px 2px 5px; border: 1px solid rgba(179, 146, 240, 0.45); border-radius: 999px; background: rgba(179, 146, 240, 0.12); color: #C9B3FF; font: 700 12px/16px var(--mono); white-space: nowrap; }
+.tchip svg { width: 12px; height: 12px; fill: #B392F0; }
+.task.done .tchip { border-color: rgba(179, 146, 240, 0.25); background: rgba(179, 146, 240, 0.06); color: #A991D9; }
+.task.ask .tchip { align-self: flex-start; margin-top: 1px; }
+.hoff .task .tchip, .toff .task .tchip { border-color: var(--panel-border); background: none; color: var(--muted); }
+.hoff .task .tchip svg, .toff .task .tchip svg { fill: var(--muted); }
+
+/* Tela da tarefa: cartões de token coloridos (tokens violeta, velocidade ciano, limite amarelo). */
+.tokbox .kt { border-color: rgba(179, 146, 240, 0.55); background: rgba(179, 146, 240, 0.12); }
+.tokbox .kt b { display: flex; align-items: center; gap: 4px; color: #C9B3FF; }
+.tokbox .kt b svg { width: 15px; height: 15px; fill: #B392F0; flex: none; }
+.tokbox .ks { border-color: rgba(57, 197, 207, 0.55); background: rgba(57, 197, 207, 0.10); }
+.tokbox .ks b { color: #56D4DD; }
+.tokbox .kl { border-color: rgba(232, 212, 77, 0.5); background: rgba(232, 212, 77, 0.08); }
+.tokbox .kl b { color: #E8D44D; }
+.tokbox span { color: #9AA4AF; }
+.tall .tchip { display: inline-flex; margin-top: 3px; padding: 1px 7px 1px 4px; font-size: 11px; line-height: 15px; }
+.tokbox b span { display: inline; font: inherit; color: inherit; }
+/* Mostrador do Claude/Codex um pouco menor na visão Tarefas, para o tok/s não encostar na linha do reset. */
+.lb.vt .gauge { width: 200px; height: 160px; }
+.lb.vt .reset { margin-top: 4px; }
+
+/* ---------- Protótipo v2 (por cima do painel atual) ---------- */
+
+/* 1. Termômetro mais perto do mostrador: IA 300 → 270 px; a lista de tarefas ganha ~30 px (378 → 408). */
+.lb.vt .columns { grid-template-columns: 270px minmax(0, 1fr); }
+.lb.vt .column { grid-template-columns: 200px 60px; column-gap: 0; padding: 4px 6px 6px 2px; }
+.lb.vt .thermo { margin-left: -4px; }
+.vt .detail, .vt #tdetail { left: 280px; }
+.vt #tdetail { grid-template-columns: 262px minmax(0, 1fr); }
+
+/* 2. Pílula de tokens: raio, último pedido (verde) | conversa toda (azul). */
+.tchip { gap: 4px; padding: 2px 8px 2px 5px; border-color: rgba(179, 146, 240, 0.4); background: #161B22; color: var(--text); }
+.tchip .tl { color: #56D364; }
+.tchip .tt { color: #79B8FF; }
+.tchip .tsep { width: 1px; height: 11px; background: #3A4048; }
+.task.done .tchip { border-color: rgba(179, 146, 240, 0.22); background: #141920; color: var(--text); }
+.task.done .tchip .tl { color: #3FB950; }
+.task.done .tchip .tt { color: #5A9BEA; }
+.hoff .task .tchip .tl, .hoff .task .tchip .tt, .toff .task .tchip .tl, .toff .task .tchip .tt { color: var(--muted); }
+.tall .tchip { gap: 4px; }
+
+/* Tela da tarefa: um cartão de tokens com os dois números. */
+.tokbox .kt { flex: 1.7; display: flex; gap: 10px; }
+.tokbox .kt .kv { min-width: 0; padding: 0; border: 0; background: none; }
+.tokbox .kt .kv b { display: flex; align-items: center; gap: 4px; }
+.tokbox .kt .kv b.tl { color: #56D364; }
+.tokbox .kt .kv b.tt { color: #79B8FF; }
+.tokbox .kt .kv + .kv { padding-left: 10px; border-left: 1px solid rgba(179, 146, 240, 0.3); }
+
+/* 3. Tarefa concluída: aviso no meio da lista que sobe e some aos poucos (toque abre a tarefa). */
+.health-side { position: relative; }
+.tpops { position: absolute; left: 0; right: 0; top: 54px; bottom: 0; pointer-events: none; overflow: hidden; border-radius: 12px; z-index: 3; }
+.tpop { position: absolute; left: 50%; top: 50%; width: 86%; box-sizing: border-box; padding: 10px 12px; border: 1px solid var(--ok); border-radius: 14px;
+  background: #0F2116; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55), 0 0 0 4px rgba(63, 185, 80, 0.12);
+  display: flex; gap: 10px; align-items: center; pointer-events: auto; cursor: pointer; will-change: transform, opacity;
+  animation: tpopLife 8s cubic-bezier(0.33, 0, 0.4, 1) forwards; }
+.tpop .tico { width: 36px; height: 36px; margin: 0; border-radius: 50%; background: rgba(63, 185, 80, 0.16); }
+.tpop .tico svg.logo { left: 8px; top: 8px; width: 20px; height: 20px; }
+.tpop .tico .badge { width: 17px; height: 17px; font-size: 12px; line-height: 17px; background: var(--ok); }
+.tpop .tx { min-width: 0; flex: 1; }
+.tpop .k { font-size: 10.5px; line-height: 13px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--ok); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tpop .m { margin: 2px 0 5px; font-size: 16px; line-height: 20px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tpop .tchip { display: inline-flex; }
+.tpop .hint { margin-left: 6px; font-size: 10.5px; color: #8FB8FF; }
+@keyframes tpopLife {
+  0% { opacity: 0; transform: translate(-50%, -30%) scale(0.92); }
+  5% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  35% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -210%) scale(0.98); }
+}
+
+</style>
+</head>
+<body>
+  <main class="panel">
+    <section id="login" class="login" aria-labelledby="login-title">
+      <div class="login-copy">
+        <div class="login-brand">USAGE IA COCKPIT</div>
+        <h1 id="login-title">Seu painel,<br>protegido.</h1>
+        <p>Digite seu PIN para ver o consumo.<br>Este aparelho fica conectado por 30 dias.</p>
+        <p id="login-message" class="login-message" role="status" aria-live="polite">Verificando acesso…</p>
+        <button id="lock-retry" class="login-submit" type="button" hidden>Tentar bloquear novamente</button>
+      </div>
+      <form id="login-form" class="login-form">
+        <label for="pin">PIN de acesso</label>
+        <input id="pin" type="password" inputmode="numeric" pattern="[0-9]{8,12}" minlength="8" maxlength="12" autocomplete="off" readonly required aria-describedby="login-message" aria-label="PIN de acesso, use o teclado abaixo">
+        <div id="keypad" class="keypad" role="group" aria-label="Teclado numérico">
+          <button type="button" data-digit="1" disabled>1</button><button type="button" data-digit="2" disabled>2</button><button type="button" data-digit="3" disabled>3</button>
+          <button type="button" data-digit="4" disabled>4</button><button type="button" data-digit="5" disabled>5</button><button type="button" data-digit="6" disabled>6</button>
+          <button type="button" data-digit="7" disabled>7</button><button type="button" data-digit="8" disabled>8</button><button type="button" data-digit="9" disabled>9</button>
+          <button id="pin-clear" type="button" disabled>Limpar</button><button type="button" data-digit="0" disabled>0</button><button id="pin-back" type="button" aria-label="Apagar último dígito" disabled>Apagar</button>
+        </div>
+        <button id="login-submit" class="login-submit" type="submit" disabled>Entrar</button>
+      </form>
+      <noscript>Ative o JavaScript do navegador para entrar no painel.</noscript>
+    </section>
+    <div id="cockpit" class="cockpit" hidden>
+    <header class="top">
+      <div class="status status-summary">
+        <span id="dot" class="dot"></span>
+        <div class="status-copy">
+          <span id="updated">carregando…</span>
+          <time id="last-updated" class="last-updated" title="Última consulta bem-sucedida à API" hidden></time>
+        </div>
+      </div>
+      <div class="clock-wrap"><div id="clock" class="clock">--:--</div><div id="date" class="date">---, -- de ---</div></div>
+      <div class="status right">
+        <button id="lock" class="fs" type="button" aria-label="Bloquear painel" title="Bloquear painel">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3"/></svg>
+        </button>
+        <button id="refresh" class="refresh" type="button" aria-label="Atualizar agora" title="Atualizar agora">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8M21 3v5h-5"/></svg>
+        </button>
+        <!-- Só no layout B: alterna a lista da direita entre Tarefas (nova) e Mais pesados (anterior). -->
+        <button id="view" class="fs vtoggle" type="button" aria-pressed="true" aria-label="Mostrar os apps mais pesados" title="Trocar a lista da direita: Tarefas ou Mais pesados">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6l1.5 1.5L8 5M4 12l1.5 1.5L8 11M4 18l1.5 1.5L8 17M11 6h9M11 12h9M11 18h9"/></svg>
+        </button>
+        <button id="fs" class="fs" type="button" aria-label="Tela cheia" title="Tela cheia">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path id="fs-icon" d=""/></svg>
+        </button>
+        <button id="monitor" class="fs monitor" type="button" aria-label="Manter tela ativa" aria-pressed="true" aria-describedby="monitor-status" title="Manter tela ativa">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4M9 10h6M12 7v6"/></svg>
+        </button>
+        <span id="monitor-status" class="monitor-status" role="status" aria-live="polite">Toque para manter ativa</span>
+      </div>
+      <!-- Aviso de pergunta nova ou tarefa concluída: cobre o topo por alguns segundos. -->
+      <div id="tbanner" class="tbanner" role="status" aria-live="polite"></div>
+    </header>
+    <section id="stage" class="stage">
+      <!-- Modo normal. Com a saúde (layout B): cartões de IA à esquerda e a saúde à direita.
+           Sem a saúde (layout clássico): só as colunas do Claude e do Codex, com a divisória. -->
+      <div id="columns" class="columns">
+        <div id="col-claude" class="column" hidden></div>
+        <div id="divider" class="divider" hidden></div>
+        <div id="col-codex" class="column" hidden></div>
+        <section id="hmain" class="hmain" aria-label="Saúde do PC">
+          <div class="hrow">
+            <div id="hb-cpu" class="hcell"></div>
+            <div id="hb-ram" class="hcell"></div>
+            <div id="hb-disk" class="hcell"></div>
+            <div id="hb-clk" class="hcell"></div>
+          </div>
+          <div class="health-side">
+            <button id="health-open" class="health-open" type="button" aria-expanded="false" aria-controls="detail" aria-label="Ver todos os alertas">
+              <span class="alert-label"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 22 20H2L12 3Z"/><path d="M12 9v5m0 3h.01"/></svg><span id="hb-alerts-title">Alertas</span></span><span>Ver todos os alertas</span>
+            </button>
+            <div id="hb-procs" class="card pcard"></div>
+            <section id="hb-tasks" class="card tcard" aria-label="Tarefas do Claude Code e do Codex"></section>
+          </div>
+          <div id="hb-alerts" hidden></div>
+        </section>
+      </div>
+      <!-- Tela de alertas (Ver todos os alertas): IA recolhida à esquerda, a lista completa de
+           alertas e, à direita, os detalhes da saúde que não aparecem na tela inicial. -->
+      <div id="detail" class="detail" aria-hidden="true">
+        <div id="ai-mini" class="ai-mini" title="Voltar">
+          <div id="ai-claude" class="ai"></div>
+          <div id="ai-codex" class="ai"></div>
+          <button id="health-back" class="back" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>Voltar
+          </button>
+        </div>
+        <div id="hdetail" class="alerts-screen">
+          <section class="card alcard" aria-labelledby="al-title">
+            <div class="chead">
+              <button id="alerts-back" class="back" type="button">‹ Voltar aos indicadores</button>
+              <span id="al-title" class="sec">Alertas</span>
+              <span id="al-status" class="al-status"></span>
+            </div>
+            <div id="al-list" class="al-list"></div>
+          </section>
+          <section id="al-info" class="card infocard" aria-label="Detalhes da saúde"></section>
+        </div>
+      </div>
+      <!-- Tela da tarefa (toque numa tarefa ou em Ver no aviso): todas as tarefas e o detalhe da escolhida. -->
+      <div id="tdetail" aria-hidden="true">
+        <section id="tall" class="card tall" aria-label="Todas as tarefas"></section>
+        <section id="tone" class="card tdcard" aria-label="Detalhe da tarefa"></section>
+      </div>
+    </section>
+    </div>
+  </main>
+  <audio id="monitor-audio" preload="none" hidden aria-hidden="true"></audio>
+  <script>
+// Protótipo v2: tarefas simuladas com horários fixos e o total da conversa (conversation) além do último pedido.
+(function () {
+  var MIN = 60000, T0 = Date.now();
+  function at(minAgo) { return new Date(T0 - minAgo * MIN).toISOString(); }
+  window.MOCK = { done: false, ask: false, offline: /[#&]o=1/.test(location.hash) };
+  var grow = 0;
+  window.AGENTS = function () {
+    grow++;
+    var m = window.MOCK;
+    var tasks = [
+      { id: 'c-111111111111', provider: 'claude', name: 'Echo Show Claude/Codex monitoring expansion', project: 'monitor-uso-ia', state: 'waiting',
+        since: at(1.5), startedAt: at(9), endedAt: null,
+        question: { kind: 'question', text: 'Quer que eu monte a proposta com essas regras?', tool: null, options: ['Montar proposta', 'Agora não'] },
+        prompt: 'Pode implementar a sua proposta nas três aplicações, desktop, API e painel.', summary: null,
+        tokens: { input: 31200, cacheWrite: 85000, output: 9800, cacheRead: 2400000 },
+        conversation: { input: 412000, cacheWrite: 690000, output: 183000, cacheRead: 36000000 }, tokensPerSecond: 0, limitPercent: null },
+      { id: 'x-222222222222', provider: 'codex', name: 'Preencher formulário da palestra', project: 'Kiro-Workspace', state: 'running',
+        since: at(12), startedAt: at(12), endedAt: null, question: null,
+        prompt: 'Preencha o formulário de inscrição da palestra com os dados do meu perfil e revise antes de enviar.', summary: null,
+        tokens: { input: 41800, cacheWrite: 0, output: 6200 + grow * 250, cacheRead: 610000 },
+        conversation: { input: 96000, cacheWrite: 0, output: 14200 + grow * 250, cacheRead: 1900000 }, tokensPerSecond: 64, limitPercent: 2 },
+      { id: 'c-333333333333', provider: 'claude', name: 'Post Agent — Descobertas (seg–sex 06:00)', project: 'post-agent', state: 'running',
+        since: at(4), startedAt: at(4), endedAt: null, question: null, prompt: 'Rode a rotina de descobertas do dia e salve os candidatos a post.', summary: null,
+        tokens: { input: 12400, cacheWrite: 22000, output: 3100, cacheRead: 380000 },
+        conversation: { input: 12400, cacheWrite: 22000, output: 3100, cacheRead: 380000 }, tokensPerSecond: 88, limitPercent: null },
+      { id: 'x-444444444444', provider: 'codex', name: 'Listar PDIs locais', project: 'pdi-esig', state: 'done',
+        since: at(7), startedAt: at(13), endedAt: at(7), question: null, prompt: 'Liste os PDIs locais e destaque os vencidos.',
+        summary: 'Encontrei 14 PDIs na pasta local. 3 estão sem revisão desde agosto e 2 têm metas vencidas.',
+        tokens: { input: 52300, cacheWrite: 0, output: 8900, cacheRead: 1100000 },
+        conversation: { input: 230000, cacheWrite: 0, output: 41000, cacheRead: 5200000 }, tokensPerSecond: null, limitPercent: 3 },
+      { id: 'c-555555555555', provider: 'claude', name: 'Banco de horas (segunda 07:00)', project: 'QuarkRH-Agent', state: 'done',
+        since: at(38), startedAt: at(40), endedAt: at(38), question: null, prompt: 'Atualize o banco de horas da semana.',
+        summary: 'Banco de horas atualizado: saldo de +6h12 na semana.',
+        tokens: { input: 8100, cacheWrite: 15000, output: 1900, cacheRead: 210000 },
+        conversation: { input: 8100, cacheWrite: 15000, output: 1900, cacheRead: 210000 }, tokensPerSecond: null, limitPercent: null }
+    ];
+    if (m.done) { var t = tasks[1]; t.state = 'done'; t.since = t.endedAt = new Date(m.done).toISOString(); t.tokensPerSecond = null;
+      t.summary = 'Formulário preenchido e revisado. Faltou só o número de matrícula, que deixei em branco para você conferir.'; }
+    if (m.ask) tasks.push({ id: 'x-666666666666', provider: 'codex', name: 'Revisar contrato da API de saúde', project: 'usage-ia-api', state: 'waiting',
+      since: new Date(m.ask).toISOString(), startedAt: at(2), endedAt: null,
+      question: { kind: 'question', text: 'O campo agents entra no /v1/panel ou numa rota separada?', tool: null, options: ['No /v1/panel', 'Rota separada'] },
+      prompt: 'Revise o contrato e aplique as mudanças.', summary: null,
+      tokens: { input: 15000, cacheWrite: 0, output: 2100, cacheRead: 300000 },
+      conversation: { input: 15000, cacheWrite: 0, output: 2100, cacheRead: 300000 }, tokensPerSecond: 0, limitPercent: null });
+    return { schemaVersion: 1, hasData: true, online: !m.offline, paused: false, receivedAt: new Date(m.offline ? T0 - 20 * MIN : Date.now() - 3000).toISOString(),
+      serverTime: new Date().toISOString(), offlineAfterSeconds: 360, rates: m.offline ? { claude: null, codex: null } : { claude: 88, codex: m.done ? 0 : 64 }, tasks: tasks };
+  };
+})();
+
+</script><script>
+// Protótipo: substitui a rede do painel por dados simulados (/api/auth e /api/panel).
+(function () {
+  var MIN = 60000;
+  function iso(msAgo) { return new Date(Date.now() - msAgo).toISOString(); }
+  function ahead(ms) { return new Date(Date.now() + ms).toISOString(); }
+
+  window.PROTO = { offline: /[#&]o=1/.test(location.hash) };
+
+  function dayHistory() {
+    var now = Date.now(), d = new Date(now); d.setHours(0, 0, 0, 0);
+    var start = d.getTime(), from = start + 8 * 60 * MIN, pts = [];
+    for (var t = from, i = 0; t < now; t += 2 * MIN, i++) {
+      var cpu = 22 + 18 * Math.sin(i / 9) + 10 * Math.sin(i / 2.7) + (i % 17 === 0 ? 30 : 0);
+      var ram = 63 + 6 * Math.sin(i / 25) + i * 0.02;
+      pts.push([t, Math.max(3, Math.min(96, cpu)), Math.min(88, ram), 71 + i * 0.002, 2300 + 600 * Math.sin(i / 5)]);
+    }
+    return { date: d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(), start: start, end: start + 1440 * MIN, points: pts };
+  }
+
+  function panel(withHistory) {
+    var off = window.PROTO.offline;
+    var received = off ? iso(42 * MIN) : iso(4000);
+    var usage = {
+      schemaVersion: 1, hasData: true, online: !off, healthEnabled: true, receivedAt: received, serverTime: new Date().toISOString(),
+      providers: {
+        claude: { label: 'Claude', enabled: true, inUse: !off, status: 'ok', sessionPercent: 46, weekPercent: 38, sessionResetsAt: ahead(138 * MIN), weekResetsAt: ahead(3.2 * 1440 * MIN) },
+        codex: { label: 'Codex', enabled: true, inUse: !off, status: 'ok', sessionPercent: 21, weekPercent: 57, sessionResetsAt: ahead(201 * MIN), weekResetsAt: ahead(5.1 * 1440 * MIN) }
+      }
+    };
+    var health = {
+      schemaVersion: 1, hasData: true, online: !off, receivedAt: received, serverTime: new Date().toISOString(), offlineAfterSeconds: 360,
+      health: {
+        status: 'warn', sentAt: received, uptimeSeconds: 3 * 86400 + 5 * 3600,
+        cpu: { percent: 34.5, speedPercent: 96, speedMHz: 2650, baseMHz: 2700 },
+        memory: { usedPercent: 71, commitPercent: 78.4, availableBytes: 9.1 * 1073741824, totalBytes: 32 * 1073741824, kernelNonPagedBytes: 0.6 * 1073741824 },
+        power: { source: 'ac', mode: 'balanced', batteryPercent: 100 },
+        systemDisk: { name: 'C:', system: true, totalBytes: 476 * 1073741824, freeBytes: 131 * 1073741824, usedPercent: 72.5 },
+        counts: { processes: 412, threads: 6120, handles: 231004, longRunningHelpers: 9 },
+        topProcesses: [
+          { name: 'chrome', instances: 38, cpuPercent: 9.4, memoryBytes: 6.2 * 1073741824 },
+          { name: 'claude', instances: 6, cpuPercent: 7.1, memoryBytes: 2.4 * 1073741824 },
+          { name: 'Codex', instances: 4, cpuPercent: 4.8, memoryBytes: 1.6 * 1073741824 },
+          { name: 'Code', instances: 12, cpuPercent: 3.2, memoryBytes: 2.1 * 1073741824 },
+          { name: 'Teams', instances: 7, cpuPercent: 1.1, memoryBytes: 1.2 * 1073741824 }
+        ],
+        alerts: [
+          { code: 'memory_high', level: 'warn', title: 'Memória comprometida em 78%', action: 'Feche apps que não está usando' }
+        ]
+      }
+    };
+    if (withHistory) health.today = dayHistory();
+    return { schemaVersion: 1, serverTime: new Date().toISOString(), usage: usage, health: health, agents: window.AGENTS() };
+  }
+
+  function FakeXHR() { this.status = 0; this.responseText = ''; this.headers = {}; }
+  FakeXHR.prototype.open = function (method, url) { this.method = method; this.url = url; };
+  FakeXHR.prototype.setRequestHeader = function () {};
+  FakeXHR.prototype.getResponseHeader = function (n) { return this.headers[n] || null; };
+  FakeXHR.prototype.abort = function () { this.aborted = true; };
+  FakeXHR.prototype.send = function () {
+    var self = this;
+    setTimeout(function () {
+      if (self.aborted) return;
+      self.status = 200;
+      if (self.url.indexOf('/api/auth') === 0) self.responseText = JSON.stringify({ authenticated: true });
+      else self.responseText = JSON.stringify(panel(self.url.indexOf('today=1') >= 0));
+      self.onload && self.onload();
+    }, 120);
+  };
+  window.XMLHttpRequest = FakeXHR;
+})();
+
+</script><script>
+'use strict';
+
+// Áudio silencioso local, inspirado na técnica do Keep Silk Open:
+// https://gitlab.com/DaGammla/keep-silk-open
+// O arquivo contém silêncio; muted/volume=0 podem deixar de contar como mídia ativa.
+function createMonitorProtection(options) {
+  var audio = options.audio;
+  var enabled = true, active = false, interacted = false, suspended = false;
+  var audioState = 'waiting', audioAttempt = null;
+  var lock = null, lockPending = false, lockFailed = false, releaseTimer;
+  var supportsWakeLock = !!(navigator.wakeLock && navigator.wakeLock.request);
+
+  function canRun() { return enabled && active && !document.hidden && !suspended; }
+  function report() {
+    options.onChange({
+      enabled: enabled,
+      audio: audioState,
+      wakeLock: !supportsWakeLock ? 'unsupported' : lock ? 'active' : lockFailed ? 'error' : 'waiting'
+    });
+  }
+  function releaseLock(value) {
+    try {
+      var result = value.release();
+      if (result && result.catch) result.catch(function () {});
+    } catch (e) {}
+  }
+  function requestLock() {
+    if (!canRun() || !supportsWakeLock || lock || lockPending) return;
+    lockPending = true;
+    try {
+      navigator.wakeLock.request('screen').then(function (value) {
+        lockPending = false;
+        if (!canRun() || value.released) {
+          releaseLock(value);
+          return;
+        }
+        lock = value;
+        lockFailed = false;
+        value.addEventListener('release', function () {
+          if (lock !== value) return;
+          lock = null;
+          report();
+          // O sistema pode revogar a proteção. Tenta novamente sem um ciclo intenso.
+          if (canRun()) releaseTimer = setTimeout(requestLock, 2000);
+        });
+        report();
+      }, function () {
+        lockPending = false;
+        lockFailed = true;
+        report();
+      });
+    } catch (e) {
+      lockPending = false;
+      lockFailed = true;
+      report();
+    }
+  }
+  function startAudio() {
+    if (!canRun() || !interacted || audioAttempt || (!audio.paused && !audio.ended)) return;
+    var attempt = {};
+    audioAttempt = attempt;
+    try {
+      if (audio.error) audio.load();
+      if (audio.ended) audio.currentTime = 0;
+      audio.muted = false;
+      audio.volume = 1;
+      var result = audio.play();
+      if (result && result.then) {
+        result.then(function () {
+          if (audioAttempt !== attempt) return;
+          audioAttempt = null;
+          audioState = audio.paused ? 'waiting' : 'playing';
+          report();
+        }, function (error) {
+          if (audioAttempt !== attempt) return;
+          audioAttempt = null;
+          audioState = error && error.name === 'NotAllowedError' ? 'blocked' : 'error';
+          report();
+        });
+      } else {
+        audioAttempt = null;
+      }
+    } catch (e) {
+      audioAttempt = null;
+      audioState = 'error';
+      report();
+    }
+  }
+  function recover() {
+    if (!canRun()) return;
+    startAudio();
+    requestLock();
+  }
+  function stop() {
+    clearTimeout(releaseTimer);
+    audioAttempt = null;
+    audio.pause();
+    audioState = 'waiting';
+    if (lock) {
+      var previous = lock;
+      lock = null;
+      releaseLock(previous);
+    }
+    report();
+  }
+  audio.addEventListener('playing', function () {
+    if (!canRun()) { audio.pause(); return; }
+    audioState = 'playing';
+    report();
+  });
+  audio.addEventListener('pause', function () { audioState = 'waiting'; report(); });
+  audio.addEventListener('ended', function () {
+    audioState = 'waiting';
+    startAudio();
+    report();
+  });
+  audio.addEventListener('error', function () { audioState = 'error'; report(); });
+  document.addEventListener('visibilitychange', function () {
+    if (canRun()) recover(); else stop();
+  });
+  window.addEventListener('pagehide', function () { suspended = true; stop(); });
+  window.addEventListener('pageshow', function () { suspended = false; recover(); });
+  // Recupera mídia pausada por interrupções e solicitações de Wake Lock recusadas.
+  // Reutiliza o áudio carregado; não recarrega a página nem consulta a API.
+  setInterval(recover, 30000);
+  report();
+  return {
+    setActive: function (value) {
+      active = value;
+      if (canRun()) recover(); else stop();
+    },
+    interact: function () { interacted = true; recover(); },
+    toggle: function () {
+      enabled = !enabled;
+      if (enabled) { interacted = true; recover(); } else stop();
+      report();
+    }
+  };
+}
+
+</script>
+  <script>
+'use strict';
+
+// Painel do modo completo do UsageCockpit para o Echo Show 5 (960×480, só toque).
+// Só leitura: consulta o proxy /api/panel (uso + saúde do PC), que guarda a chave da API no servidor.
+
+// Ritmo pensado para os planos gratuitos: uma requisição a cada 15 s; 120 s com o PC offline.
+var POLL_MS = 15000, OFFLINE_POLL_MS = 120000, HISTORY_MS = 300000;
+// Com tarefa do Claude Code ou do Codex executando ou esperando resposta, o painel consulta mais
+// rápido para avisar a pergunta ou a conclusão em poucos segundos (uma leitura do Redis por consulta).
+var FAST_POLL_MS = 4000;
+var STAGE_W = 960, STAGE_H = 480;
+
+// Cores e faixas do Palette.cs (tema escuro).
+var C = {
+  track: '#23282F', tick: '#6B7280', muted: '#8B949E', text: '#D0D7DE',
+  needle: '#F5F5F5', hub: '#0B0D10', hubRim: '#3A4048',
+  ok: '#3FB950', warn: '#EF9F27', danger: '#E24B4A',
+  warnSoft: 'rgba(239,159,39,0.35)', dangerSoft: 'rgba(226,75,74,0.35)',
+  weekBlue: '#4C9AFF', weekWarn: '#E8D44D', weekDanger: '#D63384'
+};
+var WARN_FROM = 60, DANGER_FROM = 80;
+
+// Logos oficiais (Simple Icons, 24×24), os mesmos do app desktop.
+var LOGO_CLAUDE = 'm4.7144 15.9555 4.7174-2.6471.079-.2307-.079-.1275h-.2307l-.7893-.0486-2.6956-.0729-2.3375-.0971-2.2646-.1214-.5707-.1215-.5343-.7042.0546-.3522.4797-.3218.686.0608 1.5179.1032 2.2767.1578 1.6514.0972 2.4468.255h.3886l.0546-.1579-.1336-.0971-.1032-.0972L6.973 9.8356l-2.55-1.6879-1.3356-.9714-.7225-.4918-.3643-.4614-.1578-1.0078.6557-.7225.8803.0607.2246.0607.8925.686 1.9064 1.4754 2.4893 1.8336.3643.3035.1457-.1032.0182-.0728-.164-.2733-1.3539-2.4467-1.445-2.4893-.6435-1.032-.17-.6194c-.0607-.255-.1032-.4674-.1032-.7285L6.287.1335 6.6997 0l.9957.1336.419.3642.6192 1.4147 1.0018 2.2282 1.5543 3.0296.4553.8985.2429.8318.091.255h.1579v-.1457l.1275-1.706.2368-2.0947.2307-2.6957.0789-.7589.3764-.9107.7468-.4918.5828.2793.4797.686-.0668.4433-.2853 1.8517-.5586 2.9021-.3643 1.9429h.2125l.2429-.2429.9835-1.3053 1.6514-2.0643.7286-.8196.85-.9046.5464-.4311h1.0321l.759 1.1293-.34 1.1657-1.0625 1.3478-.8804 1.1414-1.2628 1.7-.7893 1.36.0729.1093.1882-.0183 2.8535-.607 1.5421-.2794 1.8396-.3157.8318.3886.091.3946-.3278.8075-1.967.4857-2.3072.4614-3.4364.8136-.0425.0304.0486.0607 1.5482.1457.6618.0364h1.621l3.0175.2247.7892.522.4736.6376-.079.4857-1.2142.6193-1.6393-.3886-3.825-.9107-1.3113-.3279h-.1822v.1093l1.0929 1.0686 2.0035 1.8092 2.5075 2.3314.1275.5768-.3218.4554-.34-.0486-2.2039-1.6575-.85-.7468-1.9246-1.621h-.1275v.17l.4432.6496 2.3436 3.5214.1214 1.0807-.17.3521-.6071.2125-.6679-.1214-1.3721-1.9246L14.38 17.959l-1.1414-1.9428-.1397.079-.674 7.2552-.3156.3703-.7286.2793-.6071-.4614-.3218-.7468.3218-1.4753.3886-1.9246.3157-1.53.2853-1.9004.17-.6314-.0121-.0425-.1397.0182-1.4328 1.9672-2.1796 2.9446-1.7243 1.8456-.4128.164-.7164-.3704.0667-.6618.4008-.5889 2.386-3.0357 1.4389-1.882.929-1.0868-.0062-.1579h-.0546l-6.3385 4.1164-1.1293.1457-.4857-.4554.0608-.7467.2307-.2429 1.9064-1.3114Z';
+var LOGO_OPENAI = 'M22.2819 9.8211a5.9847 5.9847 0 0 0-.5157-4.9108 6.0462 6.0462 0 0 0-6.5098-2.9A6.0651 6.0651 0 0 0 4.9807 4.1818a5.9847 5.9847 0 0 0-3.9977 2.9 6.0462 6.0462 0 0 0 .7427 7.0966 5.98 5.98 0 0 0 .511 4.9107 6.051 6.051 0 0 0 6.5146 2.9001A5.9847 5.9847 0 0 0 13.2599 24a6.0557 6.0557 0 0 0 5.7718-4.2058 5.9894 5.9894 0 0 0 3.9977-2.9001 6.0557 6.0557 0 0 0-.7475-7.0729zm-9.022 12.6081a4.4755 4.4755 0 0 1-2.8764-1.0408l.1419-.0804 4.7783-2.7582a.7948.7948 0 0 0 .3927-.6813v-6.7369l2.02 1.1686a.071.071 0 0 1 .038.052v5.5826a4.504 4.504 0 0 1-4.4945 4.4944zm-9.6607-4.1254a4.4708 4.4708 0 0 1-.5346-3.0137l.142.0852 4.783 2.7582a.7712.7712 0 0 0 .7806 0l5.8428-3.3685v2.3324a.0804.0804 0 0 1-.0332.0615L9.74 19.9502a4.4992 4.4992 0 0 1-6.1408-1.6464zM2.3408 7.8956a4.485 4.485 0 0 1 2.3655-1.9728V11.6a.7664.7664 0 0 0 .3879.6765l5.8144 3.3543-2.0201 1.1685a.0757.0757 0 0 1-.071 0l-4.8303-2.7865A4.504 4.504 0 0 1 2.3408 7.872zm16.5963 3.8558L13.1038 8.364 15.1192 7.2a.0757.0757 0 0 1 .071 0l4.8303 2.7913a4.4944 4.4944 0 0 1-.6765 8.1042v-5.6772a.79.79 0 0 0-.407-.667zm2.0107-3.0231l-.142-.0852-4.7735-2.7818a.7759.7759 0 0 0-.7854 0L9.409 9.2297V6.8974a.0662.0662 0 0 1 .0284-.0615l4.8303-2.7866a4.4992 4.4992 0 0 1 6.6802 4.66zM8.3065 12.863l-2.02-1.1638a.0804.0804 0 0 1-.038-.0567V6.0742a4.4992 4.4992 0 0 1 7.3757-3.4537l-.142.0805L8.704 5.459a.7948.7948 0 0 0-.3927.6813zm1.0976-2.3654l2.602-1.4998 2.6069 1.4998v2.9994l-2.5974 1.4997-2.6067-1.4997Z';
+
+var PROVIDERS = [
+  { id: 'claude', brand: '#D97757', logoFill: '#D97757', logo: LOGO_CLAUDE },
+  { id: 'codex', brand: '#10A37F', logoFill: C.text, logo: LOGO_OPENAI }
+];
+
+// ---------- Mostrador (Gauge.cs): 160×128, ponteiro de 270° a partir de 135° ----------
+
+var CX = 80, CY = 72, R = 56, START = 135, SWEEP = 270;
+
+function angleOf(pct) { return START + SWEEP * pct / 100; }
+function pt(r, deg) {
+  var a = deg * Math.PI / 180;
+  return (CX + r * Math.cos(a)).toFixed(2) + ' ' + (CY + r * Math.sin(a)).toFixed(2);
+}
+function arc(r, a0, a1) {
+  return 'M' + pt(r, a0) + 'A' + r + ' ' + r + ' 0 ' + (a1 - a0 > 180 ? 1 : 0) + ' 1 ' + pt(r, a1);
+}
+function stroke(d, color, w, extra) {
+  return '<path d="' + d + '" fill="none" stroke="' + color + '" stroke-width="' + w + '"' + (extra || '') + '/>';
+}
+
+function gaugeSvg(p) {
+  var s = '<svg viewBox="0 0 160 128" xmlns="http://www.w3.org/2000/svg">';
+  s += stroke(arc(R, START, START + SWEEP), C.track, 8);
+  s += stroke(arc(R, angleOf(WARN_FROM), angleOf(DANGER_FROM)), C.warnSoft, 8);
+  s += stroke(arc(R, angleOf(DANGER_FROM), START + SWEEP), C.dangerSoft, 8);
+  s += stroke('', p.brand, 8, ' data-v="brand"');
+  s += stroke('', C.warn, 8, ' data-v="warn"');
+  s += stroke('', C.danger, 8, ' data-v="danger"');
+  // Marcas a cada 5%, coloridas pela faixa; maiores a cada 25%.
+  for (var i = 0; i <= 20; i++) {
+    var pct = i * 5, major = i % 5 === 0, a = START + SWEEP * i / 20;
+    var color = pct >= DANGER_FROM ? C.danger : pct >= WARN_FROM ? C.warn : C.tick;
+    s += stroke('M' + pt(R + 7, a) + 'L' + pt(R + (major ? 15 : 11), a), color, major ? 2 : 1);
+  }
+  [0, 50, 100].forEach(function (v) {
+    var xy = pt(R - 17, angleOf(v)).split(' ');
+    s += '<text x="' + xy[0] + '" y="' + xy[1] + '" fill="' + C.muted + '" font-size="11" text-anchor="middle" dominant-baseline="central" font-family="Segoe UI, Roboto, Arial, sans-serif">' + v + '</text>';
+  });
+  s += '<g class="needle" data-v="needle" style="transform-origin:80px 72px;transform:rotate(' + START + 'deg)">' +
+       '<line x1="72" y1="72" x2="132" y2="72" stroke="' + C.needle + '" stroke-width="2.5" stroke-linecap="round"/></g>';
+  s += '<circle cx="80" cy="72" r="27" fill="' + C.hub + '" stroke="' + C.hubRim + '" stroke-width="1"/>';
+  // Área de toque do símbolo: atualiza imediatamente os dados do painel.
+  s += '<circle class="provider-hit" cx="80" cy="72" r="27" fill="transparent" role="button" tabindex="0" aria-label="Atualizar ' + p.id + '"/>';
+  s += '<path class="provider-logo" transform="translate(60 52) scale(1.6667)" fill="' + p.logoFill + '" d="' + p.logo + '"/>';
+  s += '<text data-v="readout" x="80" y="114" fill="' + C.tick + '" font-size="22" font-weight="600" text-anchor="middle" dominant-baseline="central" font-family="Cascadia Mono, Consolas, Roboto Mono, monospace">--</text>';
+  // Visão Tarefas: saída por segundo das tarefas executando desta ferramenta.
+  s += '<text class="tps" data-v="tps" x="80" y="124" fill="' + C.tick + '" font-size="11" font-weight="700" text-anchor="middle" dominant-baseline="central" font-family="Segoe UI, Roboto, Arial, sans-serif">-- tok/s</text>';
+  return s + '</svg>';
+}
+
+// Anel "em uso" (ActivityRing): círculo fraco e um cometa da cor da marca.
+function ringSvg(brand) {
+  var c = 30.75, r = 29.5;
+  function a(deg) { var t = deg * Math.PI / 180; return (c + r * Math.cos(t)).toFixed(2) + ' ' + (c + r * Math.sin(t)).toFixed(2); }
+  function seg(a0, a1, op) {
+    return '<path d="M' + a(a0) + 'A' + r + ' ' + r + ' 0 0 1 ' + a(a1) + '" fill="none" stroke="' + brand + '" stroke-opacity="' + op + '" stroke-width="2.5" stroke-linecap="round"/>';
+  }
+  return '<svg viewBox="0 0 61.5 61.5"><circle cx="' + c + '" cy="' + c + '" r="' + r + '" fill="none" stroke="' + brand + '" stroke-opacity="0.18" stroke-width="2.5"/>' +
+    seg(-150, -70, 0.45) + seg(-70, 0, 1) + '</svg>';
+}
+
+var WARN_ICON = '<svg viewBox="0 0 24 24"><path d="M12 3 2 21h20L12 3z" fill="none" stroke="' + C.warn + '" stroke-width="2" stroke-linejoin="round"/><path d="M12 10v5M12 18v.5" stroke="' + C.warn + '" stroke-width="2" stroke-linecap="round"/></svg>';
+
+// ---------- Termômetro da semana (layout B) ----------
+// Degradê contínuo do verde (vazio) ao vermelho (limite), nas cores dos mostradores. O degradê é
+// desenhado uma vez em altura cheia; uma tampa da cor do vidro, com recorte arredondado embaixo,
+// se move só com transform e revela o mercúrio até o valor. A seta sobe junto, na cor daquele ponto.
+
+var GRAD = [[0, [63, 185, 80]], [45, [168, 205, 70]], [62, [232, 212, 77]], [78, [239, 159, 39]], [100, [226, 75, 74]]];
+var T_TOP = 10, T_ZERO = 116, T_BULB = 134, T_SPAN = T_ZERO - T_TOP; // y do 100%, do 0% e do bulbo (viewBox 64×152)
+
+function gradAt(p) {
+  p = clamp(p);
+  for (var i = 1; i < GRAD.length; i++) {
+    if (p <= GRAD[i][0]) {
+      var a = GRAD[i - 1], b = GRAD[i], t = (p - a[0]) / (b[0] - a[0]), c = [];
+      for (var k = 0; k < 3; k++) c.push(Math.round(a[1][k] + (b[1][k] - a[1][k]) * t));
+      return 'rgb(' + c.join(',') + ')';
+    }
+  }
+  return 'rgb(' + GRAD[GRAD.length - 1][1].join(',') + ')';
+}
+// Deslocamento (px do viewBox, negativo = para cima) da tampa e da seta para o valor p.
+function thermoShift(p) { return -T_SPAN * clamp(p) / 100; }
+
+function thermoSvg(id) {
+  var gid = 'tg-' + id, cid = 'tc-' + id, i, b = T_ZERO + 4.5;
+  var s = '<svg viewBox="0 0 64 152" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs>' +
+    '<linearGradient id="' + gid + '" gradientUnits="userSpaceOnUse" x1="0" y1="' + T_ZERO + '" x2="0" y2="' + T_TOP + '">';
+  for (i = 0; i < GRAD.length; i++) s += '<stop offset="' + GRAD[i][0] + '%" stop-color="rgb(' + GRAD[i][1].join(',') + ')"/>';
+  s += '</linearGradient><clipPath id="' + cid + '"><rect x="0" y="3" width="64" height="122"/></clipPath></defs>';
+  // Escala à esquerda: marcas a cada 10%, maiores em 0, 50 e 100.
+  for (i = 0; i <= 10; i++) {
+    var ty = T_ZERO - T_SPAN * i / 10, big = i % 5 === 0;
+    s += '<line x1="' + (big ? 0 : 2) + '" y1="' + ty + '" x2="5" y2="' + ty + '" stroke="' + (big ? C.muted : '#4A5059') + '" stroke-width="' + (big ? 1.5 : 1) + '"/>';
+  }
+  // Vidro: cápsula + bulbo, com fundo escuro único.
+  s += '<rect x="7" y="2" width="18" height="124" rx="9" fill="' + C.hub + '" stroke="' + C.hubRim + '" stroke-width="1.5"/>' +
+       '<circle cx="16" cy="' + T_BULB + '" r="15" fill="' + C.hub + '" stroke="' + C.hubRim + '" stroke-width="1.5"/>' +
+       '<rect x="8.5" y="118" width="15" height="10" fill="' + C.hub + '"/>';
+  // Mercúrio em altura cheia e bulbo.
+  s += '<rect class="tm-fill" x="11.5" y="' + T_TOP + '" width="9" height="' + (T_BULB - T_TOP) + '" rx="4.5" fill="url(#' + gid + ')"/>' +
+       '<circle class="tm-fill" cx="16" cy="' + T_BULB + '" r="11" fill="rgb(' + GRAD[0][1].join(',') + ')"/>';
+  // Tampa (na posição do 0%): cobre o tubo acima do valor, com o topo arredondado do mercúrio recortado.
+  s += '<g clip-path="url(#' + cid + ')"><path class="tm" data-v="t-cover" style="transform:translateY(0px)" fill="' + C.hub + '" d="M10.5 -10H21.5V' + b + 'H20.5A4.5 4.5 0 0 0 11.5 ' + b + 'H10.5Z"/></g>';
+  // Brilhos do vidro.
+  s += '<circle cx="12" cy="' + (T_BULB - 4) + '" r="3.5" fill="#fff" fill-opacity=".35"/>' +
+       '<rect x="12.5" y="6" width="2" height="108" rx="1" fill="#fff" fill-opacity=".10"/>';
+  // Seta com o valor (na posição do 0%), que sobe junto com o mercúrio.
+  s += '<g class="tm ttag" data-v="t-tag" style="transform:translateY(0px);opacity:0"><path data-v="t-tag-bg" fill="' + gradAt(0) + '" d="M27 ' + T_ZERO + 'l6 -7h27a3 3 0 0 1 3 3v8a3 3 0 0 1 -3 3h-27z"/>' +
+       '<text data-v="t-tag-text" x="47" y="' + (T_ZERO + 0.5) + '" fill="' + C.hub + '" font-size="12" font-weight="700" text-anchor="middle" dominant-baseline="central" font-family="Cascadia Mono, Consolas, Roboto Mono, monospace">--</text></g>';
+  return s + '</svg>';
+}
+
+// ---------- Colunas ----------
+
+var cols = {};
+
+function buildColumn(p, i) {
+  var el = document.getElementById('col-' + p.id);
+  el.innerHTML =
+    '<div class="gwrap">' +
+      '<div class="gauge">' + gaugeSvg(p) +
+        '<div class="ring">' + ringSvg(p.brand) + '</div>' +
+        '<div class="err">' + WARN_ICON + '</div>' +
+      '</div>' +
+      '<div class="reset">5h · <b data-v="session-reset">reseta em --</b></div>' +
+      '<div class="week">' +
+        '<div class="week-row"><span>semana · <span data-v="week-reset">reseta --</span></span><span class="pct" data-v="week-pct">--</span></div>' +
+        '<div class="bar"><span data-v="b1" style="background:' + C.weekBlue + '"></span><span data-v="b2" style="background:' + C.weekWarn + '"></span><span data-v="b3" style="background:' + C.weekDanger + '"></span></div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="thermo still" data-v="thermo"><div class="cap">SEMANA</div>' + thermoSvg(p.id) + '<div class="when" data-v="t-when">--</div></div>';
+  var q = function (k) { return el.querySelector('[data-v="' + k + '"]'); };
+  cols[p.id] = {
+    el: el, ring: el.querySelector('.ring'), err: el.querySelector('.err'),
+    brand: q('brand'), warn: q('warn'), danger: q('danger'), needle: q('needle'), readout: q('readout'),
+    sessionReset: q('session-reset'), weekReset: q('week-reset'), weekPct: q('week-pct'),
+    b1: q('b1'), b2: q('b2'), b3: q('b3'),
+    tps: q('tps'),
+    thermo: q('thermo'), tCover: q('t-cover'), tTag: q('t-tag'), tTagBg: q('t-tag-bg'), tTagText: q('t-tag-text'), tWhen: q('t-when'),
+    weekTarget: 0, last: {}, paint: paintGauge, onPhase: syncThermo, ph: (i || 0) * 1.7,
+    shown: 0, target: 0, hasGauge: false, gaugeReady: false, gaugePhase: 'follow', offline: false,
+    gaugeStart: 0, gaugeFrom: 0, refreshReady: false, drawnGauge: null
+  };
+  el.querySelector('.provider-hit').addEventListener('click', function (e) {
+    e.stopPropagation();
+    refreshNow();
+  });
+  el.querySelector('.provider-hit').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); refreshNow(); }
+  });
+}
+
+// Só toca no DOM quando o valor muda: o processador do aparelho é fraco.
+function set(col, key, node, prop, value) {
+  if (col.last[key] === value) return;
+  col.last[key] = value;
+  if (prop === 'text') node.textContent = value;
+  else if (prop === 'd') node.setAttribute('d', value);
+  else if (prop === 'fill') node.setAttribute('fill', value);
+  else if (prop === 'class') node.classList.toggle('on', value);
+  else if (prop === 'className') node.className = value;
+  else node.style[prop] = value;
+}
+
+function level(pct, has) { return !has ? C.tick : pct < WARN_FROM ? C.ok : pct < DANGER_FROM ? C.warn : C.danger; }
+function weekBand(pct, has) { return !has ? C.tick : pct < WARN_FROM ? C.weekBlue : pct < DANGER_FROM ? C.weekWarn : C.weekDanger; }
+function clamp(v) { return Math.max(0, Math.min(100, v)); }
+
+// ---------- Animação dos ponteiros (equivalente ao Gauge.cs) ----------
+
+var GAUGE_DOWN_MS = 450, GAUGE_UP_MS = 900;
+function easeOutBack(t) {
+  var c1 = 1.4, c3 = c1 + 1;
+  return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+}
+function paintGauge(col, shown, now) {
+  var visible = col.hasGauge, s = clamp(shown);
+  if (col.drawnGauge === null || Math.abs(col.drawnGauge - shown) > 0.16) {
+    col.drawnGauge = shown;
+    col.brand.setAttribute('d', visible && s > 0.5 ? arc(R, START, angleOf(Math.min(s, WARN_FROM))) : '');
+    col.warn.setAttribute('d', visible && s > WARN_FROM ? arc(R, angleOf(WARN_FROM), angleOf(Math.min(s, DANGER_FROM))) : '');
+    col.danger.setAttribute('d', visible && s > DANGER_FROM ? arc(R, angleOf(DANGER_FROM), angleOf(s)) : '');
+    col.readout.textContent = visible ? Math.round(s) + '%' : '--';
+    col.readout.setAttribute('fill', level(s, visible));
+  }
+  var jitter = visible && !col.offline ? jitterAt(now, col.ph) : 0;
+  col.needle.style.transform = 'rotate(' + (angleOf(shown) + jitter).toFixed(2) + 'deg)';
+  col.needle.style.opacity = visible ? '1' : '0';
+}
+// Duas ondas e um ruído discreto, como o tremor de ±1,5° do app desktop. A fase separa os ponteiros.
+function jitterAt(now, ph) {
+  return 0.9 * Math.sin(now * 0.019 + ph) + 0.45 * Math.sin(now * 0.043 + 1.3 + ph) + 0.35 * (Math.random() - 0.5);
+}
+
+// Máquina de estados dos ponteiros da IA; g.onPhase avisa o termômetro.
+function beginGaugeUp(g, now) {
+  g.gaugePhase = 'up'; g.gaugeStart = now;
+  if (g.onPhase) g.onPhase(g);
+}
+function updateGaugeTarget(g, value, has, manual) {
+  g.target = value;
+  g.hasGauge = has;
+  // A leitura em cache fica estática, inclusive ao abrir ou atualizar com o PC offline.
+  if (g.offline) {
+    g.gaugeReady = true;
+    g.gaugePhase = 'follow';
+    g.shown = value;
+    g.paint(g, value, performance.now());
+    return;
+  }
+  if (!g.gaugeReady) {
+    g.shown = 0;
+    g.drawnGauge = null;
+    // Sem leitura ainda: ponteiro oculto e "--"; a subida começa com o primeiro valor.
+    if (!has) { g.paint(g, 0, performance.now()); return; }
+    g.gaugeReady = true;
+    beginGaugeUp(g, performance.now());
+  } else if (manual) {
+    g.refreshReady = true;
+    if (g.gaugePhase === 'wait') beginGaugeUp(g, performance.now());
+  }
+}
+function startGaugeRefresh(list) {
+  var now = performance.now();
+  list.forEach(function (g) {
+    if (g.offline || !g.gaugeReady) return;
+    g.gaugePhase = 'down'; g.gaugeStart = now; g.gaugeFrom = g.shown; g.refreshReady = false;
+    if (g.onPhase) g.onPhase(g);
+  });
+}
+function releaseGaugeRefresh(list) {
+  var now = performance.now();
+  list.forEach(function (g) {
+    if (g.offline) return;
+    g.refreshReady = true;
+    if (g.gaugePhase === 'wait') beginGaugeUp(g, now);
+  });
+}
+// Resposta de uma atualização manual (e não o redesenho feito ao tocar, antes da resposta).
+function manualResponse() { return state.manualRefresh && !state.refreshing; }
+function aiGauges() { return PROVIDERS.map(function (p) { return cols[p.id]; }); }
+// Avança um quadro; devolve true enquanto o ponteiro ainda se move.
+function stepGauge(g, now) {
+  var t;
+  if (!g.gaugeReady || g.offline) return false;
+  if (g.gaugePhase === 'down') {
+    t = Math.min(1, (now - g.gaugeStart) / GAUGE_DOWN_MS);
+    g.shown = g.gaugeFrom * (1 - t * t * t);
+    if (t >= 1) { if (g.refreshReady) beginGaugeUp(g, now); else g.gaugePhase = 'wait'; }
+  } else if (g.gaugePhase === 'up') {
+    t = Math.min(1, (now - g.gaugeStart) / GAUGE_UP_MS);
+    g.shown = g.target * easeOutBack(t);
+    if (t >= 1) { g.shown = g.target; g.gaugePhase = 'follow'; }
+  } else if (Math.abs(g.target - g.shown) > 0.05) {
+    g.shown += (g.target - g.shown) * 0.49;
+    if (Math.abs(g.target - g.shown) <= 0.05) g.shown = g.target;
+  }
+  g.paint(g, g.shown, now);
+  return g.gaugePhase !== 'follow' || Math.abs(g.target - g.shown) > 0.05;
+}
+// Saúde: movimento suave entre leituras, com um tremor leve sobre a posição atual.
+var HEALTH_MOVE_MS = 1200;
+function stepHealthGauge(g, now) {
+  if (!g.gaugeReady || g.offline) return false;
+  if (g.healthMoving) {
+    var t = Math.max(0, Math.min(1, (now - g.healthStart) / HEALTH_MOVE_MS));
+    var eased = t * t * (3 - 2 * t);
+    g.shown = g.healthFrom + (g.target - g.healthFrom) * eased;
+    if (t >= 1) { g.shown = g.target; g.healthMoving = false; }
+  }
+  g.paint(g, g.shown, now);
+  return g.healthMoving;
+}
+function updateHealthTarget(g, value, has) {
+  var now = performance.now();
+  if (g.healthMoving && !g.offline) stepHealthGauge(g, now);
+  if (g.offline) {
+    g.target = g.shown = value;
+    g.gaugeReady = true;
+    g.hasGauge = has;
+    g.healthMoving = false;
+    g.paint(g, value, now);
+    return;
+  }
+  if (!has) {
+    g.target = 0;
+    g.hasGauge = false;
+    g.gaugeReady = false;
+    g.healthMoving = false;
+    g.paint(g, 0, now);
+    return;
+  }
+  if (!g.gaugeReady) {
+    g.shown = 0;
+    g.drawnGauge = null;
+    g.gaugeReady = true;
+    g.hasGauge = true;
+    g.target = value;
+    g.healthFrom = g.shown;
+    g.healthStart = now;
+    g.healthMoving = g.shown !== value;
+    g.paint(g, g.shown, now);
+  } else if (g.target !== value || !g.hasGauge) {
+    g.hasGauge = true;
+    g.target = value;
+    g.healthFrom = g.shown;
+    g.healthStart = now;
+    g.healthMoving = g.shown !== value;
+    g.paint(g, g.shown, now);
+  }
+}
+function tickGauges() {
+  var now = performance.now(), moving = false;
+  PROVIDERS.forEach(function (p) { if (stepGauge(cols[p.id], now)) moving = true; });
+  // Ponteiros da saúde: só no layout B, que é onde aparecem.
+  if (layoutB && hp && !healthExpanded) HMETRICS.forEach(function (m) { if (stepHealthGauge(hp.main[m.id].g, now)) moving = true; });
+  // Em repouso usa ~14 fps; na varredura, ~25 fps.
+  setTimeout(tickGauges, moving ? 40 : 70);
+}
+
+// Termômetro: segue a fase do ponteiro de 5 h. Na atualização manual desce ao bulbo junto com o
+// ponteiro e sobe com ele; nas automáticas, muda suavemente; offline, fica parado.
+function moveThermo(col, value, mode) {
+  set(col, 'tMode', col.thermo, 'className', 'thermo ' + mode);
+  var y = 'translateY(' + thermoShift(value).toFixed(1) + 'px)';
+  set(col, 'tCoverY', col.tCover, 'transform', y);
+  set(col, 'tTagY', col.tTag, 'transform', y);
+}
+function syncThermo(col) {
+  if (col.offline) moveThermo(col, col.weekTarget, 'still');
+  else if (col.gaugePhase === 'down' || col.gaugePhase === 'wait') moveThermo(col, 0, 'down');
+  else moveThermo(col, col.weekTarget, 'up');
+}
+
+// Login da ferramenta expirado no PC (errorCode do app 0.10+): as consultas daquela conta pararam.
+function loginExpired(p) { return !!p && p.errorCode === 'login_required'; }
+
+function renderColumn(id, p, pcOffline) {
+  var col = cols[id];
+  // Login expirado: a conta fica como no PC offline (leitura parada, sem tremor) e, além disso, cinza.
+  var login = loginExpired(p), offline = pcOffline || login;
+  col.offline = offline;
+  col.el.classList.toggle('offline', offline);
+  if (col.last.login !== login) { col.last.login = login; col.el.classList.toggle('login', login); }
+  var has = !!p && typeof p.sessionPercent === 'number';
+  var s = has ? clamp(p.sessionPercent) : 0;
+
+  var hasWeek = !!p && typeof p.weekPercent === 'number';
+  var w = hasWeek ? clamp(p.weekPercent) : 0;
+  col.weekTarget = w;
+
+  updateGaugeTarget(col, s, has, manualResponse());
+
+  set(col, 'sessionReset', col.sessionReset, 'text', login ? 'login expirado · renove no PC' : 'reseta em ' + until(p && p.sessionResetsAt));
+  set(col, 'weekReset', col.weekReset, 'text', 'reseta ' + when(p && p.weekResetsAt));
+
+  // Layout clássico: barra da semana.
+  set(col, 'weekPct', col.weekPct, 'text', hasWeek ? Math.round(w) + '%' : '--');
+  set(col, 'weekPctColor', col.weekPct, 'color', weekBand(w, hasWeek));
+  set(col, 'b1', col.b1, 'width', Math.min(w, WARN_FROM) + '%');
+  set(col, 'b2l', col.b2, 'left', WARN_FROM + '%');
+  set(col, 'b2', col.b2, 'width', Math.max(0, Math.min(w, DANGER_FROM) - WARN_FROM) + '%');
+  set(col, 'b3l', col.b3, 'left', DANGER_FROM + '%');
+  set(col, 'b3', col.b3, 'width', Math.max(0, w - DANGER_FROM) + '%');
+
+  // Layout B: termômetro da semana.
+  set(col, 'tWhen', col.tWhen, 'text', when(p && p.weekResetsAt));
+  set(col, 'tText', col.tTagText, 'text', hasWeek ? Math.round(w) + '%' : '--');
+  set(col, 'tFill', col.tTagBg, 'fill', gradAt(w));
+  set(col, 'tOn', col.tTag, 'opacity', hasWeek ? '1' : '0');
+  syncThermo(col);
+
+  set(col, 'ring', col.ring, 'class', !pcOffline && !!p && p.inUse === true);
+  set(col, 'err', col.err, 'class', !!p && p.status === 'error');
+  var stale = offline || (!!p && (p.status === 'stale' || (typeof p.ageSeconds === 'number' && p.ageSeconds > 900)));
+  if (col.last.stale !== stale) { col.last.stale = stale; col.el.classList.toggle('stale', stale); }
+}
+
+// ---------- Textos de tempo (ViewModels.cs) ----------
+
+var skewMs = 0; // relógio do servidor menos o do aparelho
+function now() { return Date.now() + skewMs; }
+
+function until(iso) {
+  if (!iso) return '--';
+  var ms = Date.parse(iso) - now();
+  if (!(ms > 0)) return 'instantes';
+  var min = Math.floor(ms / 60000), h = Math.floor(min / 60), m = min % 60;
+  if (h >= 24) return Math.floor(h / 24) + 'd ' + (h % 24) + 'h';
+  if (h >= 1) return h + 'h ' + (m < 10 ? '0' : '') + m + 'min';
+  return Math.max(1, m) + 'min';
+}
+
+var DAYS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
+function hhmm(d) { return pad(d.getHours()) + ':' + pad(d.getMinutes()); }
+function pad(n) { return (n < 10 ? '0' : '') + n; }
+function when(iso) {
+  if (!iso) return '--';
+  var d = new Date(iso);
+  return isNaN(d) ? '--' : DAYS[d.getDay()] + ' ' + hhmm(d);
+}
+function ago(iso) {
+  var min = Math.floor((now() - Date.parse(iso)) / 60000);
+  if (!(min >= 1)) return 'agora';
+  if (min < 60) return 'há ' + min + ' min';
+  var h = Math.floor(min / 60);
+  return h < 24 ? 'há ' + h + ' h' : 'há ' + Math.floor(h / 24) + ' d';
+}
+
+// ---------- Estado e polling ----------
+
+var state = { data: null, agents: null, lastUpdatedAt: null, failed: false, loading: false, refreshing: false, manualRefresh: false };
+// Modo de espera: o app desktop para de enviar fora do expediente. Depois de IDLE_LIMIT respostas 200
+// seguidas com a mesma leitura (usage.receivedAt + health.receivedAt), o painel fica cinza e para de
+// consultar até alguém tocar em Atualizar (ou no logo de um provedor) ou recarregar a página.
+var IDLE_LIMIT = 5;
+var idle = { key: null, count: 0, asleep: false };
+var unlocked = false, usageRequest = null, requestGeneration = 0;
+var dot = document.getElementById('dot');
+var updated = document.getElementById('updated');
+var lastUpdated = document.getElementById('last-updated');
+var columnsEl = document.getElementById('columns');
+var cockpitEl = document.getElementById('cockpit');
+var dividerEl = document.getElementById('divider');
+var refreshButton = document.getElementById('refresh');
+
+// ---------- Layout: B (com a saúde) ou clássico (só a IA) ----------
+// healthEnabled (raiz do /v1/usage): true = o app desktop monitora a saúde; false = não monitora;
+// ausente/null (app antigo) = decide pelos dados de saúde, se houver leitura com o PC online.
+
+var layoutB = false;
+// Lista da direita no layout B: 'tasks' (Tarefas, padrão) ou 'procs' (Mais pesados, a visão anterior).
+// Começa em 'procs'; a escolha salva no aparelho (padrão Tarefas) é aplicada na inicialização (initTasks).
+var panelView = 'procs';
+function tasksView() { return layoutB && panelView === 'tasks'; }
+function applyView() {
+  var vt = tasksView();
+  if (cockpitEl.classList.contains('vt') !== vt) cockpitEl.classList.toggle('vt', vt);
+}
+function healthFlag() {
+  var d = state.data;
+  return d && typeof d.healthEnabled === 'boolean' ? d.healthEnabled : null;
+}
+function showHealth() {
+  var f = healthFlag(), h = health.data;
+  return f === true || (f === null && !!h && h.hasData === true && h.online === true);
+}
+// Troca de layout na hora, sem recarregar: os mesmos mostradores de IA mudam só de tamanho (CSS).
+function applyLayout() {
+  var b = showHealth();
+  if (b === layoutB) return;
+  layoutB = b;
+  if (cockpitEl.classList.contains('lb') !== b) cockpitEl.classList.toggle('lb', b);
+  applyView();
+  if (!b) { setExpanded(false); return; }
+  // Os termômetros estavam ocultos: voltam ao bulbo e sobem até o valor.
+  PROVIDERS.forEach(function (p) { moveThermo(cols[p.id], 0, 'still'); });
+  void columnsEl.offsetWidth;
+  PROVIDERS.forEach(function (p) { syncThermo(cols[p.id]); });
+  if (hp) HMETRICS.forEach(function (m) { hp.main[m.id].g.drawnGauge = null; });
+}
+
+function render() {
+  var d = state.data;
+  // Em espera, a última leitura fica na tela com o mesmo visual do PC offline.
+  var offline = !!(d && d.hasData && !d.online) || idle.asleep;
+  var provs = (d && d.providers) || {};
+  var shown = PROVIDERS.filter(function (p) { return !provs[p.id] || provs[p.id].enabled !== false; });
+  if (!shown.length) shown = PROVIDERS;
+  applyLayout();
+  PROVIDERS.forEach(function (p) {
+    var visible = shown.indexOf(p) >= 0;
+    cols[p.id].el.hidden = !visible;
+    if (visible) renderColumn(p.id, provs[p.id], offline);
+  });
+  if (columnsEl.classList.contains('single') !== (shown.length < 2)) columnsEl.classList.toggle('single', shown.length < 2);
+  if (dividerEl.hidden !== (shown.length < 2)) dividerEl.hidden = shown.length < 2;
+  renderAiMini(shown, provs, offline);
+
+  var text, cls;
+  if (state.refreshing) { text = 'atualizando…'; cls = 'online'; }
+  else if (idle.asleep) { text = 'Em espera · toque em atualizar'; cls = 'sleep'; }
+  else if (!d) { text = state.failed ? 'sem conexão com a API' : 'carregando…'; cls = state.failed ? 'error' : ''; }
+  else if (!d.hasData) { text = 'sem dados do Cockpit'; cls = 'offline'; }
+  else if (!d.online) { text = 'PC offline · último envio ' + ago(d.receivedAt); cls = 'offline'; }
+  else { text = 'Atualizado ' + ago(d.receivedAt); cls = 'online'; }
+  if (d && state.failed) { text = 'sem conexão · ' + text.charAt(0).toLowerCase() + text.slice(1); cls = 'error'; }
+  if (updated.textContent !== text) updated.textContent = text;
+  updated.title = text;
+  lastUpdated.hidden = !state.lastUpdatedAt;
+  if (state.lastUpdatedAt) {
+    var lastDate = new Date(state.lastUpdatedAt);
+    var lastText = pad(lastDate.getDate()) + '/' + pad(lastDate.getMonth() + 1) + '/' + lastDate.getFullYear() + ' · ' + hhmm(lastDate) + ':' + pad(lastDate.getSeconds());
+    if (lastUpdated.textContent !== lastText) lastUpdated.textContent = lastText;
+    lastUpdated.setAttribute('datetime', state.lastUpdatedAt);
+  } else {
+    lastUpdated.textContent = '';
+    lastUpdated.removeAttribute('datetime');
+  }
+  dot.className = 'dot ' + cls;
+  refreshButton.disabled = state.loading;
+  refreshButton.classList.toggle('loading', state.loading);
+  refreshButton.classList.toggle('wake', idle.asleep);
+}
+
+// Uma única requisição por ciclo (/api/panel): uso + saúde na mesma resposta.
+// A cada 15 s; com o PC offline, a cada 120 s; com a página oculta, não consulta.
+// O histórico do dia (Redis, um ponto por envio do PC) vem inteiro na primeira carga e depois, no
+// máximo a cada 5 min, só o que chegou desde o último ponto recebido (since). Nos outros ciclos,
+// a leitura nova entra no gráfico só na memória.
+var timer, historyAt = 0, lastPollAt = 0;
+function wantsHistory() { return !historyAt || Date.now() - historyAt >= HISTORY_MS; }
+function pollInterval() {
+  var d = state.data;
+  if (d && d.hasData && !d.online) return OFFLINE_POLL_MS;
+  return agentsLive(state.agents) ? FAST_POLL_MS : POLL_MS;
+}
+// Tarefa executando ou esperando resposta, com o PC enviando: consulta rápida e sem modo de espera.
+function agentsLive(a) {
+  if (!a || a.online !== true || a.paused === true || !a.tasks || !a.tasks.length) return false;
+  for (var i = 0; i < a.tasks.length; i++) if (a.tasks[i] && a.tasks[i].state !== 'done') return true;
+  return false;
+}
+
+// A página voltou a ficar visível: consulta na hora só se o intervalo já passou; senão, só retoma o
+// ciclo. Sem isso, cada alternância de visibilidade (sobreposições da Alexa, por exemplo) virava
+// uma consulta a mais, e o painel chegou a consultar a cada 2 s.
+function resumePolling() {
+  // Em espera, nem a volta da visibilidade consulta: só Atualizar, o logo ou recarregar a página.
+  if (!unlocked || state.loading || idle.asleep) return;
+  var wait = pollInterval() - (Date.now() - lastPollAt);
+  if (wait <= 0) { poll(); return; }
+  clearTimeout(timer);
+  timer = setTimeout(poll, wait);
+}
+function healthGauges() { return hp ? HMETRICS.map(function (m) { return hp.main[m.id].g; }) : []; }
+
+function acceptPanel(r, withHistory) {
+  if (!r || typeof r !== 'object') throw new Error('invalid');
+  var u = r.usage && typeof r.usage === 'object' ? r.usage : null;
+  var h = r.health && typeof r.health === 'object' ? r.health : null;
+  var st = r.serverTime || (u && u.serverTime);
+  if (st) skewMs = Date.parse(st) - Date.now();
+  if (h && h.today) mergeDay(h.today);
+  // Sem leitura de saúde, pede o histórico de novo assim que ela aparecer.
+  if (withHistory) historyAt = h && h.hasData === true ? Date.now() : 0;
+  var a = r.agents && typeof r.agents === 'object' ? r.agents : null;
+  state.data = u || { hasData: false };
+  state.agents = a;
+  state.lastUpdatedAt = new Date().toISOString();
+  health.data = h;
+  processSort = priorityProcessSort(healthView(h), processSort);
+  var key = (u && u.receivedAt || '') + '|' + (h && h.receivedAt || '') + '|' + (a && a.receivedAt || '');
+  // Com tarefa ativa as consultas são a cada 4 s e o PC envia a cada 10 s: não conta como parado.
+  if (agentsLive(a)) { idle.key = key; idle.count = 0; }
+  else trackIdle(key);
+}
+
+// Conta as respostas 200 seguidas sem leitura nova; ao chegar a IDLE_LIMIT, entra em espera.
+function trackIdle(key) {
+  if (key !== idle.key) { idle.key = key; idle.count = 0; return; }
+  idle.count++;
+  if (idle.count >= IDLE_LIMIT) idle.asleep = true;
+}
+// Acorda (atualização manual): zera o contador e devolve a cor aos mostradores antes da varredura.
+function wake() {
+  idle.count = 0;
+  if (!idle.asleep) return;
+  idle.asleep = false;
+  render();
+  renderHealth();
+}
+
+function poll(manual) {
+  clearTimeout(timer);
+  if (!unlocked || state.loading) return;
+  // Página oculta: não consulta; o visibilitychange consulta na hora e retoma o ciclo.
+  if (document.hidden) return;
+  // Em espera, só a atualização manual consulta (refreshNow acorda antes).
+  if (idle.asleep && manual !== true) return;
+  lastPollAt = Date.now();
+  var generation = requestGeneration;
+  var withHistory = wantsHistory();
+  state.loading = true;
+  state.manualRefresh = manual === true;
+  if (state.manualRefresh) {
+    state.refreshing = true;
+    startGaugeRefresh(aiGauges());
+    render();
+  }
+  var xhr = new XMLHttpRequest();
+  usageRequest = xhr;
+  xhr.open('GET', withHistory ? '/api/panel?today=1' + (day.since ? '&since=' + day.since : '') : '/api/panel', true);
+  xhr.timeout = 15000;
+  function done(retryMs) {
+    usageRequest = null;
+    state.loading = false;
+    state.refreshing = false;
+    if (state.manualRefresh) releaseGaugeRefresh(aiGauges());
+    render();
+    renderHealth();
+    if (typeof renderTasks === 'function') renderTasks();
+    state.manualRefresh = false;
+    clearTimeout(timer);
+    // Em espera, nenhuma consulta automática fica agendada.
+    if (!idle.asleep) timer = setTimeout(poll, Math.max(pollInterval(), retryMs || 0));
+  }
+  xhr.onload = function () {
+    if (generation !== requestGeneration) return;
+    if (xhr.status === 401 || (xhr.status === 503 && xhr.responseText.indexOf('auth_not_configured') >= 0)) {
+      showLogin(xhr.status === 401 ? 'Entre com seu PIN para continuar.' : 'Configure o PIN e o segredo de sessão no servidor.');
+      return;
+    }
+    var retryMs = 0;
+    health.status = xhr.status;
+    if (xhr.status === 200) {
+      try {
+        acceptPanel(JSON.parse(xhr.responseText), withHistory);
+        state.failed = health.failed = false;
+      } catch (e) { state.failed = health.failed = true; }
+    } else {
+      // Falha não zera os valores: a última leitura continua na tela.
+      state.failed = health.failed = true;
+      var retry = parseInt(xhr.getResponseHeader('Retry-After'), 10);
+      if (retry > 0) retryMs = retry * 1000;
+    }
+    done(retryMs);
+  };
+  xhr.onerror = xhr.ontimeout = function () {
+    if (generation !== requestGeneration) return;
+    state.failed = health.failed = true;
+    health.status = 0;
+    done(0);
+  };
+  xhr.send();
+}
+// O botão de atualizar e o toque nos símbolos consultam o uso e a saúde na hora (e acordam a espera).
+function refreshNow() {
+  if (state.loading || !unlocked || document.hidden) return;
+  wake();
+  poll(true);
+}
+
+// ---------- Saúde do PC (vem no /api/panel) ----------
+
+var health = { data: null, failed: false, status: 0 };
+var healthExpanded = false;
+var hp = null; // referências do DOM da saúde (buildHealth)
+
+// Faixas do contrato (alertas cpu_high, memory_high, disk_low); a velocidade não tem faixa.
+var HMETRICS = [
+  { id: 'cpu', hub: 'CPU', title: 'Processador', warn: 70, danger: 90, hist: 'cpu', k: 1 },
+  { id: 'ram', hub: 'RAM', title: 'Memória', warn: 75, danger: 90, hist: 'memory', k: 1 },
+  // Disco em pizza: dá a ideia de algo que vai enchendo, com o espaço livre visível.
+  { id: 'disk', hub: 'C:', title: 'Disco C:', warn: 85, danger: 95, hist: 'disk', k: 1, pie: true },
+  { id: 'clk', hub: 'GHz', title: 'Velocidade', warn: null, danger: null, hist: 'speedMHz', k: 100 / 5000, scale: ['0', '2,5', '5'] }
+];
+var MODES = { efficiency: 'eficiência', balanced: 'equilibrado', performance: 'desempenho' };
+var SOURCES = { ac: 'tomada', battery: 'bateria' };
+
+function num(v) { return typeof v === 'number' && isFinite(v) ? v : null; }
+function esc(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+function comma(v, digits) { return v.toFixed(digits).replace('.', ','); }
+function gb(bytes) {
+  var v = bytes / 1073741824;
+  return (v < 10 ? comma(v, 1) : String(Math.round(v))) + ' GB';
+}
+function memText(bytes) { return bytes < 1073741824 ? Math.round(bytes / 1048576) + ' MB' : comma(bytes / 1073741824, 1) + ' GB'; }
+function uptimeText(s) {
+  var min = Math.floor(s / 60), h = Math.floor(min / 60), d = Math.floor(h / 24);
+  if (d >= 1) return d + 'd ' + (h % 24) + 'h';
+  if (h >= 1) return h + 'h ' + pad(min % 60) + 'min';
+  return min + ' min';
+}
+function bandColor(v, warn, danger) { return v >= danger ? C.danger : v >= warn ? C.warn : C.ok; }
+
+// Converte a resposta compacta do /v1/health no que a tela mostra. Campos ausentes viram "--".
+function healthView(resp) {
+  var h = resp && resp.hasData === true && resp.health && typeof resp.health === 'object' ? resp.health : null;
+  var v = { has: !!h, offline: !!h && resp.online === false, metrics: {}, alerts: [], procs: [], chips: [], facts: [], danger: false };
+  var cpu = (h && h.cpu) || {}, mem = (h && h.memory) || {}, disk = (h && h.systemDisk) || {};
+  var power = (h && h.power) || {}, counts = (h && h.counts) || {};
+
+  // Mais graves primeiro, mantendo a ordem da API dentro de cada nível.
+  var list = h && h.alerts && h.alerts.length ? h.alerts : [], dangers = [], warns = [], codes = {};
+  for (var i = 0; i < list.length; i++) {
+    var a = list[i];
+    if (!a || typeof a.title !== 'string') continue;
+    var lv = a.level === 'danger' ? 'd' : 'w';
+    (lv === 'd' ? dangers : warns).push({ level: lv, code: a.code, title: a.title, action: typeof a.action === 'string' ? a.action : '' });
+    if (codes[a.code] !== 'd') codes[a.code] = lv;
+  }
+  v.alerts = dangers.concat(warns);
+  v.danger = dangers.length > 0;
+
+  var top = h && h.topProcesses && h.topProcesses.length ? h.topProcesses : [];
+  for (i = 0; i < top.length; i++) {
+    var p = top[i];
+    if (!p || typeof p.name !== 'string') continue;
+    v.procs.push({ name: p.name, instances: num(p.instances), cpu: num(p.cpuPercent), mem: num(p.memoryBytes) });
+  }
+
+  var cpuPct = num(cpu.percent);
+  var first = v.procs[0];
+  v.metrics.cpu = {
+    value: cpuPct, readout: cpuPct === null ? '--' : Math.round(cpuPct) + '%',
+    mini: first && first.cpu !== null ? first.name + ' ' + Math.round(first.cpu) + '%' : '--'
+  };
+
+  var commit = num(mem.commitPercent), avail = num(mem.availableBytes), total = num(mem.totalBytes);
+  v.metrics.ram = {
+    value: commit, readout: commit === null ? '--' : Math.round(commit) + '%',
+    mini: avail === null ? '--' : gb(avail) + ' livres' + (total === null ? '' : ' de ' + Math.round(total / 1073741824))
+  };
+
+  var used = num(disk.usedPercent), free = num(disk.freeBytes), size = num(disk.totalBytes);
+  var dname = typeof disk.name === 'string' && /^[A-Za-z]:$/.test(disk.name) ? disk.name.toUpperCase() : 'C:';
+  v.metrics.disk = {
+    value: used, readout: used === null ? '--' : Math.round(used) + '%', hub: dname, title: 'Disco ' + dname,
+    mini: free === null ? '--' : gb(free) + ' livres' + (size === null ? '' : ' de ' + Math.round(size / 1073741824))
+  };
+
+  var mhz = num(cpu.speedMHz), base = num(cpu.baseMHz), mode = MODES[power.mode] || '';
+  var effAc = power.mode === 'efficiency' && power.source === 'ac';
+  var battery = power.source === 'battery' ? 'bateria' + (num(power.batteryPercent) === null ? '' : ' ' + Math.round(power.batteryPercent) + '%') : '';
+  v.metrics.clk = {
+    value: mhz, readout: mhz === null ? '--' : comma(mhz / 1000, 1), flag: effAc, warnText: effAc,
+    mini: effAc ? 'modo eficiência' : battery || (mode ? 'modo ' + mode : base !== null ? 'base ' + comma(base / 1000, 1) + ' GHz' : '--')
+  };
+
+  HMETRICS.forEach(function (m) {
+    var mv = v.metrics[m.id];
+    mv.has = mv.value !== null;
+    mv.pct = mv.has ? clamp(mv.value * m.k) : 0;
+    // A pizza usa o azul da fatia abaixo do amarelo, para o número combinar com o preenchimento.
+    mv.color = !mv.has ? C.tick : m.warn === null || (m.pie && mv.value < m.warn) ? C.weekBlue : bandColor(mv.value, m.warn, m.danger);
+    if (!mv.hub) mv.hub = m.hub;
+    if (!mv.title) mv.title = m.title;
+  });
+
+  if (h) {
+    var up = num(h.uptimeSeconds), procs = num(counts.processes), kern = num(mem.kernelNonPagedBytes);
+    var procLevel = codes.processes_high === 'd' || codes.helpers_stale === 'd' ? 'd' : codes.processes_high || codes.helpers_stale || '';
+    v.chips = [
+      { label: 'Ligado', value: up === null ? '--' : uptimeText(up), level: codes.uptime_long || '' },
+      { label: 'Proc.', value: procs === null ? '--' : String(Math.round(procs)), level: procLevel },
+      { label: 'Kernel', value: kern === null ? '--' : comma(kern / 1073741824, 1) + ' GB', level: codes.kernel_pool_high || '' }
+    ];
+    // Tela de alertas: o que vem na resposta e não aparece na tela inicial.
+    var helpers = num(counts.longRunningHelpers), bat = num(power.batteryPercent);
+    var fact = function (label, value, lv) { return { label: label, value: value === null ? '--' : value, level: lv || '' }; };
+    v.facts = [
+      fact('Processos', procs === null ? null : thousands(procs), codes.processes_high),
+      fact('Threads', num(counts.threads) === null ? null : thousands(counts.threads)),
+      fact('Handles', num(counts.handles) === null ? null : thousands(counts.handles)),
+      fact('Auxiliares há +1 dia', helpers === null ? null : thousands(helpers), codes.helpers_stale),
+      fact('Modo de energia', MODES[power.mode] || null, codes.power_efficiency),
+      fact('Fonte', SOURCES[power.source] || null),
+      fact('Bateria', bat === null ? null : Math.round(bat) + '%'),
+      fact('Ligado há', up === null ? null : uptimeText(up), codes.uptime_long),
+      fact('Memória do kernel', kern === null ? null : memText(kern), codes.kernel_pool_high)
+    ];
+  }
+  return v;
+}
+function thousands(n) { return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, '.'); }
+
+// ---------- Mostradores da saúde (mesma geometria) ----------
+
+// ---------- Pizza do disco ----------
+// Volta inteira a partir do topo. O preenchimento sai azul e ganha amarelo e vermelho só nas
+// faixas (85% e 95%), como as barras do app; o miolo traz a unidade, o percentual e "cheio".
+var PX = 80, PY = 64, PR = 56, PHUB = 36;
+function pieAngle(pct) { return -90 + 3.6 * pct; }
+function piePt(r, pct) {
+  var a = pieAngle(pct) * Math.PI / 180;
+  return (PX + r * Math.cos(a)).toFixed(2) + ' ' + (PY + r * Math.sin(a)).toFixed(2);
+}
+function wedge(p0, p1) {
+  if (p1 - p0 <= 0.2) return '';
+  if (p1 - p0 >= 99.95) return 'M' + piePt(PR, 0) + 'A' + PR + ' ' + PR + ' 0 1 1 ' + piePt(PR, 50) + 'A' + PR + ' ' + PR + ' 0 1 1 ' + piePt(PR, 0) + 'Z';
+  return 'M' + PX + ' ' + PY + 'L' + piePt(PR, p0) + 'A' + PR + ' ' + PR + ' 0 ' + (p1 - p0 > 50 ? 1 : 0) + ' 1 ' + piePt(PR, p1) + 'Z';
+}
+function fillPath(d, color, extra) { return '<path d="' + d + '" fill="' + color + '"' + (extra || '') + '/>'; }
+var FONT = 'font-family="Segoe UI, Roboto, Arial, sans-serif"';
+
+function pieSvg(o) {
+  var s = '<svg viewBox="0 0 160 128" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">';
+  s += '<circle cx="' + PX + '" cy="' + PY + '" r="' + PR + '" fill="' + C.track + '"/>';
+  s += fillPath(wedge(o.warn, o.danger), C.warnSoft, ' class="hpb"') + fillPath(wedge(o.danger, 100), C.dangerSoft, ' class="hpb"');
+  s += fillPath('', C.weekBlue, ' class="hpv" data-d="v0"') + fillPath('', C.warn, ' class="hpv" data-d="v1"') + fillPath('', C.danger, ' class="hpv" data-d="v2"');
+  [[o.warn, C.warn], [o.danger, C.danger]].forEach(function (t) {
+    s += stroke('M' + piePt(PR + 2, t[0]) + 'L' + piePt(PR + 8, t[0]), t[1], 2, ' class="ht"');
+  });
+  s += '<text data-d="free" x="0" y="0" fill="' + C.text + '" font-size="10" text-anchor="middle" dominant-baseline="central" ' + FONT + ' opacity="0">livre</text>';
+  s += '<circle cx="' + PX + '" cy="' + PY + '" r="' + PHUB + '" fill="' + C.hub + '" stroke="' + C.hubRim + '" stroke-width="1.5"/>';
+  s += '<text data-d="hub" x="' + PX + '" y="' + (PY - 19) + '" fill="' + C.muted + '" font-size="12" font-weight="600" text-anchor="middle" dominant-baseline="central" ' + FONT + '>' + o.hub + '</text>';
+  s += '<text data-d="readout" x="' + PX + '" y="' + (PY + 1) + '" fill="' + C.tick + '" font-size="22" font-weight="600" text-anchor="middle" dominant-baseline="central" font-family="Cascadia Mono, Consolas, Roboto Mono, monospace">--</text>';
+  s += '<text x="' + PX + '" y="' + (PY + 20) + '" fill="' + C.muted + '" font-size="10" text-anchor="middle" dominant-baseline="central" ' + FONT + '>cheio</text>';
+  // A pizza não tem ponteiro; o elemento existe só para a rotina comum dos mostradores.
+  s += '<g data-d="needle" style="display:none"></g>';
+  return s + '</svg>';
+}
+function paintPie(d, s) {
+  var o = d.o;
+  set(d, 'v0', d.v0, 'd', wedge(0, Math.min(s, o.warn)));
+  set(d, 'v1', d.v1, 'd', s > o.warn ? wedge(o.warn, Math.min(s, o.danger)) : '');
+  set(d, 'v2', d.v2, 'd', s > o.danger ? wedge(o.danger, s) : '');
+  // "livre" no meio da fatia vazia, quando ela cabe o texto.
+  var room = 100 - s >= 8, xy = piePt((PR + PHUB) / 2, (s + 100) / 2).split(' ');
+  set(d, 'freeOn', d.free, 'opacity', room && s > 0.2 ? '1' : '0');
+  if (d.last.freeXY !== xy.join()) { d.last.freeXY = xy.join(); d.free.setAttribute('x', xy[0]); d.free.setAttribute('y', xy[1]); }
+}
+
+// o: { warn, danger (null = sem faixas), color, hub ou logo/logoFill, mini, scale, pie }
+function dialSvg(o) {
+  if (o.pie) return pieSvg(o);
+  var bands = o.warn !== null && o.warn !== undefined, i;
+  var s = '<svg viewBox="0 0 160 128" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">';
+  s += stroke(arc(R, START, START + SWEEP), C.track, 8);
+  if (bands) {
+    s += stroke(arc(R, angleOf(o.warn), angleOf(o.danger)), C.warnSoft, 8, ' class="hb"');
+    s += stroke(arc(R, angleOf(o.danger), START + SWEEP), C.dangerSoft, 8, ' class="hb"');
+  }
+  s += stroke('', o.color, 8, ' class="hv" data-d="v0"');
+  if (bands) {
+    s += stroke('', C.warn, 8, ' class="hv" data-d="v1"');
+    s += stroke('', C.danger, 8, ' class="hv" data-d="v2"');
+  }
+  for (i = 0; i <= 20; i++) {
+    var pct = i * 5, major = i % 5 === 0, a = START + SWEEP * i / 20;
+    if (o.mini && !major) continue;
+    var color = !bands ? C.tick : pct >= o.danger ? C.danger : pct >= o.warn ? C.warn : C.tick;
+    s += stroke('M' + pt(R + 7, a) + 'L' + pt(R + (major ? 15 : 11), a), color, major ? (o.mini ? 3 : 2) : 1, color !== C.tick ? ' class="ht"' : '');
+  }
+  if (!o.mini) {
+    var labels = o.scale || ['0', '50', '100'];
+    for (i = 0; i < 3; i++) {
+      var xy = pt(R - 17, angleOf(i * 50)).split(' ');
+      s += '<text x="' + xy[0] + '" y="' + xy[1] + '" fill="' + C.muted + '" font-size="11" text-anchor="middle" dominant-baseline="central" font-family="Segoe UI, Roboto, Arial, sans-serif">' + labels[i] + '</text>';
+    }
+  }
+  s += '<g class="' + (o.live ? 'needle' : 'hneedle') + '" data-d="needle" style="transform-origin:80px 72px;transform:rotate(' + START + 'deg);opacity:0">' +
+       '<line x1="72" y1="72" x2="132" y2="72" stroke="' + C.needle + '" stroke-width="' + (o.mini ? 3.5 : 2.5) + '" stroke-linecap="round"/></g>';
+  s += '<circle cx="80" cy="72" r="27" fill="' + C.hub + '" stroke="' + C.hubRim + '" stroke-width="1"/>';
+  if (o.logo) s += '<path transform="translate(60 52) scale(1.6667)" fill="' + o.logoFill + '" d="' + o.logo + '"/>';
+  else s += '<text data-d="hub" x="80" y="73" fill="' + C.text + '" font-size="19" font-weight="700" text-anchor="middle" dominant-baseline="central" font-family="Segoe UI, Roboto, Arial, sans-serif">' + o.hub + '</text>';
+  // CPU na visão Tarefas: a velocidade (GHz) no centro, no lugar de "CPU" (o CSS escolhe qual aparece).
+  if (o.ghz) s += '<g class="ghz"><text data-d="ghz" x="80" y="67" fill="' + C.text + '" font-size="18" font-weight="700" text-anchor="middle" dominant-baseline="central" font-family="Cascadia Mono, Consolas, Roboto Mono, monospace">--</text>' +
+    '<text x="80" y="84" fill="' + C.muted + '" font-size="9" font-weight="600" text-anchor="middle" dominant-baseline="central" font-family="Segoe UI, Roboto, Arial, sans-serif">GHz</text></g>';
+  s += '<text data-d="readout" x="80" y="114" fill="' + C.tick + '" font-size="' + (o.mini ? 26 : 22) + '" font-weight="600" text-anchor="middle" dominant-baseline="central" font-family="Cascadia Mono, Consolas, Roboto Mono, monospace">--</text>';
+  return s + '</svg>';
+}
+
+function makeDial(el, o) {
+  el.innerHTML = dialSvg(o);
+  var q = function (k) { return el.querySelector('[data-d="' + k + '"]'); };
+  var bands = o.warn !== null && o.warn !== undefined;
+  return { o: o, bands: bands, v0: q('v0'), v1: bands ? q('v1') : null, v2: bands ? q('v2') : null,
+    needle: q('needle'), hub: o.logo ? null : q('hub'), readout: q('readout'), free: o.pie ? q('free') : null,
+    ghz: o.ghz ? q('ghz') : null, last: {} };
+}
+
+function paintArcs(d, s) {
+  var o = d.o;
+  if (o.pie) { paintPie(d, s); return; }
+  if (d.bands) {
+    set(d, 'v0', d.v0, 'd', s > 0.5 ? arc(R, START, angleOf(Math.min(s, o.warn))) : '');
+    set(d, 'v1', d.v1, 'd', s > o.warn ? arc(R, angleOf(o.warn), angleOf(Math.min(s, o.danger))) : '');
+    set(d, 'v2', d.v2, 'd', s > o.danger ? arc(R, angleOf(o.danger), angleOf(s)) : '');
+  } else {
+    set(d, 'v0', d.v0, 'd', s > 0.5 ? arc(R, START, angleOf(s)) : '');
+  }
+}
+// Mostrador estático (detalhe): arco, ponteiro e leitura no valor final.
+function paintDial(d, pct, has, text, color) {
+  var s = has ? clamp(pct) : 0;
+  paintArcs(d, s);
+  set(d, 'needle', d.needle, 'transform', 'rotate(' + angleOf(s).toFixed(1) + 'deg)');
+  set(d, 'needleOn', d.needle, 'opacity', has ? '1' : '0');
+  set(d, 'readout', d.readout, 'text', has ? text : '--');
+  set(d, 'readoutFill', d.readout, 'fill', has ? color : C.tick);
+}
+
+// Mostrador da saúde no layout B: quadro a quadro, com o mesmo tremor dos ponteiros da IA.
+function paintLive(g, shown, now) {
+  var d = g.dial, s = clamp(shown), visible = g.hasGauge;
+  if (g.drawnGauge === null || Math.abs(g.drawnGauge - s) > 0.16) { g.drawnGauge = s; paintArcs(d, visible ? s : 0); }
+  var jitter = visible && !g.offline ? jitterAt(now, g.ph) : 0;
+  d.needle.style.transform = 'rotate(' + (angleOf(shown) + jitter).toFixed(2) + 'deg)';
+  d.needle.style.opacity = visible ? '1' : '0';
+}
+
+// Histórico do dia, guardado no Redis pela API (um ponto por envio do PC, ~15 s) e mantido aqui só
+// em memória. Cada ponto: [ms do servidor, cpu, ram, disco, MHz]. since = último ponto vindo da API,
+// para a próxima leitura trazer só os novos (inclusive os de quando a página ficou oculta).
+var DAY_GAP_MS = 180000, DAY_BINS = 150;
+var DAY_COL = { cpu: 1, ram: 2, disk: 3, clk: 4 };
+var day = { date: '', start: 0, end: 0, since: 0, points: [] };
+function addDayPoint(p) {
+  var pts = day.points, i = pts.length;
+  while (i && pts[i - 1][0] > p[0]) i--;
+  if (i && pts[i - 1][0] === p[0]) return;
+  pts.splice(i, 0, p);
+}
+function mergeDay(t) {
+  if (typeof t.date !== 'string' || !isFinite(t.start) || !isFinite(t.end) || !Array.isArray(t.points)) return;
+  if (t.date !== day.date) day = { date: t.date, start: t.start, end: t.end, since: 0, points: [] };
+  t.points.forEach(function (p) {
+    if (!Array.isArray(p) || num(p[0]) === null || p[0] < day.start || p[0] >= day.end) return;
+    addDayPoint([p[0], num(p[1]), num(p[2]), num(p[3]), num(p[4])]);
+    if (p[0] > day.since) day.since = p[0];
+  });
+}
+// A leitura do ciclo entra no gráfico na hora; virando o dia, pede o histórico novo na próxima consulta.
+function recordDay(resp, v) {
+  if (!day.date || !v.has || v.offline || !resp.receivedAt) return;
+  var t = Date.parse(resp.receivedAt);
+  if (!isFinite(t) || t < day.start) return;
+  if (t >= day.end) { historyAt = 0; return; }
+  addDayPoint([t, v.metrics.cpu.value, v.metrics.ram.value, v.metrics.disk.value, v.metrics.clk.value]);
+}
+
+// Do primeiro ponto do dia até agora, em até 150 faixas (média de cada faixa). A linha só se
+// interrompe quando passam mais de 3 min sem leitura (PC desligado ou offline).
+function daySpark(col, k, color) {
+  var pts = day.points, w = 150, h = 22, n = pts.length;
+  var s = '<svg class="spark" viewBox="0 0 150 22" preserveAspectRatio="none" aria-hidden="true">' +
+    '<line x1="0" y1="21.5" x2="150" y2="21.5" stroke="' + C.track + '" stroke-width="1" vector-effect="non-scaling-stroke"/>';
+  if (!n) return s + '</svg>';
+  var t0 = pts[0][0], span = Math.max(Date.now() + skewMs - t0, pts[n - 1][0] - t0, 60000);
+  var bins = [], i, b;
+  for (i = 0; i < n; i++) {
+    var v = num(pts[i][col]);
+    if (v === null) continue;
+    b = Math.min(DAY_BINS - 1, Math.floor((pts[i][0] - t0) / span * DAY_BINS));
+    if (!bins[b]) bins[b] = { sum: 0, n: 0, first: pts[i][0], last: 0 };
+    bins[b].sum += v; bins[b].n++; bins[b].last = pts[i][0];
+  }
+  var segs = [], cur = [], prev = null;
+  for (b = 0; b < DAY_BINS; b++) {
+    var bin = bins[b];
+    if (!bin) continue;
+    if (prev && bin.first - prev.last > DAY_GAP_MS) { segs.push(cur); cur = []; }
+    var x = (bin.first + bin.last) / 2 - t0;
+    cur.push([x / span * w, h - 2 - clamp(bin.sum / bin.n * k) / 100 * (h - 4)]);
+    prev = bin;
+  }
+  if (cur.length) segs.push(cur);
+  segs.forEach(function (seg) {
+    if (seg.length === 1) seg.push([Math.min(w, seg[0][0] + 1.5), seg[0][1]]);
+    var line = seg.map(function (p) { return p[0].toFixed(1) + ',' + p[1].toFixed(1); }).join(' ');
+    s += '<polygon class="sf" points="' + seg[0][0].toFixed(1) + ',' + h + ' ' + line + ' ' + seg[seg.length - 1][0].toFixed(1) + ',' + h + '" fill="' + color + '" fill-opacity="0.14"/>' +
+      '<polyline class="sl" points="' + line + '" fill="none" stroke="' + color + '" stroke-width="1.5" vector-effect="non-scaling-stroke"/>';
+  });
+  return s + '</svg>';
+}
+
+function buildHealth() {
+  hp = { mainEl: document.getElementById('hmain'), detail: document.getElementById('hdetail'),
+    open: document.getElementById('health-open'), aTitle: document.getElementById('hb-alerts-title'),
+    aList: document.getElementById('hb-alerts'), pList: document.getElementById('hb-procs'),
+    alTitle: document.getElementById('al-title'), alStatus: document.getElementById('al-status'),
+    alList: document.getElementById('al-list'), info: document.getElementById('al-info'),
+    main: {}, ai: {}, last: {} };
+  HMETRICS.forEach(function (m, i) {
+    // Layout B: ponteiros animados pela mesma rotina dos ponteiros da IA (tickGauges).
+    var cell = document.getElementById('hb-' + m.id);
+    cell.innerHTML = '<div class="hdial"></div><span class="hwarn">' + WARN_ICON + '</span><div class="t">' + m.title + '</div><div class="s">--</div><div class="hspark"></div>';
+    var dial = makeDial(cell.querySelector('.hdial'), { warn: m.warn, danger: m.danger, color: C.weekBlue, hub: m.hub, scale: m.scale, live: true, pie: m.pie, ghz: m.id === 'cpu' });
+    hp.main[m.id] = { dial: dial, title: cell.querySelector('.t'), sub: cell.querySelector('.s'), warn: cell.querySelector('.hwarn'),
+      spark: cell.querySelector('.hspark'), last: {},
+      g: { dial: dial, paint: paintLive, ph: (i + 2) * 1.7, shown: 0, target: 0, hasGauge: false, gaugeReady: false,
+        gaugePhase: 'follow', offline: false, gaugeStart: 0, gaugeFrom: 0, refreshReady: false, drawnGauge: null } };
+  });
+  // "+N alertas no detalhe" (recriado a cada mudança) também abre a tela de alertas.
+  hp.aList.addEventListener('click', function (e) {
+    if (e.target && e.target.closest && e.target.closest('.amore')) setExpanded(true);
+  });
+  // IA recolhida na tela de alertas: mostradores estáticos, sem tremor.
+  PROVIDERS.forEach(function (p) {
+    var el = document.getElementById('ai-' + p.id);
+    el.innerHTML = '<div class="hdial"></div><div class="line">semana <b>--</b> · <span>--</span></div>';
+    hp.ai[p.id] = { el: el, dial: makeDial(el.querySelector('.hdial'), { warn: WARN_FROM, danger: DANGER_FROM, color: p.brand, logo: p.logo, logoFill: p.logoFill }),
+      week: el.querySelector('.line b'), weekReset: el.querySelector('.line span'), last: {} };
+  });
+}
+
+function renderAiMini(shown, provs, offline) {
+  if (!hp) return;
+  var card = document.getElementById('ai-mini');
+  if (hp.last.aiOffline !== offline) { hp.last.aiOffline = offline; card.classList.toggle('offline', offline); }
+  PROVIDERS.forEach(function (p) {
+    var m = hp.ai[p.id], pr = provs[p.id];
+    var visible = shown.indexOf(p) >= 0;
+    if (m.el.hidden === visible) m.el.hidden = !visible;
+    if (!visible) return;
+    var has = !!pr && typeof pr.sessionPercent === 'number', s = has ? clamp(pr.sessionPercent) : 0;
+    paintDial(m.dial, s, has, Math.round(s) + '%', level(s, has && !loginExpired(pr)));
+    if (m.last.login !== loginExpired(pr)) { m.last.login = loginExpired(pr); m.el.classList.toggle('login', m.last.login); }
+    var hasWeek = !!pr && typeof pr.weekPercent === 'number';
+    set(m, 'week', m.week, 'text', hasWeek ? Math.round(clamp(pr.weekPercent)) + '%' : '--');
+    set(m, 'weekReset', m.weekReset, 'text', when(pr && pr.weekResetsAt));
+  });
+}
+
+function setHtml(key, node, html) {
+  if (hp.last[key] === html) return;
+  hp.last[key] = html;
+  node.innerHTML = html;
+}
+
+var CHECK_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>';
+var MAIN_ALERTS = 3, MAIN_PROCS = 5, processSort = 'mem';
+
+// RAM só assume no vermelho; CPU assume a partir do amarelo.
+// A faixa mais grave vence, depois o percentual; empate mantém a seleção.
+function priorityProcessSort(v, current) {
+  var cpu = v.metrics.cpu.value, ram = v.metrics.ram.value;
+  var cpuLevel = cpu === null ? 0 : cpu >= HMETRICS[0].danger ? 2 : cpu >= HMETRICS[0].warn ? 1 : 0;
+  var ramLevel = ram !== null && ram >= HMETRICS[1].danger ? 2 : 0;
+  if (cpuLevel !== ramLevel) return cpuLevel > ramLevel ? 'cpu' : 'mem';
+  if (cpuLevel && cpu !== ram) return cpu > ram ? 'cpu' : 'mem';
+  return current;
+}
+
+function alertItem(a) {
+  return '<div class="alert-item"><i' + (a.level === 'd' ? ' class="d"' : '') + '></i><div><div class="a">' + esc(a.title) + '</div><div class="b">' + esc(a.action) + '</div></div></div>';
+}
+function procRow(p) {
+  return '<div class="proc"><span class="n">' + esc(p.name) + (p.instances > 1 ? ' <small>×' + Math.round(p.instances) + '</small>' : '') + '</span>' +
+    '<span class="v">' + (p.cpu === null ? '--' : Math.round(p.cpu) + '%') + '</span>' +
+    '<span class="v">' + (p.mem === null ? '--' : memText(p.mem)) + '</span></div>';
+}
+function chipsHtml(chips) {
+  return chips.length ? '<div class="chips">' + chips.map(function (c) {
+    return '<span class="chip' + (c.level ? ' ' + c.level : '') + '">' + c.label + ' <b>' + esc(c.value) + '</b></span>';
+  }).join('') + '</div>' : '';
+}
+
+function renderHealth() {
+  if (!hp) return;
+  applyLayout();
+  // Cinza com o PC offline e também em espera (a última leitura fica parada na tela).
+  var resp = health.data, v = healthView(resp), off = v.offline || idle.asleep;
+  if (hp.last.off !== off) {
+    hp.last.off = off;
+    hp.mainEl.classList.toggle('hoff', off);
+    hp.detail.classList.toggle('hoff', off);
+  }
+  if (resp) recordDay(resp, v);
+
+  // Visão Tarefas: a CPU leva o GHz (centro), o modo de energia e o aviso de eficiência, que eram do
+  // mostrador de velocidade; memória e disco mostram só o espaço livre.
+  var vt = tasksView(), clk = v.metrics.clk;
+  HMETRICS.forEach(function (m) {
+    var mv = v.metrics[m.id], mn = hp.main[m.id], g = mn.g;
+    var subWarn = !!mv.warnText || (vt && m.id === 'cpu' && !!clk.warnText);
+    var sub = v.has ? mv.mini : '--';
+    if (vt && v.has && m.id === 'cpu' && clk.mini !== '--') sub = mv.mini + ' · ' + clk.mini;
+    else if (vt && v.has && (m.id === 'ram' || m.id === 'disk')) sub = mv.mini.replace(/ de \d+$/, '');
+    if (mn.dial.ghz) set(mn.dial, 'ghz', mn.dial.ghz, 'text', clk.has ? clk.readout : '--');
+    // Principal: ponteiro animado (parado offline ou sem dados), leitura e textos.
+    g.offline = off;
+    updateHealthTarget(g, mv.pct, mv.has);
+    set(mn.dial, 'hub', mn.dial.hub, 'text', mv.hub);
+    set(mn.dial, 'readout', mn.dial.readout, 'text', mv.has ? mv.readout : '--');
+    set(mn.dial, 'readoutFill', mn.dial.readout, 'fill', mv.has ? mv.color : C.tick);
+    set(mn, 'title', mn.title, 'text', mv.title);
+    set(mn, 'sub', mn.sub, 'text', sub);
+    set(mn, 'subWarn', mn.sub, 'className', 's' + (subWarn ? ' w' : ''));
+    set(mn, 'flag', mn.warn, 'className', 'hwarn' + (mv.flag || (vt && m.id === 'cpu' && clk.flag) ? ' on' : ''));
+    var spark = daySpark(DAY_COL[m.id], m.k, mv.has ? mv.color : C.tick);
+    if (mn.last.spark !== spark) { mn.last.spark = spark; mn.spark.innerHTML = spark; }
+  });
+
+  // Botão "Ver todos os alertas": sempre visível no cartão de Alertas; a borda indica a gravidade.
+  var n = v.alerts.length;
+  set(hp, 'openCls', hp.open, 'className', 'health-open' + (n ? (v.danger ? ' danger' : ' warn') : ''));
+  var label = 'Ver todos os alertas' + (v.has ? ' (' + n + ')' : '');
+  if (hp.last.label !== label) { hp.last.label = label; hp.open.setAttribute('aria-label', label); }
+  set(hp, 'aTitle', hp.aTitle, 'text', v.has ? 'Alertas · ' + n : 'Alertas');
+
+  var note = '';
+  if (!resp) note = !health.failed ? 'Carregando…' : health.status === 404 ? 'A API ainda não tem a rota /v1/panel.' : 'Sem conexão com a API.';
+
+  // Situação da leitura (rodapé do cartão inicial e cabeçalho da tela de alertas).
+  var foot = v.offline ? 'PC offline · ' + ago(resp.receivedAt) : off ? 'em espera' : '';
+  if (health.failed && resp) foot = 'sem conexão' + (foot ? ' · ' + foot : '');
+
+  // Principal: os 3 mais graves; "+N alertas no detalhe" abre a tela com todos.
+  var html, extra = n - MAIN_ALERTS;
+  if (note) html = '<div class="hnote">' + note + '</div>';
+  else if (!v.has) html = '<div class="hnote">Sem dados de saúde<small>Ative o monitoramento da saúde no app desktop.</small></div>';
+  else if (!n) html = '<div class="hnote ok">' + CHECK_ICON + 'Nenhum alerta. Tudo certo com o PC.</div>';
+  else html = v.alerts.slice(0, MAIN_ALERTS).map(alertItem).join('');
+  if (foot || extra > 0) {
+    html += '<div class="afoot">' + (foot ? '<span' + (health.failed ? ' class="e"' : '') + '>' + esc(foot) + '</span>' : '<span></span>') +
+      (extra > 0 ? '<button class="amore" type="button">+' + extra + (extra === 1 ? ' alerta' : ' alertas') + ' no detalhe</button>' : '') + '</div>';
+  }
+  setHtml('aMain', hp.aList, html);
+
+  // Tela de alertas: todos, do mais grave ao menos grave, com título e ação legíveis.
+  set(hp, 'alTitle', hp.alTitle, 'text', v.has ? 'Todos os alertas · ' + n : 'Alertas');
+  hp.statusText = foot;
+  hp.statusError = health.failed && !!resp;
+  if (note) html = '<div class="hnote">' + note + '</div>';
+  else if (!v.has) html = '<div class="hnote">Sem dados de saúde<small>Ative "Monitorar a saúde do PC" e "Enviar a saúde para a API" no app desktop.</small></div>';
+  else if (!n) html = '<div class="hnote ok big">' + CHECK_ICON + 'Nenhum alerta</div>';
+  else html = v.alerts.map(alertItem).join('');
+  set(hp, 'alDense', hp.alList, 'className', 'al-list' + (n > 6 ? ' dense' : ''));
+  setHtml('alList', hp.alList, html);
+  // Detalhes que a tela inicial não mostra: os 5 mais pesados e os números do sistema.
+  if (note) html = '<div class="hnote">' + note + '</div>';
+  else if (!v.has) html = '<div class="hnote">sem dados de saúde</div>';
+  else {
+    html = '<div class="sec">Mais pesados</div><div class="proc head"><span>app</span><span class="v">CPU</span><span class="v">RAM</span></div>' +
+      (v.procs.length ? v.procs.map(procRow).join('') : '<div class="hnote">--</div>') +
+      '<div class="sec">Sistema</div>' + v.facts.map(function (f) {
+        return '<div class="fact' + (f.level ? ' ' + f.level : '') + '"><span>' + f.label + '</span><b>' + esc(f.value) + '</b></div>';
+      }).join('');
+  }
+  setHtml('info', hp.info, html);
+  paintAlStatus();
+
+  // Ordena os processos recebidos sem alterar os dados usados nos indicadores.
+  var sorted = v.procs.slice().sort(function (a, b) {
+    var av = a[processSort], bv = b[processSort];
+    if (av === null) return bv === null ? 0 : 1;
+    if (bv === null) return -1;
+    return bv - av;
+  });
+  html = '<div class="sec">Mais pesados</div><div class="proc-sort" role="group" aria-label="Ordenar processos por">' +
+    '<button type="button" data-sort="mem" aria-pressed="' + (processSort === 'mem') + '">Memória</button>' +
+    '<button type="button" data-sort="cpu" aria-pressed="' + (processSort === 'cpu') + '">Processador</button></div>' +
+    '<div class="proc head"><span>app</span><span class="v">CPU</span><span class="v">RAM</span></div>' +
+    (sorted.length ? sorted.slice(0, MAIN_PROCS).map(procRow).join('') : '<div class="hnote">--</div>') + chipsHtml(v.chips);
+  setHtml('pMain', hp.pList, html);
+}
+
+// Cabeçalho da lista: situação da leitura e, se a lista passar da altura, o aviso de rolagem.
+function paintAlStatus() {
+  var l = hp.alList, scroll = l.scrollHeight > l.clientHeight + 1;
+  var text = [hp.statusText, scroll ? 'deslize para ver todos' : ''].filter(Boolean).join(' · ');
+  set(hp, 'alStatus', hp.alStatus, 'text', text);
+  set(hp, 'alStatusCls', hp.alStatus, 'className', 'al-status' + (hp.statusError ? ' e' : ''));
+}
+
+function setExpanded(on) {
+  if (healthExpanded === on) return;
+  healthExpanded = on;
+  var stage = document.getElementById('stage');
+  stage.classList.toggle('expanded', on);
+  document.getElementById('detail').setAttribute('aria-hidden', String(!on));
+  hp.mainEl.setAttribute('aria-hidden', String(on));
+  if (hp) {
+    hp.open.setAttribute('aria-expanded', String(on));
+    if (on) { hp.alList.scrollTop = 0; paintAlStatus(); }
+  }
+  if (!on) aiGauges().concat(healthGauges()).forEach(function (g) { g.drawnGauge = null; });
+}
+
+function resetHealth() {
+  health.data = null;
+  health.failed = false;
+  health.status = 0;
+  historyAt = 0;
+  day = { date: '', start: 0, end: 0, since: 0, points: [] };
+  setExpanded(false);
+  renderHealth();
+}
+
+// ---------- Acesso por PIN (a autorização dos dados é feita no servidor) ----------
+
+var login = document.getElementById('login');
+var cockpit = document.getElementById('cockpit');
+var pinInput = document.getElementById('pin');
+var loginMessage = document.getElementById('login-message');
+var loginSubmit = document.getElementById('login-submit');
+var keypadButtons = document.querySelectorAll('#keypad button');
+var lockRetry = document.getElementById('lock-retry');
+var authBusy = false, retryUntil = 0, retryTimer, logoutPending = false;
+
+function updateLoginControls() {
+  var waiting = Date.now() < retryUntil;
+  for (var i = 0; i < keypadButtons.length; i++) keypadButtons[i].disabled = authBusy || waiting || logoutPending;
+  loginSubmit.disabled = authBusy || waiting || logoutPending || pinInput.value.length < 8;
+  loginSubmit.textContent = authBusy ? 'Aguarde…' : 'Entrar';
+  lockRetry.disabled = authBusy;
+}
+
+function showLogin(message) {
+  unlocked = false;
+  monitorProtection.setActive(false);
+  requestGeneration++;
+  clearTimeout(timer);
+  if (usageRequest) usageRequest.abort();
+  usageRequest = null;
+  state.data = null;
+  state.lastUpdatedAt = null;
+  state.failed = state.loading = state.refreshing = state.manualRefresh = false;
+  // Entrar de novo com o PIN recomeça o ciclo normal.
+  idle.key = null; idle.count = 0; idle.asleep = false;
+  skewMs = 0;
+  aiGauges().concat(healthGauges()).forEach(function (g) {
+    g.gaugeReady = g.hasGauge = g.offline = false;
+    g.gaugePhase = 'follow';
+    g.healthMoving = false;
+    g.shown = g.target = 0;
+    g.drawnGauge = null;
+    g.paint(g, 0, performance.now());
+  });
+  PROVIDERS.forEach(function (p) {
+    var col = cols[p.id];
+    col.last = {};
+    col.weekTarget = 0;
+    moveThermo(col, 0, 'still');
+  });
+  resetHealth();
+  render();
+  pinInput.value = '';
+  cockpit.hidden = true;
+  login.hidden = false;
+  loginMessage.textContent = message || 'Digite seu PIN no teclado ao lado.';
+  updateLoginControls();
+}
+
+function showCockpit() {
+  if (logoutPending) return;
+  pinInput.value = '';
+  login.hidden = true;
+  cockpit.hidden = false;
+  unlocked = true;
+  monitorProtection.setActive(true);
+  retryUntil = 0;
+  clearTimeout(retryTimer);
+  poll();
+}
+
+function authRequest(method, body, done) {
+  if (authBusy) return;
+  authBusy = true;
+  updateLoginControls();
+  var xhr = new XMLHttpRequest();
+  xhr.open(method, '/api/auth', true);
+  xhr.timeout = 15000;
+  xhr.onload = function () {
+    authBusy = false;
+    var data = {};
+    try { data = JSON.parse(xhr.responseText); } catch (e) {}
+    done(xhr.status, data, parseInt(xhr.getResponseHeader('Retry-After'), 10) || 0);
+    updateLoginControls();
+  };
+  xhr.onerror = xhr.ontimeout = function () {
+    authBusy = false;
+    done(0, {}, 0);
+    updateLoginControls();
+  };
+  if (body) xhr.setRequestHeader('Content-Type', 'application/json');
+  xhr.send(body ? JSON.stringify(body) : null);
+}
+
+function checkSession() {
+  authRequest('GET', null, function (status, data) {
+    if (status === 200 && data.authenticated === true) showCockpit();
+    else showLogin(status === 503 ? 'Configure PANEL_PIN_HASH e PANEL_SESSION_SECRET no servidor.' : status === 200 ? '' : 'Sem conexão. Tente entrar novamente.');
+  });
+}
+
+function countRetry() {
+  var seconds = Math.ceil((retryUntil - Date.now()) / 1000);
+  if (seconds <= 0) { loginMessage.textContent = 'Você já pode tentar novamente.'; updateLoginControls(); return; }
+  loginMessage.textContent = 'Muitas tentativas. Aguarde ' + Math.ceil(seconds / 60) + ' min para tentar novamente.';
+  updateLoginControls();
+  retryTimer = setTimeout(countRetry, 1000);
+}
+
+function submitPin() {
+  if (authBusy || logoutPending || Date.now() < retryUntil || pinInput.value.length < 8) return;
+  authRequest('POST', { pin: pinInput.value }, function (status, data, retry) {
+    pinInput.value = '';
+    if (status === 200 && data.authenticated === true) { showCockpit(); return; }
+    if (status === 429) { retryUntil = Date.now() + Math.max(1, retry) * 1000; countRetry(); return; }
+    loginMessage.textContent = status === 401 ? 'PIN incorreto. Tente novamente.' : status === 503 && data.error && data.error.code === 'auth_not_configured' ? 'Configure PANEL_PIN_HASH e PANEL_SESSION_SECRET no servidor.' : 'Não foi possível entrar. Verifique a conexão e tente novamente.';
+  });
+}
+
+function lockPanel() {
+  if (authBusy) return;
+  logoutPending = true;
+  showLogin('Bloqueando painel…');
+  authRequest('DELETE', null, function (status) {
+    if (status === 200) {
+      logoutPending = false;
+      lockRetry.hidden = true;
+      loginMessage.textContent = 'Painel bloqueado. Digite seu PIN para entrar.';
+    } else {
+      loginMessage.textContent = 'Não foi possível encerrar a sessão. Tente bloquear novamente.';
+      lockRetry.hidden = false;
+    }
+  });
+}
+
+document.getElementById('login-form').addEventListener('submit', function (e) { e.preventDefault(); submitPin(); });
+document.getElementById('keypad').addEventListener('click', function (e) {
+  var digit = e.target.getAttribute('data-digit');
+  if (digit !== null && !authBusy && !logoutPending && Date.now() >= retryUntil && pinInput.value.length < 12) pinInput.value += digit;
+  updateLoginControls();
+});
+document.getElementById('pin-clear').addEventListener('click', function () { pinInput.value = ''; updateLoginControls(); });
+document.getElementById('pin-back').addEventListener('click', function () { pinInput.value = pinInput.value.slice(0, -1); updateLoginControls(); });
+document.addEventListener('keydown', function (e) {
+  if (unlocked || authBusy || logoutPending || Date.now() < retryUntil || e.ctrlKey || e.altKey || e.metaKey) return;
+  if (/^[0-9]$/.test(e.key)) { e.preventDefault(); if (pinInput.value.length < 12) pinInput.value += e.key; }
+  else if (e.key === 'Backspace') { e.preventDefault(); pinInput.value = pinInput.value.slice(0, -1); }
+  else if (e.key === 'Escape') { pinInput.value = ''; }
+  else if (e.key === 'Enter' && e.target.tagName !== 'BUTTON') { e.preventDefault(); submitPin(); }
+  updateLoginControls();
+});
+document.getElementById('lock').addEventListener('click', function (e) { e.stopPropagation(); lockPanel(); });
+lockRetry.addEventListener('click', lockPanel);
+
+// ---------- Relógio ----------
+
+var clock = document.getElementById('clock');
+var dateLabel = document.getElementById('date');
+var lastMinute = -1;
+var MONTHS = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
+function tick() {
+  var d = new Date();
+  // Os segundos aparecem como contador pequeno, reiniciando em 00 a cada minuto.
+  var t = hhmm(d) + '<small>:' + pad(d.getSeconds()) + '</small>';
+  if (clock.innerHTML !== t) clock.innerHTML = t;
+  var dateText = DAYS[d.getDay()].toUpperCase() + ', ' + d.getDate() + ' de ' + MONTHS[d.getMonth()];
+  if (dateLabel.textContent !== dateText) dateLabel.textContent = dateText;
+  // Textos relativos ("reseta em 38min") mudam a cada minuto, sem consultar a rede.
+  if (d.getMinutes() !== lastMinute) { lastMinute = d.getMinutes(); render(); renderHealth(); renderTasks(true); }
+  setTimeout(tick, 1000 - d.getMilliseconds() + 20);
+}
+
+// ---------- Tarefas do Claude Code e do Codex (visão Tarefas) ----------
+// Vêm em agents, na mesma resposta do /api/panel. O app desktop lê os arquivos do Claude Code e do
+// Codex no PC e envia cada mudança; aqui só se desenha. Pergunta nova e tarefa concluída aparecem
+// num aviso no topo; a lista fica no lugar de "Mais pesados" (o botão de lista volta à visão anterior).
+
+var VIEW_KEY = 'cockpit.view';
+var TMIN = 60000;
+var LIST_H = 292; // altura útil da lista no cartão; pergunta ≈ 86 px, permissão ≈ 76 px, demais ≈ 41 px
+var TNAME = { claude: 'Claude', codex: 'Codex' };
+var TBOLT = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z"/></svg>';
+var TX_ICON = '<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>';
+var TEMPTY_ICON = '<svg viewBox="0 0 24 24"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>';
+var tk = { card: null, banner: null, detail: null, all: null, one: null, view: null, sel: null, open: false,
+  bannerTimer: 0, bannerTask: null, known: null, last: {} };
+
+function tProvider(id) { for (var i = 0; i < PROVIDERS.length; i++) if (PROVIDERS[i].id === id) return PROVIDERS[i]; return PROVIDERS[0]; }
+function tMs(iso) { var t = Date.parse(iso); return isFinite(t) ? t : null; }
+function tMins(ms) {
+  var m = Math.floor(Math.max(0, ms) / TMIN);
+  if (m < 1) return 'agora';
+  if (m < 60) return m + ' min';
+  return Math.floor(m / 60) + 'h' + (m % 60 ? pad(m % 60) : '');
+}
+// Número principal: entrada nova (com o que foi gravado no cache) + saída. O cache lido fica só no detalhe.
+function tTokens(t) { var k = t.tokens || {}; return (num(k.input) || 0) + (num(k.cacheWrite) || 0) + (num(k.output) || 0); }
+function fmtTok(n) {
+  if (n < 1000) return String(Math.round(n));
+  if (n < 1e6) return (n < 10000 ? comma(n / 1000, 1) : String(Math.round(n / 1000))) + ' mil';
+  return comma(n / 1e6, n < 1e7 ? 1 : 0) + ' mi';
+}
+function tQText(t) { var q = t.question; return q.kind === 'permission' && q.tool ? q.tool + ': ' + q.text : q.text; }
+function tDuration(t) {
+  var a = tMs(t.startedAt), b = tMs(t.endedAt || t.since);
+  return a !== null && b !== null && b > a ? tMins(b - a) : '';
+}
+function tStateLine(t) {
+  var age = now() - (tMs(t.since) || now());
+  if (t.state === 'waiting') return (t.question && t.question.kind === 'permission' ? 'Pede permissão' : 'Aguardando você') + ' · ' + (age < TMIN ? 'agora' : 'há ' + tMins(age));
+  if (t.state === 'running') return '<b>Executando</b> · ' + tMins(age);
+  var d = tDuration(t);
+  return '<b>Concluída</b> às ' + hhmm(new Date(tMs(t.since) || now())) + (d ? ' · ' + d : '');
+}
+function tIcon(t, state) {
+  var p = tProvider(t.provider);
+  state = state || t.state;
+  return '<span class="tico">' + (state === 'running' ? '<span class="spin"></span>' : '') +
+    '<svg class="logo" viewBox="0 0 24 24"><path fill="' + p.logoFill + '" d="' + p.logo + '"/></svg>' +
+    (state === 'waiting' ? '<span class="badge">?</span>' : state === 'done' ? '<span class="badge">✓</span>' : '') + '</span>';
+}
+function tChip(t) {
+  return t.tokens ? '<span class="tchip" title="tokens: entrada nova + saída">' + TBOLT + '<span>' + fmtTok(tTokens(t)) + '</span></span>' : '';
+}
+function tRow(t, full) {
+  var q = t.state === 'waiting' && t.question
+    ? '<div class="tq' + (t.question.kind === 'permission' ? ' cmd' : '') + '">' + esc(tQText(t)) + '</div>' : '';
+  // Na lista estreita da tela da tarefa, o selo de tokens vai numa linha própria, sem apertar o nome.
+  return '<div class="task ' + (t.state === 'waiting' ? 'ask' : t.state === 'running' ? 'run' : 'done') + (full && tk.sel === t.id ? ' sel' : '') +
+    '" data-id="' + esc(t.id) + '">' + tIcon(t) + '<div class="tx"><div class="tn">' + esc(t.name) + '</div>' + q +
+    '<div class="ts">' + tStateLine(t) + '</div>' + (full ? tChip(t) : '') + '</div>' + (full ? '' : tChip(t)) + '</div>';
+}
+
+// Perguntas, depois execuções (mais antigas primeiro), depois concluídas (mais novas primeiro).
+function tList() {
+  var a = state.agents, list = a && a.tasks && a.tasks.length ? a.tasks.slice() : [];
+  var rank = { waiting: 0, running: 1, done: 2 };
+  list = list.filter(function (t) { return t && typeof t.id === 'string' && rank[t.state] !== undefined && typeof t.name === 'string'; });
+  return list.sort(function (x, y) {
+    if (rank[x.state] !== rank[y.state]) return rank[x.state] - rank[y.state];
+    var sx = tMs(x.state === 'done' ? x.since : x.startedAt) || 0, sy = tMs(y.state === 'done' ? y.since : y.startedAt) || 0;
+    return x.state === 'done' ? sy - sx : sx - sy;
+  });
+}
+function tFind(id) { var l = tList(); for (var i = 0; i < l.length; i++) if (l[i].id === id) return l[i]; return null; }
+// Sem envio recente do PC (ou painel em espera): a última lista fica, em cinza.
+function tasksOff() { var a = state.agents; return !a || a.hasData !== true || a.online !== true || idle.asleep; }
+
+function setTasksHtml(key, node, html) {
+  if (tk.last[key] === html) return;
+  tk.last[key] = html;
+  node.innerHTML = html;
+}
+
+function renderTaskCard(list) {
+  var a = state.agents, off = tasksOff(), q = 0, r = 0, d = 0;
+  list.forEach(function (t) { if (t.state === 'waiting') q++; else if (t.state === 'running') r++; else d++; });
+  var counts = off ? '' : [q ? '<b class="q">' + q + ' pergunta' + (q > 1 ? 's' : '') + '</b>' : '', r ? '<b class="r">' + r + ' rodando</b>' : ''].filter(Boolean).join(' · ');
+  var html = '<div class="chead"><span class="sec">Tarefas</span><span class="tcount">' + counts + '</span></div>';
+  if (!a || a.hasData !== true) {
+    html += '<div class="tempty">' + TEMPTY_ICON + 'Sem dados de tarefas<small>Atualize o app desktop e ligue o envio para API</small></div>';
+  } else if (a.paused) {
+    html += '<div class="tempty">' + TEMPTY_ICON + 'Consultas pausadas no PC<small>As tarefas voltam quando o app retomar</small></div>';
+  } else if (!list.length) {
+    html += '<div class="tempty">' + TEMPTY_ICON + 'Nenhuma tarefa agora<small>Claude Code e Codex parados</small></div>';
+  } else {
+    var used = 0, shown = 0, rows = '';
+    for (var i = 0; i < list.length; i++) {
+      var t = list[i], h = t.state === 'waiting' ? (t.question && t.question.kind === 'permission' ? 76 : 86) : 41;
+      if (used + h > LIST_H && shown) break;
+      used += h; shown++;
+      rows += tRow(t, false);
+    }
+    var extra = list.length - shown;
+    var foot = off ? (a.online === false ? 'PC sem enviar · ' + ago(a.receivedAt) : 'em espera') : d ? d + ' concluída' + (d > 1 ? 's' : '') + ' nas últimas 2 h' : '';
+    html += '<div class="tlist">' + rows + '</div><div class="tfoot"><span>' + esc(foot) + '</span>' +
+      (extra > 0 ? '<button class="amore" type="button" data-open="1">+' + extra + ' tarefa' + (extra > 1 ? 's' : '') + '</button>' : '') + '</div>';
+  }
+  setTasksHtml('card', tk.card, html);
+  var cls = 'card tcard' + (q && !off ? ' ask' : '') + (off ? ' toff' : '');
+  if (tk.card.className !== cls) tk.card.className = cls;
+}
+
+function renderTaskDetail(list) {
+  if (!tk.open) return;
+  if (!list.length) { closeTaskDetail(); return; }
+  var t = tFind(tk.sel) || list[0];
+  tk.sel = t.id;
+  var groups = { waiting: [], running: [], done: [] }, html = '';
+  list.forEach(function (x) { groups[x.state].push(x); });
+  [['waiting', 'Aguardando você'], ['running', 'Executando'], ['done', 'Concluídas · 2 h']].forEach(function (g) {
+    if (!groups[g[0]].length) return;
+    html += '<div class="sec">' + g[1] + ' · ' + groups[g[0]].length + '</div>' + groups[g[0]].map(function (x) { return tRow(x, true); }).join('');
+  });
+  setTasksHtml('all', tk.all, html);
+
+  var body = '', q = t.question, k = t.tokens || {};
+  if (t.state === 'waiting' && q) {
+    body += q.kind === 'permission'
+      ? '<div class="sec" style="color:#EF9F27">Pede permissão' + (q.tool ? ' · ' + esc(q.tool) : '') + '</div><div class="tdcmd">' + esc(q.text) + '</div>'
+      : '<div class="sec" style="color:#EF9F27">' + (q.kind === 'input' ? 'Aguardando você' : 'Pergunta') + '</div><div class="tdq ask">' + esc(q.text) + '</div>';
+    if (q.options && q.options.length) {
+      body += '<div class="sec">Opções</div><div class="topts">' + q.options.map(function (o) { return '<span>' + esc(o) + '</span>'; }).join('') + '</div>';
+    }
+    body += '<div class="tsoon">Responda no PC. Responder pelo painel fica para uma próxima versão.</div>';
+  }
+  var facts = [['Projeto', t.project || '--'], ['Ferramenta', TNAME[t.provider] || t.provider]];
+  var age = now() - (tMs(t.since) || now());
+  if (t.state === 'running') facts.push(['Executando há', tMins(age)]);
+  if (t.state === 'waiting') facts.push(['Esperando há', tMins(age)]);
+  if (t.state === 'done') facts.push(['Concluída às', hhmm(new Date(tMs(t.since) || now()))], ['Duração', tDuration(t) || '--']);
+  if (t.tokens) {
+    var rate = num(t.tokensPerSecond), limit = num(t.limitPercent);
+    body += '<div class="sec">Tokens' + (t.state === 'done' ? ' gastos' : ' até agora') + '</div><div class="tokbox">' +
+      '<div class="kt"><b>' + TBOLT + '<span>' + fmtTok(tTokens(t)) + '</span></b><span>entrada + saída</span></div>' +
+      (t.state === 'running' && rate !== null ? '<div class="ks"><b>' + Math.round(rate) + '</b><span>tokens/s agora</span></div>' : '') +
+      (limit !== null && limit > 0 ? '<div class="kl"><b>~' + comma(limit, limit < 10 && limit % 1 ? 1 : 0) + '%</b><span>do limite de 5 h</span></div>' : '') + '</div>';
+    facts.push(['Saída', fmtTok(num(k.output) || 0)], ['Entrada nova', fmtTok((num(k.input) || 0) + (num(k.cacheWrite) || 0))], ['Cache lido', fmtTok(num(k.cacheRead) || 0)]);
+  }
+  if (t.state === 'done' && t.summary) body += '<div class="sec">Resposta final</div><div class="tdtext">' + esc(t.summary) + '</div>';
+  if (t.prompt) body += '<div class="sec">Último pedido</div><div class="tdtext">' + esc(t.prompt) + '</div>';
+  body += '<div class="tfacts">' + facts.map(function (f) { return '<div class="fact"><span>' + f[0] + '</span><b>' + esc(f[1]) + '</b></div>'; }).join('') + '</div>';
+
+  setTasksHtml('one', tk.one, '<div class="chead"><button class="back" type="button" data-back="1">‹ Voltar</button><span class="sec">Tarefa</span></div>' +
+    '<div class="tdhead">' + tIcon(t) + '<div style="min-width:0"><div class="tdname">' + esc(t.name) + '</div><div class="tdmeta">' +
+    esc((TNAME[t.provider] || t.provider) + (t.project ? ' · ' + t.project : '')) + ' · ' + tStateLine(t).replace(/<\/?b>/g, '') + '</div></div></div>' +
+    '<div class="tdbody">' + body + '</div>');
+  var cls = tasksOff() ? 'toff' : '';
+  if (tk.detail.className !== cls) tk.detail.className = cls;
+}
+
+function openTaskDetail(id) {
+  if (!tasksView() || !tList().length) return;
+  setExpanded(false);
+  tk.sel = id || tk.sel;
+  tk.open = true;
+  document.getElementById('stage').classList.add('texp');
+  tk.detail.setAttribute('aria-hidden', 'false');
+  tk.last.all = tk.last.one = null;
+  renderTaskDetail(tList());
+}
+function closeTaskDetail() {
+  if (!tk.open) return;
+  tk.open = false;
+  document.getElementById('stage').classList.remove('texp');
+  tk.detail.setAttribute('aria-hidden', 'true');
+}
+
+// ---------- Aviso no topo ----------
+function showBanner(t, kind) {
+  var q = t.question;
+  var label = kind === 'ask'
+    ? (q && q.kind === 'permission' ? 'Permissão pedida' : 'Pergunta') + ' · ' + (TNAME[t.provider] || t.provider) + ' · ' + t.name
+    : 'Concluída · ' + (TNAME[t.provider] || t.provider) + (tDuration(t) ? ' · ' + tDuration(t) : '') + (t.tokens ? ' · ' + fmtTok(tTokens(t)) + ' tokens' : '');
+  tk.bannerTask = t.id;
+  tk.banner.className = 'tbanner ' + kind;
+  tk.banner.innerHTML = tIcon(t, kind === 'ask' ? 'waiting' : 'done') +
+    '<div class="tx"><div class="k">' + esc(label) + '</div><div class="m">' + esc(kind === 'ask' && q ? tQText(t) : t.name) + '</div></div>' +
+    (layoutB ? '<button class="go" type="button">Ver</button>' : '') +
+    '<button class="x" type="button" aria-label="Fechar aviso">' + TX_ICON + '</button>';
+  void tk.banner.offsetWidth;
+  tk.banner.classList.add('on');
+  clearTimeout(tk.bannerTimer);
+  tk.bannerTimer = setTimeout(hideBanner, kind === 'ask' ? 30000 : 10000);
+}
+function hideBanner() { clearTimeout(tk.bannerTimer); tk.banner.classList.remove('on'); }
+
+// Compara com a consulta anterior: pergunta nova (ou outra pergunta na mesma tarefa) e tarefa que
+// terminou viram aviso. A primeira consulta só registra o estado, sem avisos.
+function detectTaskEvents(list) {
+  var a = state.agents;
+  if (!a || a.online !== true || a.paused) return;
+  var seen = {}, ask = null, done = null, t0 = now();
+  list.forEach(function (t) {
+    var qt = t.question ? t.question.text : '';
+    seen[t.id] = { state: t.state, started: t.startedAt, q: qt };
+    if (!tk.known) return;
+    var k = tk.known[t.id];
+    if (t.state === 'waiting' && (!k || k.state !== 'waiting' || k.q !== qt)) ask = ask || t;
+    else if (t.state === 'done' && (k ? k.state !== 'done' || k.started !== t.startedAt : t0 - (tMs(t.since) || 0) < 90000)) done = done || t;
+  });
+  tk.known = seen;
+  if (ask) showBanner(ask, 'ask');
+  else if (done) showBanner(done, 'done');
+}
+
+// Tokens por segundo embaixo do percentual do Claude e do Codex (visão Tarefas).
+function paintTps() {
+  var a = state.agents, off = tasksOff();
+  PROVIDERS.forEach(function (p) {
+    var col = cols[p.id], rate = !off && a.rates ? num(a.rates[p.id]) : null;
+    set(col, 'tpsText', col.tps, 'text', rate === null ? '-- tok/s' : '⚡ ' + Math.round(rate) + ' tok/s');
+    set(col, 'tpsFill', col.tps, 'fill', rate !== null && rate > 0 ? p.brand : C.tick);
+  });
+}
+
+// minuteTick: só atualiza os textos relativos ("há 3 min"), sem procurar avisos.
+function renderTasks(minuteTick) {
+  if (!tk.card) return;
+  if (!tasksView()) closeTaskDetail();
+  var list = tList();
+  if (minuteTick !== true) detectTaskEvents(list);
+  renderTaskCard(list);
+  renderTaskDetail(list);
+  paintTps();
+}
+
+function setView(v) {
+  panelView = v === 'procs' ? 'procs' : 'tasks';
+  try { localStorage.setItem(VIEW_KEY, panelView); } catch (e) {}
+  applyView();
+  tk.view.setAttribute('aria-pressed', String(panelView === 'tasks'));
+  tk.view.setAttribute('aria-label', panelView === 'tasks' ? 'Mostrar os apps mais pesados' : 'Mostrar as tarefas');
+  if (panelView !== 'tasks') closeTaskDetail();
+  // Os mostradores mudam de tamanho: redesenha os arcos e os textos da CPU, da memória e do disco.
+  aiGauges().concat(healthGauges()).forEach(function (g) { g.drawnGauge = null; });
+  renderHealth();
+  renderTasks(true);
+}
+
+function initTasks() {
+  tk.card = document.getElementById('hb-tasks');
+  tk.banner = document.getElementById('tbanner');
+  tk.detail = document.getElementById('tdetail');
+  tk.all = document.getElementById('tall');
+  tk.one = document.getElementById('tone');
+  tk.view = document.getElementById('view');
+  var saved = null;
+  try { saved = localStorage.getItem(VIEW_KEY); } catch (e) {}
+  tk.view.addEventListener('click', function (e) { e.stopPropagation(); setView(panelView === 'tasks' ? 'procs' : 'tasks'); });
+  tk.card.addEventListener('click', function (e) {
+    var row = e.target.closest && e.target.closest('[data-id]');
+    if (row) openTaskDetail(row.getAttribute('data-id'));
+    else if (e.target.closest && e.target.closest('[data-open]')) openTaskDetail(null);
+  });
+  tk.all.addEventListener('click', function (e) {
+    var row = e.target.closest && e.target.closest('[data-id]');
+    if (!row) return;
+    tk.sel = row.getAttribute('data-id');
+    renderTaskDetail(tList());
+  });
+  tk.one.addEventListener('click', function (e) { if (e.target.closest && e.target.closest('[data-back]')) closeTaskDetail(); });
+  tk.banner.addEventListener('click', function (e) {
+    e.stopPropagation();
+    hideBanner();
+    if (e.target.closest && e.target.closest('.x')) return;
+    if (!layoutB) return;
+    if (panelView !== 'tasks') setView('tasks');
+    openTaskDetail(tk.bannerTask);
+  });
+  // A tela de alertas e a da tarefa não ficam abertas juntas.
+  document.getElementById('health-open').addEventListener('click', closeTaskDetail, true);
+  setView(saved === 'procs' ? 'procs' : 'tasks');
+}
+
+// ---------- Escala para a janela ----------
+
+var panel = document.querySelector('.panel');
+function fit() {
+  var w = window.innerWidth, h = window.innerHeight;
+  var s = Math.min(w / STAGE_W, h / STAGE_H);
+  var x = (w - STAGE_W * s) / 2, y = (h - STAGE_H * s) / 2;
+  panel.style.transform = 'translate(' + x + 'px,' + y + 'px) scale(' + s + ')';
+}
+
+// ---------- Tela cheia ----------
+
+var monitorButton = document.getElementById('monitor');
+var monitorStatus = document.getElementById('monitor-status');
+var monitorProtection = createMonitorProtection({
+  audio: document.getElementById('monitor-audio'),
+  onChange: function (protection) {
+    var playing = protection.audio === 'playing';
+    var protectedScreen = protection.wakeLock === 'active';
+    var text = !protection.enabled ? 'Tela ativa desativada' :
+      playing && protectedScreen ? 'Áudio e tela ativos' :
+      playing ? 'Áudio ativo' :
+      protectedScreen ? 'Tela protegida · toque para áudio' :
+      protection.audio === 'error' ? 'Falha no áudio · toque para tentar' : 'Toque para manter ativa';
+    monitorButton.setAttribute('aria-pressed', String(protection.enabled));
+    monitorButton.setAttribute('data-state', !protection.enabled ? 'off' : playing || protectedScreen ? 'active' : 'waiting');
+    monitorButton.title = 'Manter tela ativa: ' + (protection.enabled ? 'ligado' : 'desligado') +
+      '. Áudio: ' + (playing ? 'ativo' : protection.audio === 'error' ? 'falhou' : 'aguardando toque') +
+      '. Proteção de tela: ' + (protectedScreen ? 'ativa' : protection.wakeLock === 'unsupported' ? 'indisponível neste navegador' : protection.wakeLock === 'error' ? 'recusada pelo sistema' : 'aguardando') + '.';
+    if (monitorStatus.textContent !== text) monitorStatus.textContent = text;
+  }
+});
+monitorButton.addEventListener('click', function (e) { e.stopPropagation(); monitorProtection.toggle(); });
+// Captura também os toques em atualizar/tela cheia, cujos eventos não propagam.
+document.addEventListener('click', function (e) {
+  if (unlocked && !monitorButton.contains(e.target)) monitorProtection.interact();
+}, true);
+
+var root = document.documentElement;
+var fsButton = document.getElementById('fs');
+var fsIcon = document.getElementById('fs-icon');
+var userExited = false;
+var ICON_ENTER = 'M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5';
+var ICON_EXIT = 'M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5';
+
+function isFull() { return !!(document.fullscreenElement || document.webkitFullscreenElement); }
+function enterFull() {
+  var req = root.requestFullscreen || root.webkitRequestFullscreen;
+  if (!req) return;
+  try {
+    var r = req.call(root);
+    if (r && r.catch) r.catch(function () {});
+  } catch (e) {}
+}
+function exitFull() {
+  var ex = document.exitFullscreen || document.webkitExitFullscreen;
+  if (!ex) return;
+  try {
+    var r = ex.call(document);
+    if (r && r.catch) r.catch(function () {});
+  } catch (e) {}
+}
+function onFullChange() {
+  var full = isFull();
+  fsIcon.setAttribute('d', full ? ICON_EXIT : ICON_ENTER);
+  fsButton.setAttribute('aria-label', full ? 'Sair da tela cheia' : 'Tela cheia');
+  fit();
+}
+
+fsButton.addEventListener('click', function (e) {
+  e.stopPropagation();
+  if (isFull()) { userExited = true; exitFull(); }
+  else { userExited = false; enterFull(); }
+});
+refreshButton.addEventListener('click', function (e) {
+  e.stopPropagation();
+  refreshNow();
+});
+// O navegador costuma exigir um gesto: o primeiro toque em qualquer lugar entra em tela cheia,
+// a menos que o usuário tenha saído pelo botão.
+document.addEventListener('click', function () {
+  if (unlocked && !isFull() && !userExited) enterFull();
+});
+document.addEventListener('fullscreenchange', onFullChange);
+document.addEventListener('webkitfullscreenchange', onFullChange);
+window.addEventListener('resize', fit);
+// Ao voltar para a aba (ex.: o Echo Show reabriu o Silk), atualiza na hora.
+document.addEventListener('visibilitychange', function () {
+  if (!document.hidden) { if (unlocked) resumePolling(); else if (!logoutPending) checkSession(); }
+});
+document.getElementById('health-open').addEventListener('click', function () { setExpanded(true); });
+document.getElementById('alerts-back').addEventListener('click', function () { setExpanded(false); });
+document.getElementById('hb-procs').addEventListener('click', function (e) {
+  var button = e.target && e.target.closest && e.target.closest('[data-sort]');
+  if (!button) return;
+  var sort = button.getAttribute('data-sort');
+  if (sort !== 'mem' && sort !== 'cpu') return;
+  processSort = sort;
+  renderHealth();
+});
+// Tocar em qualquer parte do cartão da IA (inclusive em Voltar) volta ao modo normal.
+document.getElementById('ai-mini').addEventListener('click', function () { setExpanded(false); });
+
+PROVIDERS.forEach(buildColumn);
+buildHealth();
+initTasks();
+renderHealth();
+onFullChange();
+render();
+tick();
+tickGauges();
+checkSession();
+enterFull();
+
+</script><script>
+// Protótipo v2: só o que muda em relação ao painel implementado. As funções do app.js são globais,
+// então redefini-las aqui troca o comportamento sem copiar o resto.
+(function () {
+  // Números: 1K / 49K / 1,2M (em vez de "mil" e "mi").
+  fmtTok = function (n) {
+    if (n < 1000) return String(Math.round(n));
+    if (n < 1e6) return (n < 10000 ? comma(n / 1000, 1).replace(',0', '') : String(Math.round(n / 1000))) + 'K';
+    return (n < 1e7 ? comma(n / 1e6, 1).replace(',0', '') : String(Math.round(n / 1e6))) + 'M';
+  };
+  // Total da conversa: entrada nova + saída de todos os pedidos da sessão (campo novo: conversation).
+  function tTotal(t) {
+    var k = t.conversation;
+    return k ? (num(k.input) || 0) + (num(k.cacheWrite) || 0) + (num(k.output) || 0) : tTokens(t);
+  }
+  window.tTotal = tTotal;
+
+  // Pílula: raio · último pedido (verde) | conversa (azul).
+  tChip = function (t) {
+    if (!t.tokens) return '';
+    return '<span class="tchip" title="último pedido | conversa toda (entrada nova + saída)">' + TBOLT +
+      '<span class="tl">' + fmtTok(tTokens(t)) + '</span><span class="tsep"></span><span class="tt">' + fmtTok(tTotal(t)) + '</span></span>';
+  };
+
+  // Tela da tarefa: o cartão violeta passa a ter os dois números.
+  var baseDetail = renderTaskDetail;
+  renderTaskDetail = function (list) {
+    baseDetail(list);
+    if (!tk.open) return;
+    var t = tFind(tk.sel), box = tk.one.querySelector('.tokbox .kt');
+    if (!t || !box || box.getAttribute('data-v2')) return;
+    box.setAttribute('data-v2', '1');
+    box.innerHTML = '<div class="kv"><b class="tl">' + TBOLT + '<span>' + fmtTok(tTokens(t)) + '</span></b><span>último pedido</span></div>' +
+      '<div class="kv"><b class="tt">' + fmtTok(tTotal(t)) + '</b><span>conversa toda</span></div>';
+  };
+
+  // Concluída: aviso no meio da lista que sobe e some (o aviso do topo fica só para perguntas).
+  var layer = document.createElement('div');
+  layer.className = 'tpops';
+  document.querySelector('.health-side').appendChild(layer);
+  function showDonePop(t, phase) {
+    if (!tasksView()) { baseBanner(t, 'done'); return; }
+    var d = tDuration(t);
+    var pop = document.createElement('div');
+    pop.className = 'tpop';
+    pop.innerHTML = tIcon(t, 'done') + '<div class="tx"><div class="k">Concluída · ' + esc(TNAME[t.provider] || t.provider) + (d ? ' · ' + d : '') + '</div>' +
+      '<div class="m">' + esc(t.name) + '</div>' + tChip(t) + '<span class="hint">toque para ver</span></div>';
+    if (phase) pop.style.animationDelay = (-8 * phase) + 's'; // capturas: congela a animação num ponto
+    pop.addEventListener('click', function (e) {
+      e.stopPropagation();
+      if (pop.parentNode) pop.parentNode.removeChild(pop);
+      openTaskDetail(t.id);
+    });
+    pop.addEventListener('animationend', function () { if (pop.parentNode) pop.parentNode.removeChild(pop); });
+    layer.appendChild(pop);
+  }
+  var baseBanner = showBanner;
+  showBanner = function (t, kind) { if (kind === 'done') showDonePop(t, window.POP_PHASE); else baseBanner(t, kind); };
+
+  // Controles da página de fora (postMessage) e atalhos da URL para as capturas.
+  function cmd(name, arg) {
+    if (name === 'done') { window.MOCK.done = Date.now(); poll(); }
+    else if (name === 'ask') { window.MOCK.ask = Date.now(); poll(); }
+    else if (name === 'reset') { window.MOCK.done = window.MOCK.ask = false; tk.known = null; poll(); }
+    else if (name === 'open') { if (panelView !== 'tasks') setView('tasks'); openTaskDetail(arg || null); }
+    else if (name === 'view') setView(arg);
+    else if (name === 'offline') { window.MOCK.offline = !!arg; window.PROTO.offline = !!arg; poll(); }
+  }
+  window.addEventListener('message', function (e) { var m = e.data; if (m && m.proto === 'cmd') cmd(m.name, m.arg); });
+
+  var h = {};
+  location.hash.replace(/^#/, '').split('&').forEach(function (kv) { var p = kv.split('='); if (p[0]) h[p[0]] = decodeURIComponent(p[1] || '1'); });
+  if (h.pp) window.POP_PHASE = parseFloat(h.pp);
+  setTimeout(function () {
+    if (h.v) setView(h.v);
+    if (h.e) cmd(h.e);
+    if (h.t) cmd('open', h.t);
+  }, 1500);
+})();
+
+</script>
+</body>
+</html>
