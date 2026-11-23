@@ -351,7 +351,7 @@ Para ver o JSON gerado no seu PC sem enviar nada, rode `UsageIACockpit.exe --hea
 
 ## Tarefas do Claude Code e do Codex (`/v1/agents`)
 
-Com o envio para API ligado, o app também manda as **tarefas** do Claude Code e do Codex: o que está executando agora, o que parou esperando uma resposta sua e o que terminou nas últimas 2 horas, com os tokens gastos. O painel do Echo Show usa isso para listar as tarefas, avisar quando chega uma pergunta e quando uma tarefa termina.
+Com o envio para API ligado, o app também manda as **tarefas** do Claude Code e do Codex: o que está executando agora, o que parou esperando uma resposta sua e o que terminou nas últimas 8 horas, com os tokens gastos. O painel do Echo Show usa isso para listar as tarefas, avisar quando chega uma pergunta e quando uma tarefa termina.
 
 Uma tarefa é o pedido mais recente de cada sessão do Claude Code (ou conversa do Codex): do momento em que você mandou a mensagem até a resposta terminar. Vão os tokens desse pedido (`tokens`) e os da conversa inteira (`conversation`).
 
@@ -439,7 +439,7 @@ Content-Type: application/json; charset=utf-8
 | `reason` | `change` (tarefa nova, mudança de estado ou de pergunta), `progress` (tokens de tarefas executando), `heartbeat` (sinal de vida), `paused` (consultas pausadas) ou `test` (não grava nada) |
 | `paused` | `true` quando as consultas do app estão pausadas; `tasks` vai vazio |
 | `rates.claude`, `rates.codex` | Tokens de saída por segundo, somando as tarefas executando da ferramenta (média de ~30 s). `null` com a conta desligada |
-| `tasks[].state` | `running`, `waiting` (pergunta ou permissão pendente) ou `done` (terminou há menos de 2 h) |
+| `tasks[].state` | `running`, `waiting` (pergunta ou permissão pendente) ou `done` (terminou há menos de 8 h) |
 | `tasks[].since` | Quando entrou no estado atual. `startedAt`: início do pedido; `endedAt`: fim, só em `done` |
 | `tasks[].question` | Só em `waiting`. `kind`: `question` (pergunta com opções), `permission` (com `tool`, ex.: `Bash`) ou `input` (o Claude Code espera algo que não deu para identificar) |
 | `tasks[].tokens` | `input`: entrada nova; `cacheWrite`: entrada gravada no cache; `output`: saída (inclui raciocínio); `cacheRead`: contexto lido do cache. O painel mostra `input + cacheWrite + output` |
@@ -447,7 +447,7 @@ Content-Type: application/json; charset=utf-8
 | `tasks[].tokensPerSecond` | Saída por segundo da tarefa; `null` em `done` |
 | `tasks[].limitPercent` | Só no Codex: quanto do limite de 5 h o pedido consumiu |
 
-A lista vem ordenada (perguntas, execuções, concluídas) e tem no máximo 16 tarefas. O corpo pode passar de 16 KB; a API aceita até 64 KB nesta rota.
+A lista vem ordenada (perguntas, execuções, concluídas) e tem no máximo 20 tarefas; com mais, as concluídas mais antigas ficam de fora. O corpo pode passar de 16 KB; a API aceita até 64 KB nesta rota.
 
 ### Quando o app envia
 

@@ -67,9 +67,9 @@ public static class AgentStates
 public sealed class AgentTasksMonitor : IDisposable
 {
     /// <summary>Tarefas concluídas continuam na lista por este tempo.</summary>
-    public static readonly TimeSpan DoneVisible = TimeSpan.FromHours(2);
-    /// <summary>Limite de tarefas na lista (perguntas e execuções primeiro).</summary>
-    public const int MaxTasks = 16;
+    public static readonly TimeSpan DoneVisible = TimeSpan.FromHours(8);
+    /// <summary>Limite de tarefas na lista (perguntas e execuções primeiro). A API aceita até 20.</summary>
+    public const int MaxTasks = 20;
 
     readonly Timer _timer;
     readonly ClaudeTasks _claude = new();
@@ -491,6 +491,13 @@ sealed class ClaudeTasks
         DateTimeOffset _nextLookup = DateTimeOffset.MinValue;
         DateTimeOffset _nextSubagents = DateTimeOffset.MinValue;
         readonly Dictionary<string, JsonlTail> _subagents = new();
+        // Hora do último pedido à API (linha "api-request") de cada arquivo: início da próxima resposta.
+        sealed class RequestClock { public DateTimeOffset? At; }
+        readonly RequestClock _mainClock = new();
+        readonly Dictionary<string, RequestClock> _clocks = new();
+        // Respostas do pedido atual: do pedido à API até a última linha gravada, com a saída final.
+        readonly Dictionary<string, (DateTimeOffset Start, DateTimeOffset End, long Output)> _spans = new();
+        static readonly TimeSpan RateWindow = TimeSpan.FromSeconds(90);
 
         // Pedido atual (turno): do último prompt do usuário em diante.
         DateTimeOffset? _turnStart;
@@ -501,7 +508,6 @@ sealed class ClaudeTasks
         // Conversa inteira: cada resposta (e de subagentes) uma vez, por message.id.
         readonly Dictionary<string, AgentTokens> _all = new();
         readonly Dictionary<string, (string Name, JsonElement Input, DateTimeOffset At)> _pending = new();
-        readonly RateMeter _rate = new();
         string? _lastStatus;
         DateTimeOffset? _endedAt;
 
@@ -540,7 +546,7 @@ sealed class ClaudeTasks
             }
             foreach (var doc in docs)
                 using (doc)
-                    Apply(doc.RootElement, subagent: false);
+                    Apply(doc.RootElement, subagent: false, _mainClock);
 
             if (now >= _nextSubagents)
             {
@@ -560,10 +566,13 @@ sealed class ClaudeTasks
                 {
                 }
             }
-            foreach (var tail in _subagents.Values)
+            foreach (var (file, tail) in _subagents)
+            {
+                if (!_clocks.TryGetValue(file, out var clock)) _clocks[file] = clock = new RequestClock();
                 foreach (var doc in tail.ReadNew(out _))
                     using (doc)
-                        Apply(doc.RootElement, subagent: true);
+                        Apply(doc.RootElement, subagent: true, clock);
+            }
         }
 
         string? FindTranscript()
@@ -593,20 +602,26 @@ sealed class ClaudeTasks
             _lastText = null;
             _usage.Clear();
             _pending.Clear();
-            _rate.Reset();
+            _spans.Clear();
         }
 
-        void Apply(JsonElement r, bool subagent)
+        void Apply(JsonElement r, bool subagent, RequestClock clock)
         {
             var type = AgentText.Str(r, "type");
             var at = AgentText.Time(r);
             var message = AgentText.Obj(r, "message");
 
+            if (type == "api-request")
+            {
+                clock.At = at ?? clock.At;
+                return;
+            }
+
             if (subagent)
             {
                 // Subagentes: só o consumo. Entra na conversa sempre e no pedido atual se for depois dele.
                 if (type == "assistant")
-                    AddUsage(message, turn: at is { } t && _turnStart is { } start && t >= start);
+                    AddUsage(message, turn: at is { } t && _turnStart is { } start && t >= start, at, clock);
                 return;
             }
 
@@ -629,8 +644,11 @@ sealed class ClaudeTasks
                 // Mensagens do próprio Claude Code (avisos, resumo após compactar a conversa) não são pedidos.
                 if (r.TryGetProperty("isMeta", out var meta) && meta.ValueKind == JsonValueKind.True) return;
                 if (r.TryGetProperty("isCompactSummary", out var compact) && compact.ValueKind == JsonValueKind.True) return;
+                // Aviso de tarefa em segundo plano que terminou: entra como "user", mas não é um pedido seu.
+                if (AgentText.Str(AgentText.Obj(r, "origin"), "kind") == "task-notification") return;
                 var text = AgentText.ContentText(content);
-                if (string.IsNullOrWhiteSpace(text) || text.StartsWith("[Request interrupted", StringComparison.Ordinal)) return;
+                if (string.IsNullOrWhiteSpace(text) || text.StartsWith("[Request interrupted", StringComparison.Ordinal)
+                    || text.TrimStart().StartsWith("<task-notification>", StringComparison.Ordinal)) return;
                 ResetTurn(at ?? DateTimeOffset.Now);
                 _prompt = AgentText.Clip(text, 300);
                 _lastProgressAt = at;
@@ -640,7 +658,7 @@ sealed class ClaudeTasks
             if (type == "assistant")
             {
                 _lastProgressAt = at ?? _lastProgressAt;
-                AddUsage(message, turn: _turnStart != null);
+                AddUsage(message, turn: _turnStart != null, at, clock);
                 if (_turnStart == null) return;
                 var content = AgentText.Obj(message, "content");
                 if (content.ValueKind != JsonValueKind.Array) return;
@@ -655,7 +673,7 @@ sealed class ClaudeTasks
             }
         }
 
-        void AddUsage(JsonElement message, bool turn)
+        void AddUsage(JsonElement message, bool turn, DateTimeOffset? at, RequestClock clock)
         {
             var usage = AgentText.Obj(message, "usage");
             if (usage.ValueKind != JsonValueKind.Object) return;
@@ -665,7 +683,34 @@ sealed class ClaudeTasks
                 AgentText.Long(usage, "input_tokens"), AgentText.Long(usage, "cache_creation_input_tokens"),
                 AgentText.Long(usage, "output_tokens"), AgentText.Long(usage, "cache_read_input_tokens"));
             _all[id] = tokens;
-            if (turn) _usage[id] = tokens;
+            if (!turn) return;
+            _usage[id] = tokens;
+            // Velocidade: a resposta só é gravada quando termina, já com a saída final. Mede-se do pedido à
+            // API até a última linha dela (o total de saída não cresce enquanto o Claude gera).
+            if (at is not { } end) return;
+            if (_spans.TryGetValue(id, out var span))
+                _spans[id] = (span.Start, end > span.End ? end : span.End, tokens.Output);
+            else
+                _spans[id] = (clock.At is { } start && start <= end ? start : end, end, tokens.Output);
+        }
+
+        /// <summary>
+        /// Saída por segundo das respostas do pedido atual que terminaram nos últimos 90 s (soma da saída ÷
+        /// soma do tempo de cada uma). Fica uma resposta atrasada, porque o Claude Code só grava a resposta
+        /// pronta. Sem resposta recente: nulo.
+        /// </summary>
+        double? Speed(DateTimeOffset now)
+        {
+            long output = 0;
+            double seconds = 0;
+            foreach (var s in _spans.Values)
+            {
+                var duration = (s.End - s.Start).TotalSeconds;
+                if (now - s.End > RateWindow || duration < 0.5 || s.Output <= 0) continue;
+                output += s.Output;
+                seconds += duration;
+            }
+            return seconds > 0 ? Math.Round(output / seconds, 1) : null;
         }
 
         public AgentTask? ToTask(DateTimeOffset now, HookMark? mark)
@@ -697,7 +742,7 @@ sealed class ClaudeTasks
                 since = start;
             }
 
-            var rate = state == AgentStates.Done ? null : _rate.Sample(now, tokens.Output);
+            var rate = state == AgentStates.Done ? null : Speed(now);
             return new AgentTask(
                 AgentText.Id("claude", _id),
                 "claude",
