@@ -1,11 +1,11 @@
-<!-- Gerado a partir do painel real (usage-ia-cockpit-echo-show) com dados simulados. Não editar à mão. -->
+<!-- Gerado a partir do painel publicado (usage-ia-cockpit-echo-show) com dados simulados. Não editar à mão. -->
 <!doctype html>
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#000000">
-  <title>Painel Echo Show · Tarefas (protótipo)</title>
+  <title>Painel Echo Show · custo e som (protótipo)</title>
   <style>
 /* Tema escuro do UsageCockpit (Palette.cs / App.xaml), em escala para 960×480. */
 :root {
@@ -563,8 +563,12 @@ button:focus-visible, input:focus-visible { outline: 2px solid #4C9AFF; outline-
 .pcard .chip { padding: 1px 4px; font-size: 10px; }
 .detail { left: 350px; }
 
-/* ---------- Nova visão: Tarefas (no lugar de "Mais pesados") ---------- */
+/* ---------- Visão Tarefas (layout B): tarefas do Claude Code e do Codex no lugar de "Mais pesados" ----------
+   O botão de lista no topo alterna com a visão anterior (Mais pesados); a escolha fica no aparelho.
+   .vt só existe junto de .lb. .toff: tarefas sem envio recente do PC (cinza, como o PC offline). */
 .top { position: relative; }
+.vtoggle { display: none; }
+.lb .vtoggle { display: inline-block; }
 .vtoggle[aria-pressed="true"] { color: #4C9AFF; border-color: #4C9AFF; }
 
 #hb-tasks { display: none; }
@@ -613,13 +617,13 @@ button:focus-visible, input:focus-visible { outline: 2px solid #4C9AFF; outline-
 .tempty svg { width: 30px; height: 30px; fill: none; stroke: #3A4048; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .tempty small { font-size: 12px; color: #6B7280; }
 
-.hoff .task .spin { animation: none; border-top-color: #59616B; border-color: #2A3038; }
-.hoff .task.ask { border-color: var(--panel-border); background: #141920; }
-.hoff .task.ask::after { display: none; }
-.hoff .task .badge { background: #59616B; }
-.hoff .ts, .hoff .task.run .ts b, .hoff .task.done .ts b, .hoff .task.ask .ts { color: var(--muted); }
-.hoff .tcard.ask { border-color: var(--panel-border); }
-.hoff .tcount .q, .hoff .tcount .r { color: var(--muted); }
+.hoff .task .spin, .toff .task .spin { animation: none; border-top-color: #59616B; border-color: #2A3038; }
+.hoff .task.ask, .toff .task.ask { border-color: var(--panel-border); background: #141920; }
+.hoff .task.ask::after, .toff .task.ask::after { display: none; }
+.hoff .task .badge, .toff .task .badge { background: #59616B; }
+.hoff .ts, .hoff .task.run .ts b, .hoff .task.done .ts b, .hoff .task.ask .ts, .toff .ts, .toff .task.run .ts b, .toff .task.done .ts b, .toff .task.ask .ts { color: var(--muted); }
+.hoff .tcard.ask, .toff .tcard.ask { border-color: var(--panel-border); }
+.hoff .tcount .q, .hoff .tcount .r, .toff .tcount .q, .toff .tcount .r { color: var(--muted); }
 
 /* ---------- Aviso no topo (pergunta nova ou tarefa concluída) ---------- */
 .tbanner { position: absolute; left: 0; right: 0; top: 6px; bottom: 6px; z-index: 5; display: flex; align-items: center; gap: 12px; padding: 0 10px 0 12px; border-radius: 12px; border: 1px solid; opacity: 0; transform: translateY(-70px); transition: transform 0.35s cubic-bezier(0.34, 1.3, 0.64, 1), opacity 0.25s; pointer-events: none; cursor: pointer; }
@@ -643,7 +647,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid #4C9AFF; outline-
 .tbanner .x svg { display: block; width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; }
 
 /* ---------- Tela da tarefa (toque numa tarefa ou em "Ver") ---------- */
-#tdetail { position: absolute; left: 350px; top: 0; right: 0; bottom: 0; display: grid; grid-template-columns: 232px minmax(0, 1fr); column-gap: 8px; opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 0.25s, visibility 0s 0.25s; }
+#tdetail { position: absolute; left: 350px; z-index: 2; top: 0; right: 0; bottom: 0; display: grid; grid-template-columns: 232px minmax(0, 1fr); column-gap: 8px; opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 0.25s, visibility 0s 0.25s; }
 .texp #tdetail { opacity: 1; visibility: visible; pointer-events: auto; transition: opacity 0.3s 0.05s, visibility 0s; }
 .texp .hmain { visibility: hidden; pointer-events: none; }
 #tdetail .card { display: flex; flex-direction: column; padding: 8px 10px; }
@@ -679,8 +683,10 @@ button:focus-visible, input:focus-visible { outline: 2px solid #4C9AFF; outline-
 
 /* ---------- Visão Tarefas: IA mais estreita, saúde em uma coluna de 3 e lista larga ---------- */
 /* Larguras: IA 300 · saúde 244 · tarefas ~378 (antes: 340 · 4 mostradores · 239). */
-.lb.vt .columns { grid-template-columns: 300px minmax(0, 1fr); }
-.lb.vt .column { padding: 4px 8px 6px 2px; column-gap: 4px; }
+/* Termômetro perto do mostrador: IA em 270 px, a lista de tarefas fica com ~408 px. */
+.lb.vt .columns { grid-template-columns: 270px minmax(0, 1fr); }
+.lb.vt .column { grid-template-columns: 200px 60px; column-gap: 0; padding: 4px 6px 6px 2px; }
+.lb.vt .thermo { margin-left: -4px; }
 .lb.vt .gwrap { align-items: flex-start; }
 .lb.vt .reset { align-self: center; }
 .lb.vt .hmain { grid-template-columns: 244px minmax(0, 1fr); }
@@ -713,16 +719,18 @@ button:focus-visible, input:focus-visible { outline: 2px solid #4C9AFF; outline-
 .vt #hb-ram::after { content: ""; position: absolute; right: 0; top: 14px; bottom: 40px; width: 1px; background: #1F252D; }
 
 /* Telas sobrepostas começam logo depois da IA. */
-.vt .detail, .vt #tdetail { left: 310px; }
-.vt #tdetail { grid-template-columns: 250px minmax(0, 1fr); }
+.vt .detail, .vt #tdetail { left: 280px; }
+.vt #tdetail { grid-template-columns: 262px minmax(0, 1fr); }
 
 /* Coluna da direita alinhada ao topo dos cartões da IA e da saúde. */
 .vt .health-side { padding-top: 0; }
+/* Todos os cartões 3 px abaixo do topo: no Echo Show a escala cortava a borda de cima (a vermelha dos alertas aparecia). */
+.lb.vt .columns, .vt .detail, .vt #tdetail { top: 3px; }
 
 /* Tokens: contagem na lista e na tela da tarefa; tokens/s nos mostradores (só na visão Tarefas). */
 .tk { font-family: var(--mono); font-size: 10.5px; color: var(--text); }
 .task.done .tk { color: #AEB6BF; }
-.hoff .tk { color: var(--muted); }
+.hoff .tk, .toff .tk { color: var(--muted); }
 .tokbox { display: flex; gap: 6px; }
 .tokbox div { flex: 1; min-width: 0; padding: 5px 8px; border: 1px solid #2A3038; border-radius: 8px; background: #11161C; }
 .tokbox b { display: block; font: 600 17px/22px var(--mono); color: var(--text); }
@@ -737,27 +745,74 @@ button:focus-visible, input:focus-visible { outline: 2px solid #4C9AFF; outline-
 .vt .gauge [data-v="readout"] { font-size: 20px; transform: translateY(-7px); }
 
 /* Selo de tokens na lista: raio e cor própria (violeta), à direita da tarefa. */
-.tchip { flex: none; align-self: center; display: flex; align-items: center; gap: 3px; padding: 2px 8px 2px 5px; border: 1px solid rgba(179, 146, 240, 0.45); border-radius: 999px; background: rgba(179, 146, 240, 0.12); color: #C9B3FF; font: 700 12px/16px var(--mono); white-space: nowrap; }
+/* Pílula: raio, último pedido (verde) | conversa toda (azul). */
+.tchip { flex: none; align-self: center; display: flex; align-items: center; gap: 4px; padding: 2px 8px 2px 5px; border: 1px solid rgba(179, 146, 240, 0.4); border-radius: 999px; background: #161B22; color: var(--text); font: 700 12px/16px var(--mono); white-space: nowrap; }
 .tchip svg { width: 12px; height: 12px; fill: #B392F0; }
-.task.done .tchip { border-color: rgba(179, 146, 240, 0.25); background: rgba(179, 146, 240, 0.06); color: #A991D9; }
+.tchip .tl { color: #56D364; }
+.tchip .tt { color: #79B8FF; }
+.tchip .tsep { width: 1px; height: 11px; background: #3A4048; }
+.task.done .tchip { border-color: rgba(179, 146, 240, 0.22); background: #141920; }
+.task.done .tchip .tl { color: #3FB950; }
+.task.done .tchip .tt { color: #5A9BEA; }
 .task.ask .tchip { align-self: flex-start; margin-top: 1px; }
-.hoff .tchip { border-color: var(--panel-border); background: none; color: var(--muted); }
-.hoff .tchip svg { fill: var(--muted); }
+.hoff .task .tchip, .toff .task .tchip { border-color: var(--panel-border); background: none; color: var(--muted); }
+.hoff .task .tchip svg, .toff .task .tchip svg { fill: var(--muted); }
+.hoff .task .tchip .tl, .hoff .task .tchip .tt, .toff .task .tchip .tl, .toff .task .tchip .tt { color: var(--muted); }
 
 /* Tela da tarefa: cartões de token coloridos (tokens violeta, velocidade ciano, limite amarelo). */
 .tokbox .kt { border-color: rgba(179, 146, 240, 0.55); background: rgba(179, 146, 240, 0.12); }
 .tokbox .kt b { display: flex; align-items: center; gap: 4px; color: #C9B3FF; }
 .tokbox .kt b svg { width: 15px; height: 15px; fill: #B392F0; flex: none; }
+/* Tela da tarefa: o cartão violeta com os dois números (último pedido e conversa toda). */
+.tokbox .kt { flex: 1.7; display: flex; gap: 10px; }
+.tokbox .kt .kv { flex: 1; min-width: 0; padding: 0; border: 0; background: none; }
+.tokbox .kt .kv b.tl { color: #56D364; }
+.tokbox .kt .kv b.tt { color: #79B8FF; }
+.tokbox .kt .kv + .kv { padding-left: 10px; border-left: 1px solid rgba(179, 146, 240, 0.3); }
+.toff .tokbox .kt .kv b { color: var(--muted); }
 .tokbox .ks { border-color: rgba(57, 197, 207, 0.55); background: rgba(57, 197, 207, 0.10); }
 .tokbox .ks b { color: #56D4DD; }
 .tokbox .kl { border-color: rgba(232, 212, 77, 0.5); background: rgba(232, 212, 77, 0.08); }
 .tokbox .kl b { color: #E8D44D; }
 .tokbox span { color: #9AA4AF; }
 .tall .tchip { display: inline-flex; margin-top: 3px; padding: 1px 7px 1px 4px; font-size: 11px; line-height: 15px; }
+
+/* Tarefa concluída (visão Tarefas): aviso no meio da lista que fica ~3 s, sobe e some em ~5 s.
+   Só transform/opacity. Tocar enquanto aparece abre a tarefa. */
+.health-side { position: relative; }
+.tpops { position: absolute; left: 0; right: 0; top: 54px; bottom: 0; pointer-events: none; overflow: hidden; border-radius: 12px; z-index: 3; }
+.tpop { position: absolute; left: 50%; top: 50%; width: 86%; padding: 10px 12px; border: 1px solid var(--ok); border-radius: 14px;
+  background: #0F2116; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55), 0 0 0 4px rgba(63, 185, 80, 0.12);
+  display: flex; gap: 10px; align-items: center; pointer-events: auto; cursor: pointer; will-change: transform, opacity;
+  animation: tpopLife 8s cubic-bezier(0.33, 0, 0.4, 1) forwards; }
+.tpop .tico { width: 36px; height: 36px; margin: 0; border-radius: 50%; background: rgba(63, 185, 80, 0.16); }
+.tpop .tico svg.logo { left: 8px; top: 8px; width: 20px; height: 20px; }
+.tpop .tico .badge { width: 17px; height: 17px; font-size: 12px; line-height: 17px; background: var(--ok); }
+.tpop .tx { min-width: 0; flex: 1; }
+.tpop .k { font-size: 10.5px; line-height: 13px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--ok); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tpop .m { margin: 2px 0 5px; font-size: 16px; line-height: 20px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tpop .tchip { display: inline-flex; }
+.tpop .hint { margin-left: 6px; font-size: 10.5px; color: #8FB8FF; }
+@keyframes tpopLife {
+  0% { opacity: 0; transform: translate(-50%, -30%) scale(0.92); }
+  5% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  35% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -210%) scale(0.98); }
+}
 .tokbox b span { display: inline; font: inherit; color: inherit; }
 /* Mostrador do Claude/Codex um pouco menor na visão Tarefas, para o tok/s não encostar na linha do reset. */
 .lb.vt .gauge { width: 200px; height: 160px; }
 .lb.vt .reset { margin-top: 4px; }
+
+/* ---------- Protótipo v3: custo equivalente ---------- */
+.tusd { color: #F778BA; font-family: var(--mono); font-size: 10.5px; }
+.task.done .tusd { color: #D16BA0; }
+.hoff .tusd, .toff .tusd { color: var(--muted); }
+.tcost { display: flex; gap: 6px; margin-top: 6px; }
+.tcost div { flex: 1; min-width: 0; padding: 5px 8px; border: 1px solid rgba(247, 120, 186, 0.5); border-radius: 8px; background: rgba(247, 120, 186, 0.08); }
+.tcost b { display: block; font: 600 17px/22px var(--mono); color: #F778BA; }
+.tcost span { display: block; font-size: 10.5px; line-height: 13px; color: #9AA4AF; }
+.tpop .pusd { margin-left: 6px; font: 700 12px/16px var(--mono); color: #F778BA; }
 
 </style>
 </head>
@@ -801,6 +856,10 @@ button:focus-visible, input:focus-visible { outline: 2px solid #4C9AFF; outline-
         <button id="refresh" class="refresh" type="button" aria-label="Atualizar agora" title="Atualizar agora">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8M21 3v5h-5"/></svg>
         </button>
+        <!-- Só no layout B: alterna a lista da direita entre Tarefas (nova) e Mais pesados (anterior). -->
+        <button id="view" class="fs vtoggle" type="button" aria-pressed="true" aria-label="Mostrar os apps mais pesados" title="Trocar a lista da direita: Tarefas ou Mais pesados">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6l1.5 1.5L8 5M4 12l1.5 1.5L8 11M4 18l1.5 1.5L8 17M11 6h9M11 12h9M11 18h9"/></svg>
+        </button>
         <button id="fs" class="fs" type="button" aria-label="Tela cheia" title="Tela cheia">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path id="fs-icon" d=""/></svg>
         </button>
@@ -809,6 +868,8 @@ button:focus-visible, input:focus-visible { outline: 2px solid #4C9AFF; outline-
         </button>
         <span id="monitor-status" class="monitor-status" role="status" aria-live="polite">Toque para manter ativa</span>
       </div>
+      <!-- Aviso de pergunta nova ou tarefa concluída: cobre o topo por alguns segundos. -->
+      <div id="tbanner" class="tbanner" role="status" aria-live="polite"></div>
     </header>
     <section id="stage" class="stage">
       <!-- Modo normal. Com a saúde (layout B): cartões de IA à esquerda e a saúde à direita.
@@ -829,6 +890,9 @@ button:focus-visible, input:focus-visible { outline: 2px solid #4C9AFF; outline-
               <span class="alert-label"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 22 20H2L12 3Z"/><path d="M12 9v5m0 3h.01"/></svg><span id="hb-alerts-title">Alertas</span></span><span>Ver todos os alertas</span>
             </button>
             <div id="hb-procs" class="card pcard"></div>
+            <section id="hb-tasks" class="card tcard" aria-label="Tarefas do Claude Code e do Codex"></section>
+            <!-- Aviso de tarefa concluída que sobe pela lista e some (visão Tarefas). -->
+            <div id="tpops" class="tpops" role="status" aria-live="polite"></div>
           </div>
           <div id="hb-alerts" hidden></div>
         </section>
@@ -855,18 +919,82 @@ button:focus-visible, input:focus-visible { outline: 2px solid #4C9AFF; outline-
           <section id="al-info" class="card infocard" aria-label="Detalhes da saúde"></section>
         </div>
       </div>
+      <!-- Tela da tarefa (toque numa tarefa ou em Ver no aviso): todas as tarefas e o detalhe da escolhida. -->
+      <div id="tdetail" aria-hidden="true">
+        <section id="tall" class="card tall" aria-label="Todas as tarefas"></section>
+        <section id="tone" class="card tdcard" aria-label="Detalhe da tarefa"></section>
+      </div>
     </section>
     </div>
   </main>
   <audio id="monitor-audio" preload="none" hidden aria-hidden="true"></audio>
-  <script>/* mock.js */
+  <script>
+// Protótipo v2: tarefas simuladas com horários fixos e o total da conversa (conversation) além do último pedido.
+(function () {
+  var MIN = 60000, T0 = Date.now();
+  function at(minAgo) { return new Date(T0 - minAgo * MIN).toISOString(); }
+  window.MOCK = { done: false, ask: false, offline: /[#&]o=1/.test(location.hash) };
+  var grow = 0;
+  window.AGENTS = function () {
+    grow++;
+    var m = window.MOCK;
+    var tasks = [
+      { id: 'c-111111111111', provider: 'claude', name: 'Echo Show Claude/Codex monitoring expansion', project: 'monitor-uso-ia', state: 'waiting',
+        since: at(1.5), startedAt: at(9), endedAt: null,
+        question: { kind: 'question', text: 'Quer que eu monte a proposta com essas regras?', tool: null, options: ['Montar proposta', 'Agora não'] },
+        prompt: 'Pode implementar a sua proposta nas três aplicações, desktop, API e painel.', summary: null,
+        tokens: { input: 31200, cacheWrite: 85000, output: 9800, cacheRead: 2400000 },
+        conversation: { input: 412000, cacheWrite: 690000, output: 183000, cacheRead: 36000000 }, tokensPerSecond: 0, limitPercent: null },
+      { id: 'x-222222222222', provider: 'codex', name: 'Preencher formulário da palestra', project: 'Kiro-Workspace', state: 'running',
+        since: at(12), startedAt: at(12), endedAt: null, question: null,
+        prompt: 'Preencha o formulário de inscrição da palestra com os dados do meu perfil e revise antes de enviar.', summary: null,
+        tokens: { input: 41800, cacheWrite: 0, output: 6200 + grow * 250, cacheRead: 610000 },
+        conversation: { input: 96000, cacheWrite: 0, output: 14200 + grow * 250, cacheRead: 1900000 }, tokensPerSecond: 64, limitPercent: 2 },
+      { id: 'c-333333333333', provider: 'claude', name: 'Post Agent — Descobertas (seg–sex 06:00)', project: 'post-agent', state: 'running',
+        since: at(4), startedAt: at(4), endedAt: null, question: null, prompt: 'Rode a rotina de descobertas do dia e salve os candidatos a post.', summary: null,
+        tokens: { input: 12400, cacheWrite: 22000, output: 3100, cacheRead: 380000 },
+        conversation: { input: 12400, cacheWrite: 22000, output: 3100, cacheRead: 380000 }, tokensPerSecond: 88, limitPercent: null },
+      { id: 'x-444444444444', provider: 'codex', name: 'Listar PDIs locais', project: 'pdi-esig', state: 'done',
+        since: at(7), startedAt: at(13), endedAt: at(7), question: null, prompt: 'Liste os PDIs locais e destaque os vencidos.',
+        summary: 'Encontrei 14 PDIs na pasta local. 3 estão sem revisão desde agosto e 2 têm metas vencidas.',
+        tokens: { input: 52300, cacheWrite: 0, output: 8900, cacheRead: 1100000 },
+        conversation: { input: 230000, cacheWrite: 0, output: 41000, cacheRead: 5200000 }, tokensPerSecond: null, limitPercent: 3 },
+      { id: 'c-555555555555', provider: 'claude', name: 'Banco de horas (segunda 07:00)', project: 'QuarkRH-Agent', state: 'done',
+        since: at(38), startedAt: at(40), endedAt: at(38), question: null, prompt: 'Atualize o banco de horas da semana.',
+        summary: 'Banco de horas atualizado: saldo de +6h12 na semana.',
+        tokens: { input: 8100, cacheWrite: 15000, output: 1900, cacheRead: 210000 },
+        conversation: { input: 8100, cacheWrite: 15000, output: 1900, cacheRead: 210000 }, tokensPerSecond: null, limitPercent: null }
+    ];
+    if (m.done) { var t = tasks[1]; t.state = 'done'; t.since = t.endedAt = new Date(m.done).toISOString(); t.tokensPerSecond = null;
+      t.summary = 'Formulário preenchido e revisado. Faltou só o número de matrícula, que deixei em branco para você conferir.'; }
+    if (m.ask) tasks.push({ id: 'x-666666666666', provider: 'codex', name: 'Revisar contrato da API de saúde', project: 'usage-ia-api', state: 'waiting',
+      since: new Date(m.ask).toISOString(), startedAt: at(2), endedAt: null,
+      question: { kind: 'question', text: 'O campo agents entra no /v1/panel ou numa rota separada?', tool: null, options: ['No /v1/panel', 'Rota separada'] },
+      prompt: 'Revise o contrato e aplique as mudanças.', summary: null,
+      tokens: { input: 15000, cacheWrite: 0, output: 2100, cacheRead: 300000 },
+      conversation: { input: 15000, cacheWrite: 0, output: 2100, cacheRead: 300000 }, tokensPerSecond: 0, limitPercent: null });
+    // Custo equivalente (preços da API, em US$ por milhão de tokens). Claude: Opus 5.5 com cache de 1 h.
+    // Codex: tabela de referência só para o protótipo (o preço do modelo usado ainda precisa ser confirmado).
+    var PRICE = { claude: { model: 'Claude Opus 5.5', input: 4, write: 8, output: 20, read: 0.2 },
+                  codex: { model: 'GPT (referência)', input: 1.25, write: 0, output: 10, read: 0.125 } };
+    function usd(k, p) { return k ? (k.input * p.input + k.cacheWrite * p.write + k.output * p.output + k.cacheRead * p.read) / 1e6 : null; }
+    tasks.forEach(function (t) {
+      var p = PRICE[t.provider];
+      t.cost = { request: usd(t.tokens, p), conversation: usd(t.conversation || t.tokens, p), model: p.model, reference: t.provider === 'codex' };
+    });
+    return { schemaVersion: 1, hasData: true, online: !m.offline, paused: false, receivedAt: new Date(m.offline ? T0 - 20 * MIN : Date.now() - 3000).toISOString(),
+      serverTime: new Date().toISOString(), offlineAfterSeconds: 360, rates: m.offline ? { claude: null, codex: null } : { claude: 88, codex: m.done ? 0 : 64 }, tasks: tasks };
+  };
+})();
+
+</script><script>
 // Protótipo: substitui a rede do painel por dados simulados (/api/auth e /api/panel).
 (function () {
   var MIN = 60000;
   function iso(msAgo) { return new Date(Date.now() - msAgo).toISOString(); }
   function ahead(ms) { return new Date(Date.now() + ms).toISOString(); }
 
-  window.PROTO = { offline: false };
+  window.PROTO = { offline: /[#&]o=1/.test(location.hash) };
 
   function dayHistory() {
     var now = Date.now(), d = new Date(now); d.setHours(0, 0, 0, 0);
@@ -911,7 +1039,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid #4C9AFF; outline-
       }
     };
     if (withHistory) health.today = dayHistory();
-    return { schemaVersion: 1, serverTime: new Date().toISOString(), usage: usage, health: health };
+    return { schemaVersion: 1, serverTime: new Date().toISOString(), usage: usage, health: health, agents: window.AGENTS() };
   }
 
   function FakeXHR() { this.status = 0; this.responseText = ''; this.headers = {}; }
@@ -932,8 +1060,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid #4C9AFF; outline-
   window.XMLHttpRequest = FakeXHR;
 })();
 
-</script>
-<script>/* monitor.js */
+</script><script>
 'use strict';
 
 // Áudio silencioso local, inspirado na técnica do Keep Silk Open:
@@ -1074,8 +1201,95 @@ function createMonitorProtection(options) {
   };
 }
 
+</script><script>
+// Três sons de alarme para "tarefa concluída", sintetizados com Web Audio (sem arquivo de áudio).
+// No Echo Show o navegador só libera o som depois de um toque na tela; o painel já pede esse toque
+// para manter a tela ativa (áudio silencioso), então o contexto de áudio fica liberado.
+var AlarmSounds = (function () {
+  var ctx = null;
+  function ac() {
+    if (!ctx) {
+      var C = window.AudioContext || window.webkitAudioContext;
+      if (!C) return null;
+      ctx = new C();
+    }
+    if (ctx.state === 'suspended' && ctx.resume) ctx.resume();
+    return ctx;
+  }
+  function tone(c, out, t, freq, dur, type, peak) {
+    var o = c.createOscillator(), g = c.createGain();
+    o.type = type;
+    o.frequency.setValueAtTime(freq, t);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(peak, t + 0.006);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(out);
+    o.start(t); o.stop(t + dur + 0.05);
+  }
+  var SOUNDS = {
+    bipe: {
+      name: 'Bipe triplo', desc: 'Despertador digital: 3 séries de 4 bipes (~2 s)',
+      play: function (c, out, t) {
+        for (var s = 0; s < 3; s++)
+          for (var i = 0; i < 4; i++) tone(c, out, t + s * 0.75 + i * 0.13, 2050, 0.085, 'square', 0.18);
+      }
+    },
+    sino: {
+      name: 'Sino duplo', desc: 'Ding-dong de recepção, duas vezes (~3 s)',
+      play: function (c, out, t) {
+        function bell(t0, f) {
+          tone(c, out, t0, f, 1.4, 'sine', 0.5);
+          tone(c, out, t0, f * 2.76, 0.9, 'sine', 0.16);
+          tone(c, out, t0, f * 5.4, 0.5, 'sine', 0.07);
+        }
+        bell(t, 1318.5); bell(t + 0.55, 1046.5);
+        bell(t + 1.5, 1318.5); bell(t + 2.05, 1046.5);
+      }
+    },
+    sino1: {
+      name: 'Sino simples', desc: 'Ding-dong de recepção, uma vez só (~1,8 s)',
+      play: function (c, out, t) {
+        function bell(t0, f) {
+          tone(c, out, t0, f, 1.4, 'sine', 0.5);
+          tone(c, out, t0, f * 2.76, 0.9, 'sine', 0.16);
+          tone(c, out, t0, f * 5.4, 0.5, 'sine', 0.07);
+        }
+        bell(t, 1318.5); bell(t + 0.55, 1046.5);
+      }
+    },
+    sirene: {
+      name: 'Sirene curta', desc: 'Sobe e desce 3 vezes (~2 s)',
+      play: function (c, out, t) {
+        var o = c.createOscillator(), g = c.createGain();
+        o.type = 'triangle';
+        o.frequency.setValueAtTime(650, t);
+        for (var i = 0; i < 3; i++) {
+          o.frequency.linearRampToValueAtTime(1300, t + i * 0.7 + 0.35);
+          o.frequency.linearRampToValueAtTime(650, t + i * 0.7 + 0.7);
+        }
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(0.35, t + 0.05);
+        g.gain.setValueAtTime(0.35, t + 2.0);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 2.15);
+        o.connect(g); g.connect(out);
+        o.start(t); o.stop(t + 2.2);
+      }
+    }
+  };
+  function play(id, volume) {
+    var c = ac();
+    if (!c) return false;
+    var master = c.createGain();
+    master.gain.value = volume == null ? 0.8 : volume;
+    master.connect(c.destination);
+    (SOUNDS[id] || SOUNDS.bipe).play(c, master, c.currentTime + 0.03);
+    return true;
+  }
+  return { list: SOUNDS, play: play, unlock: ac };
+})();
+
 </script>
-  <script>/* app.js (painel real) */
+  <script>
 'use strict';
 
 // Painel do modo completo do UsageCockpit para o Echo Show 5 (960×480, só toque).
@@ -1083,6 +1297,9 @@ function createMonitorProtection(options) {
 
 // Ritmo pensado para os planos gratuitos: uma requisição a cada 15 s; 120 s com o PC offline.
 var POLL_MS = 15000, OFFLINE_POLL_MS = 120000, HISTORY_MS = 300000;
+// Com tarefa do Claude Code ou do Codex executando ou esperando resposta, o painel consulta mais
+// rápido para avisar a pergunta ou a conclusão em poucos segundos (uma leitura do Redis por consulta).
+var FAST_POLL_MS = 4000;
 var STAGE_W = 960, STAGE_H = 480;
 
 // Cores e faixas do Palette.cs (tema escuro).
@@ -1145,6 +1362,8 @@ function gaugeSvg(p) {
   s += '<circle class="provider-hit" cx="80" cy="72" r="27" fill="transparent" role="button" tabindex="0" aria-label="Atualizar ' + p.id + '"/>';
   s += '<path class="provider-logo" transform="translate(60 52) scale(1.6667)" fill="' + p.logoFill + '" d="' + p.logo + '"/>';
   s += '<text data-v="readout" x="80" y="114" fill="' + C.tick + '" font-size="22" font-weight="600" text-anchor="middle" dominant-baseline="central" font-family="Cascadia Mono, Consolas, Roboto Mono, monospace">--</text>';
+  // Visão Tarefas: saída por segundo das tarefas executando desta ferramenta.
+  s += '<text class="tps" data-v="tps" x="80" y="124" fill="' + C.tick + '" font-size="11" font-weight="700" text-anchor="middle" dominant-baseline="central" font-family="Segoe UI, Roboto, Arial, sans-serif">-- tok/s</text>';
   return s + '</svg>';
 }
 
@@ -1237,6 +1456,7 @@ function buildColumn(p, i) {
     brand: q('brand'), warn: q('warn'), danger: q('danger'), needle: q('needle'), readout: q('readout'),
     sessionReset: q('session-reset'), weekReset: q('week-reset'), weekPct: q('week-pct'),
     b1: q('b1'), b2: q('b2'), b3: q('b3'),
+    tps: q('tps'),
     thermo: q('thermo'), tCover: q('t-cover'), tTag: q('t-tag'), tTagBg: q('t-tag-bg'), tTagText: q('t-tag-text'), tWhen: q('t-when'),
     weekTarget: 0, last: {}, paint: paintGauge, onPhase: syncThermo, ph: (i || 0) * 1.7,
     shown: 0, target: 0, hasGauge: false, gaugeReady: false, gaugePhase: 'follow', offline: false,
@@ -1510,7 +1730,7 @@ function ago(iso) {
 
 // ---------- Estado e polling ----------
 
-var state = { data: null, lastUpdatedAt: null, failed: false, loading: false, refreshing: false, manualRefresh: false };
+var state = { data: null, agents: null, lastUpdatedAt: null, failed: false, loading: false, refreshing: false, manualRefresh: false };
 // Modo de espera: o app desktop para de enviar fora do expediente. Depois de IDLE_LIMIT respostas 200
 // seguidas com a mesma leitura (usage.receivedAt + health.receivedAt), o painel fica cinza e para de
 // consultar até alguém tocar em Atualizar (ou no logo de um provedor) ou recarregar a página.
@@ -1530,6 +1750,14 @@ var refreshButton = document.getElementById('refresh');
 // ausente/null (app antigo) = decide pelos dados de saúde, se houver leitura com o PC online.
 
 var layoutB = false;
+// Lista da direita no layout B: 'tasks' (Tarefas, padrão) ou 'procs' (Mais pesados, a visão anterior).
+// Começa em 'procs'; a escolha salva no aparelho (padrão Tarefas) é aplicada na inicialização (initTasks).
+var panelView = 'procs';
+function tasksView() { return layoutB && panelView === 'tasks'; }
+function applyView() {
+  var vt = tasksView();
+  if (cockpitEl.classList.contains('vt') !== vt) cockpitEl.classList.toggle('vt', vt);
+}
 function healthFlag() {
   var d = state.data;
   return d && typeof d.healthEnabled === 'boolean' ? d.healthEnabled : null;
@@ -1544,6 +1772,7 @@ function applyLayout() {
   if (b === layoutB) return;
   layoutB = b;
   if (cockpitEl.classList.contains('lb') !== b) cockpitEl.classList.toggle('lb', b);
+  applyView();
   if (!b) { setExpanded(false); return; }
   // Os termômetros estavam ocultos: voltam ao bulbo e sobem até o valor.
   PROVIDERS.forEach(function (p) { moveThermo(cols[p.id], 0, 'still'); });
@@ -1602,7 +1831,17 @@ function render() {
 // a leitura nova entra no gráfico só na memória.
 var timer, historyAt = 0, lastPollAt = 0;
 function wantsHistory() { return !historyAt || Date.now() - historyAt >= HISTORY_MS; }
-function pollInterval() { var d = state.data; return d && d.hasData && !d.online ? OFFLINE_POLL_MS : POLL_MS; }
+function pollInterval() {
+  var d = state.data;
+  if (d && d.hasData && !d.online) return OFFLINE_POLL_MS;
+  return agentsLive(state.agents) ? FAST_POLL_MS : POLL_MS;
+}
+// Tarefa executando ou esperando resposta, com o PC enviando: consulta rápida e sem modo de espera.
+function agentsLive(a) {
+  if (!a || a.online !== true || a.paused === true || !a.tasks || !a.tasks.length) return false;
+  for (var i = 0; i < a.tasks.length; i++) if (a.tasks[i] && a.tasks[i].state !== 'done') return true;
+  return false;
+}
 
 // A página voltou a ficar visível: consulta na hora só se o intervalo já passou; senão, só retoma o
 // ciclo. Sem isso, cada alternância de visibilidade (sobreposições da Alexa, por exemplo) virava
@@ -1626,11 +1865,16 @@ function acceptPanel(r, withHistory) {
   if (h && h.today) mergeDay(h.today);
   // Sem leitura de saúde, pede o histórico de novo assim que ela aparecer.
   if (withHistory) historyAt = h && h.hasData === true ? Date.now() : 0;
+  var a = r.agents && typeof r.agents === 'object' ? r.agents : null;
   state.data = u || { hasData: false };
+  state.agents = a;
   state.lastUpdatedAt = new Date().toISOString();
   health.data = h;
   processSort = priorityProcessSort(healthView(h), processSort);
-  trackIdle((u && u.receivedAt || '') + '|' + (h && h.receivedAt || ''));
+  var key = (u && u.receivedAt || '') + '|' + (h && h.receivedAt || '') + '|' + (a && a.receivedAt || '');
+  // Com tarefa ativa as consultas são a cada 4 s e o PC envia a cada 10 s: não conta como parado.
+  if (agentsLive(a)) { idle.key = key; idle.count = 0; }
+  else trackIdle(key);
 }
 
 // Conta as respostas 200 seguidas sem leitura nova; ao chegar a IDLE_LIMIT, entra em espera.
@@ -1676,6 +1920,7 @@ function poll(manual) {
     if (state.manualRefresh) releaseGaugeRefresh(aiGauges());
     render();
     renderHealth();
+    if (typeof renderTasks === 'function') renderTasks();
     state.manualRefresh = false;
     clearTimeout(timer);
     // Em espera, nenhuma consulta automática fica agendada.
@@ -1923,6 +2168,9 @@ function dialSvg(o) {
   s += '<circle cx="80" cy="72" r="27" fill="' + C.hub + '" stroke="' + C.hubRim + '" stroke-width="1"/>';
   if (o.logo) s += '<path transform="translate(60 52) scale(1.6667)" fill="' + o.logoFill + '" d="' + o.logo + '"/>';
   else s += '<text data-d="hub" x="80" y="73" fill="' + C.text + '" font-size="19" font-weight="700" text-anchor="middle" dominant-baseline="central" font-family="Segoe UI, Roboto, Arial, sans-serif">' + o.hub + '</text>';
+  // CPU na visão Tarefas: a velocidade (GHz) no centro, no lugar de "CPU" (o CSS escolhe qual aparece).
+  if (o.ghz) s += '<g class="ghz"><text data-d="ghz" x="80" y="67" fill="' + C.text + '" font-size="18" font-weight="700" text-anchor="middle" dominant-baseline="central" font-family="Cascadia Mono, Consolas, Roboto Mono, monospace">--</text>' +
+    '<text x="80" y="84" fill="' + C.muted + '" font-size="9" font-weight="600" text-anchor="middle" dominant-baseline="central" font-family="Segoe UI, Roboto, Arial, sans-serif">GHz</text></g>';
   s += '<text data-d="readout" x="80" y="114" fill="' + C.tick + '" font-size="' + (o.mini ? 26 : 22) + '" font-weight="600" text-anchor="middle" dominant-baseline="central" font-family="Cascadia Mono, Consolas, Roboto Mono, monospace">--</text>';
   return s + '</svg>';
 }
@@ -1932,7 +2180,8 @@ function makeDial(el, o) {
   var q = function (k) { return el.querySelector('[data-d="' + k + '"]'); };
   var bands = o.warn !== null && o.warn !== undefined;
   return { o: o, bands: bands, v0: q('v0'), v1: bands ? q('v1') : null, v2: bands ? q('v2') : null,
-    needle: q('needle'), hub: o.logo ? null : q('hub'), readout: q('readout'), free: o.pie ? q('free') : null, last: {} };
+    needle: q('needle'), hub: o.logo ? null : q('hub'), readout: q('readout'), free: o.pie ? q('free') : null,
+    ghz: o.ghz ? q('ghz') : null, last: {} };
 }
 
 function paintArcs(d, s) {
@@ -2041,7 +2290,7 @@ function buildHealth() {
     // Layout B: ponteiros animados pela mesma rotina dos ponteiros da IA (tickGauges).
     var cell = document.getElementById('hb-' + m.id);
     cell.innerHTML = '<div class="hdial"></div><span class="hwarn">' + WARN_ICON + '</span><div class="t">' + m.title + '</div><div class="s">--</div><div class="hspark"></div>';
-    var dial = makeDial(cell.querySelector('.hdial'), { warn: m.warn, danger: m.danger, color: C.weekBlue, hub: m.hub, scale: m.scale, live: true, pie: m.pie });
+    var dial = makeDial(cell.querySelector('.hdial'), { warn: m.warn, danger: m.danger, color: C.weekBlue, hub: m.hub, scale: m.scale, live: true, pie: m.pie, ghz: m.id === 'cpu' });
     hp.main[m.id] = { dial: dial, title: cell.querySelector('.t'), sub: cell.querySelector('.s'), warn: cell.querySelector('.hwarn'),
       spark: cell.querySelector('.hspark'), last: {},
       g: { dial: dial, paint: paintLive, ph: (i + 2) * 1.7, shown: 0, target: 0, hasGauge: false, gaugeReady: false,
@@ -2124,9 +2373,16 @@ function renderHealth() {
   }
   if (resp) recordDay(resp, v);
 
+  // Visão Tarefas: a CPU leva o GHz (centro), o modo de energia e o aviso de eficiência, que eram do
+  // mostrador de velocidade; memória e disco mostram só o espaço livre.
+  var vt = tasksView(), clk = v.metrics.clk;
   HMETRICS.forEach(function (m) {
     var mv = v.metrics[m.id], mn = hp.main[m.id], g = mn.g;
-    var subWarn = !!mv.warnText;
+    var subWarn = !!mv.warnText || (vt && m.id === 'cpu' && !!clk.warnText);
+    var sub = v.has ? mv.mini : '--';
+    if (vt && v.has && m.id === 'cpu' && clk.mini !== '--') sub = mv.mini + ' · ' + clk.mini;
+    else if (vt && v.has && (m.id === 'ram' || m.id === 'disk')) sub = mv.mini.replace(/ de \d+$/, '');
+    if (mn.dial.ghz) set(mn.dial, 'ghz', mn.dial.ghz, 'text', clk.has ? clk.readout : '--');
     // Principal: ponteiro animado (parado offline ou sem dados), leitura e textos.
     g.offline = off;
     updateHealthTarget(g, mv.pct, mv.has);
@@ -2134,9 +2390,9 @@ function renderHealth() {
     set(mn.dial, 'readout', mn.dial.readout, 'text', mv.has ? mv.readout : '--');
     set(mn.dial, 'readoutFill', mn.dial.readout, 'fill', mv.has ? mv.color : C.tick);
     set(mn, 'title', mn.title, 'text', mv.title);
-    set(mn, 'sub', mn.sub, 'text', v.has ? mv.mini : '--');
+    set(mn, 'sub', mn.sub, 'text', sub);
     set(mn, 'subWarn', mn.sub, 'className', 's' + (subWarn ? ' w' : ''));
-    set(mn, 'flag', mn.warn, 'className', 'hwarn' + (mv.flag ? ' on' : ''));
+    set(mn, 'flag', mn.warn, 'className', 'hwarn' + (mv.flag || (vt && m.id === 'cpu' && clk.flag) ? ' on' : ''));
     var spark = daySpark(DAY_COL[m.id], m.k, mv.has ? mv.color : C.tick);
     if (mn.last.spark !== spark) { mn.last.spark = spark; mn.spark.innerHTML = spark; }
   });
@@ -2401,8 +2657,317 @@ function tick() {
   var dateText = DAYS[d.getDay()].toUpperCase() + ', ' + d.getDate() + ' de ' + MONTHS[d.getMonth()];
   if (dateLabel.textContent !== dateText) dateLabel.textContent = dateText;
   // Textos relativos ("reseta em 38min") mudam a cada minuto, sem consultar a rede.
-  if (d.getMinutes() !== lastMinute) { lastMinute = d.getMinutes(); render(); renderHealth(); }
+  if (d.getMinutes() !== lastMinute) { lastMinute = d.getMinutes(); render(); renderHealth(); renderTasks(true); }
   setTimeout(tick, 1000 - d.getMilliseconds() + 20);
+}
+
+// ---------- Tarefas do Claude Code e do Codex (visão Tarefas) ----------
+// Vêm em agents, na mesma resposta do /api/panel. O app desktop lê os arquivos do Claude Code e do
+// Codex no PC e envia cada mudança; aqui só se desenha. Pergunta nova e tarefa concluída aparecem
+// num aviso no topo; a lista fica no lugar de "Mais pesados" (o botão de lista volta à visão anterior).
+
+var VIEW_KEY = 'cockpit.view';
+var TMIN = 60000;
+var LIST_H = 292; // altura útil da lista no cartão; pergunta ≈ 86 px, permissão ≈ 76 px, demais ≈ 41 px
+var TNAME = { claude: 'Claude', codex: 'Codex' };
+var TBOLT = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z"/></svg>';
+var TX_ICON = '<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>';
+var TEMPTY_ICON = '<svg viewBox="0 0 24 24"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>';
+var tk = { card: null, banner: null, pops: null, detail: null, all: null, one: null, view: null, sel: null, open: false,
+  bannerTimer: 0, bannerTask: null, known: null, last: {} };
+
+function tProvider(id) { for (var i = 0; i < PROVIDERS.length; i++) if (PROVIDERS[i].id === id) return PROVIDERS[i]; return PROVIDERS[0]; }
+function tMs(iso) { var t = Date.parse(iso); return isFinite(t) ? t : null; }
+function tMins(ms) {
+  var m = Math.floor(Math.max(0, ms) / TMIN);
+  if (m < 1) return 'agora';
+  if (m < 60) return m + ' min';
+  return Math.floor(m / 60) + 'h' + (m % 60 ? pad(m % 60) : '');
+}
+// Tokens: entrada nova (com o que foi gravado no cache) + saída. O cache lido fica só no detalhe.
+function tSum(k) { return k ? (num(k.input) || 0) + (num(k.cacheWrite) || 0) + (num(k.output) || 0) : 0; }
+// Do último pedido (tokens) e da conversa inteira (conversation; app 0.11 não manda: vale o do pedido).
+function tTokens(t) { return tSum(t.tokens); }
+function tTotal(t) { return t.conversation ? tSum(t.conversation) : tTokens(t); }
+// 850, 4,1K, 49K, 1,2M, 36M.
+function fmtTok(n) {
+  if (n < 1000) return String(Math.round(n));
+  if (n < 1e6) return (n < 10000 ? comma(n / 1000, 1).replace(',0', '') : String(Math.round(n / 1000))) + 'K';
+  return (n < 1e7 ? comma(n / 1e6, 1).replace(',0', '') : String(Math.round(n / 1e6))) + 'M';
+}
+function tQText(t) { var q = t.question; return q.kind === 'permission' && q.tool ? q.tool + ': ' + q.text : q.text; }
+function tDuration(t) {
+  var a = tMs(t.startedAt), b = tMs(t.endedAt || t.since);
+  return a !== null && b !== null && b > a ? tMins(b - a) : '';
+}
+function tStateLine(t) {
+  var age = now() - (tMs(t.since) || now());
+  if (t.state === 'waiting') return (t.question && t.question.kind === 'permission' ? 'Pede permissão' : 'Aguardando você') + ' · ' + (age < TMIN ? 'agora' : 'há ' + tMins(age));
+  if (t.state === 'running') return '<b>Executando</b> · ' + tMins(age);
+  var d = tDuration(t);
+  return '<b>Concluída</b> às ' + hhmm(new Date(tMs(t.since) || now())) + (d ? ' · ' + d : '');
+}
+function tIcon(t, state) {
+  var p = tProvider(t.provider);
+  state = state || t.state;
+  return '<span class="tico">' + (state === 'running' ? '<span class="spin"></span>' : '') +
+    '<svg class="logo" viewBox="0 0 24 24"><path fill="' + p.logoFill + '" d="' + p.logo + '"/></svg>' +
+    (state === 'waiting' ? '<span class="badge">?</span>' : state === 'done' ? '<span class="badge">✓</span>' : '') + '</span>';
+}
+// Pílula: raio, último pedido (verde) | conversa toda (azul).
+function tChip(t) {
+  if (!t.tokens) return '';
+  return '<span class="tchip" title="tokens do último pedido | da conversa toda (entrada nova + saída)">' + TBOLT +
+    '<span class="tl">' + fmtTok(tTokens(t)) + '</span><span class="tsep"></span><span class="tt">' + fmtTok(tTotal(t)) + '</span></span>';
+}
+function tRow(t, full) {
+  var q = t.state === 'waiting' && t.question
+    ? '<div class="tq' + (t.question.kind === 'permission' ? ' cmd' : '') + '">' + esc(tQText(t)) + '</div>' : '';
+  // Na lista estreita da tela da tarefa, o selo de tokens vai numa linha própria, sem apertar o nome.
+  return '<div class="task ' + (t.state === 'waiting' ? 'ask' : t.state === 'running' ? 'run' : 'done') + (full && tk.sel === t.id ? ' sel' : '') +
+    '" data-id="' + esc(t.id) + '">' + tIcon(t) + '<div class="tx"><div class="tn">' + esc(t.name) + '</div>' + q +
+    '<div class="ts">' + tStateLine(t) + '</div>' + (full ? tChip(t) : '') + '</div>' + (full ? '' : tChip(t)) + '</div>';
+}
+
+// Perguntas, depois execuções (mais antigas primeiro), depois concluídas (mais novas primeiro).
+function tList() {
+  var a = state.agents, list = a && a.tasks && a.tasks.length ? a.tasks.slice() : [];
+  var rank = { waiting: 0, running: 1, done: 2 };
+  list = list.filter(function (t) { return t && typeof t.id === 'string' && rank[t.state] !== undefined && typeof t.name === 'string'; });
+  return list.sort(function (x, y) {
+    if (rank[x.state] !== rank[y.state]) return rank[x.state] - rank[y.state];
+    var sx = tMs(x.state === 'done' ? x.since : x.startedAt) || 0, sy = tMs(y.state === 'done' ? y.since : y.startedAt) || 0;
+    return x.state === 'done' ? sy - sx : sx - sy;
+  });
+}
+function tFind(id) { var l = tList(); for (var i = 0; i < l.length; i++) if (l[i].id === id) return l[i]; return null; }
+// Sem envio recente do PC (ou painel em espera): a última lista fica, em cinza.
+function tasksOff() { var a = state.agents; return !a || a.hasData !== true || a.online !== true || idle.asleep; }
+
+function setTasksHtml(key, node, html) {
+  if (tk.last[key] === html) return;
+  tk.last[key] = html;
+  node.innerHTML = html;
+}
+
+function renderTaskCard(list) {
+  var a = state.agents, off = tasksOff(), q = 0, r = 0, d = 0;
+  list.forEach(function (t) { if (t.state === 'waiting') q++; else if (t.state === 'running') r++; else d++; });
+  var counts = off ? '' : [q ? '<b class="q">' + q + ' pergunta' + (q > 1 ? 's' : '') + '</b>' : '', r ? '<b class="r">' + r + ' rodando</b>' : ''].filter(Boolean).join(' · ');
+  var html = '<div class="chead"><span class="sec">Tarefas</span><span class="tcount">' + counts + '</span></div>';
+  if (!a || a.hasData !== true) {
+    html += '<div class="tempty">' + TEMPTY_ICON + 'Sem dados de tarefas<small>Atualize o app desktop e ligue o envio para API</small></div>';
+  } else if (a.paused) {
+    html += '<div class="tempty">' + TEMPTY_ICON + 'Consultas pausadas no PC<small>As tarefas voltam quando o app retomar</small></div>';
+  } else if (!list.length) {
+    html += '<div class="tempty">' + TEMPTY_ICON + 'Nenhuma tarefa agora<small>Claude Code e Codex parados</small></div>';
+  } else {
+    var used = 0, shown = 0, rows = '';
+    for (var i = 0; i < list.length; i++) {
+      var t = list[i], h = t.state === 'waiting' ? (t.question && t.question.kind === 'permission' ? 76 : 86) : 41;
+      if (used + h > LIST_H && shown) break;
+      used += h; shown++;
+      rows += tRow(t, false);
+    }
+    var extra = list.length - shown;
+    var foot = off ? (a.online === false ? 'PC sem enviar · ' + ago(a.receivedAt) : 'em espera') : d ? d + ' concluída' + (d > 1 ? 's' : '') + ' nas últimas 8 h' : '';
+    html += '<div class="tlist">' + rows + '</div><div class="tfoot"><span>' + esc(foot) + '</span>' +
+      (extra > 0 ? '<button class="amore" type="button" data-open="1">+' + extra + ' tarefa' + (extra > 1 ? 's' : '') + '</button>' : '') + '</div>';
+  }
+  setTasksHtml('card', tk.card, html);
+  var cls = 'card tcard' + (q && !off ? ' ask' : '') + (off ? ' toff' : '');
+  if (tk.card.className !== cls) tk.card.className = cls;
+}
+
+function renderTaskDetail(list) {
+  if (!tk.open) return;
+  if (!list.length) { closeTaskDetail(); return; }
+  var t = tFind(tk.sel) || list[0];
+  tk.sel = t.id;
+  var groups = { waiting: [], running: [], done: [] }, html = '';
+  list.forEach(function (x) { groups[x.state].push(x); });
+  [['waiting', 'Aguardando você'], ['running', 'Executando'], ['done', 'Concluídas · 8 h']].forEach(function (g) {
+    if (!groups[g[0]].length) return;
+    html += '<div class="sec">' + g[1] + ' · ' + groups[g[0]].length + '</div>' + groups[g[0]].map(function (x) { return tRow(x, true); }).join('');
+  });
+  setTasksHtml('all', tk.all, html);
+
+  var body = '', q = t.question, k = t.tokens || {};
+  if (t.state === 'waiting' && q) {
+    body += q.kind === 'permission'
+      ? '<div class="sec" style="color:#EF9F27">Pede permissão' + (q.tool ? ' · ' + esc(q.tool) : '') + '</div><div class="tdcmd">' + esc(q.text) + '</div>'
+      : '<div class="sec" style="color:#EF9F27">' + (q.kind === 'input' ? 'Aguardando você' : 'Pergunta') + '</div><div class="tdq ask">' + esc(q.text) + '</div>';
+    if (q.options && q.options.length) {
+      body += '<div class="sec">Opções</div><div class="topts">' + q.options.map(function (o) { return '<span>' + esc(o) + '</span>'; }).join('') + '</div>';
+    }
+    body += '<div class="tsoon">Responda no PC. Responder pelo painel fica para uma próxima versão.</div>';
+  }
+  var facts = [['Projeto', t.project || '--'], ['Ferramenta', TNAME[t.provider] || t.provider]];
+  var age = now() - (tMs(t.since) || now());
+  if (t.state === 'running') facts.push(['Executando há', tMins(age)]);
+  if (t.state === 'waiting') facts.push(['Esperando há', tMins(age)]);
+  if (t.state === 'done') facts.push(['Concluída às', hhmm(new Date(tMs(t.since) || now()))], ['Duração', tDuration(t) || '--']);
+  if (t.tokens) {
+    var rate = num(t.tokensPerSecond), limit = num(t.limitPercent);
+    body += '<div class="sec">Tokens' + (t.state === 'done' ? ' gastos' : ' até agora') + '</div><div class="tokbox">' +
+      '<div class="kt"><div class="kv"><b class="tl">' + TBOLT + '<span>' + fmtTok(tTokens(t)) + '</span></b><span>último pedido</span></div>' +
+      '<div class="kv"><b class="tt">' + fmtTok(tTotal(t)) + '</b><span>conversa toda</span></div></div>' +
+      (t.state === 'running' && rate !== null ? '<div class="ks"><b>' + Math.round(rate) + '</b><span>tokens/s agora</span></div>' : '') +
+      (limit !== null && limit > 0 ? '<div class="kl"><b>~' + comma(limit, limit < 10 && limit % 1 ? 1 : 0) + '%</b><span>do limite de 5 h</span></div>' : '') + '</div>';
+    facts.push(['Saída', fmtTok(num(k.output) || 0)], ['Entrada nova', fmtTok((num(k.input) || 0) + (num(k.cacheWrite) || 0))], ['Cache lido', fmtTok(num(k.cacheRead) || 0)]);
+  }
+  if (t.state === 'done' && t.summary) body += '<div class="sec">Resposta final</div><div class="tdtext">' + esc(t.summary) + '</div>';
+  if (t.prompt) body += '<div class="sec">Último pedido</div><div class="tdtext">' + esc(t.prompt) + '</div>';
+  body += '<div class="tfacts">' + facts.map(function (f) { return '<div class="fact"><span>' + f[0] + '</span><b>' + esc(f[1]) + '</b></div>'; }).join('') + '</div>';
+
+  setTasksHtml('one', tk.one, '<div class="chead"><button class="back" type="button" data-back="1">‹ Voltar</button><span class="sec">Tarefa</span></div>' +
+    '<div class="tdhead">' + tIcon(t) + '<div style="min-width:0"><div class="tdname">' + esc(t.name) + '</div><div class="tdmeta">' +
+    esc((TNAME[t.provider] || t.provider) + (t.project ? ' · ' + t.project : '')) + ' · ' + tStateLine(t).replace(/<\/?b>/g, '') + '</div></div></div>' +
+    '<div class="tdbody">' + body + '</div>');
+  var cls = tasksOff() ? 'toff' : '';
+  if (tk.detail.className !== cls) tk.detail.className = cls;
+}
+
+function openTaskDetail(id) {
+  if (!tasksView() || !tList().length) return;
+  setExpanded(false);
+  tk.sel = id || tk.sel;
+  tk.open = true;
+  document.getElementById('stage').classList.add('texp');
+  tk.detail.setAttribute('aria-hidden', 'false');
+  tk.last.all = tk.last.one = null;
+  renderTaskDetail(tList());
+}
+function closeTaskDetail() {
+  if (!tk.open) return;
+  tk.open = false;
+  document.getElementById('stage').classList.remove('texp');
+  tk.detail.setAttribute('aria-hidden', 'true');
+}
+
+// ---------- Aviso no topo ----------
+function showBanner(t, kind) {
+  var q = t.question;
+  var label = kind === 'ask'
+    ? (q && q.kind === 'permission' ? 'Permissão pedida' : 'Pergunta') + ' · ' + (TNAME[t.provider] || t.provider) + ' · ' + t.name
+    : 'Concluída · ' + (TNAME[t.provider] || t.provider) + (tDuration(t) ? ' · ' + tDuration(t) : '') + (t.tokens ? ' · ' + fmtTok(tTokens(t)) + ' tokens' : '');
+  tk.bannerTask = t.id;
+  tk.banner.className = 'tbanner ' + kind;
+  tk.banner.innerHTML = tIcon(t, kind === 'ask' ? 'waiting' : 'done') +
+    '<div class="tx"><div class="k">' + esc(label) + '</div><div class="m">' + esc(kind === 'ask' && q ? tQText(t) : t.name) + '</div></div>' +
+    (layoutB ? '<button class="go" type="button">Ver</button>' : '') +
+    '<button class="x" type="button" aria-label="Fechar aviso">' + TX_ICON + '</button>';
+  void tk.banner.offsetWidth;
+  tk.banner.classList.add('on');
+  clearTimeout(tk.bannerTimer);
+  tk.bannerTimer = setTimeout(hideBanner, kind === 'ask' ? 30000 : 10000);
+}
+function hideBanner() { clearTimeout(tk.bannerTimer); tk.banner.classList.remove('on'); }
+
+// Tarefa concluída na visão Tarefas: aviso no meio da lista que sobe e some (CSS, ~8 s). Tocar abre a
+// tarefa. Na visão Mais pesados (sem a lista) ou no layout clássico, vai para o aviso do topo.
+function showDonePop(t) {
+  if (!tasksView()) { showBanner(t, 'done'); return; }
+  var d = tDuration(t), pop = document.createElement('div');
+  pop.className = 'tpop';
+  pop.innerHTML = tIcon(t, 'done') + '<div class="tx"><div class="k">Concluída · ' + esc(TNAME[t.provider] || t.provider) + (d ? ' · ' + d : '') + '</div>' +
+    '<div class="m">' + esc(t.name) + '</div>' + tChip(t) + '<span class="hint">toque para ver</span></div>';
+  function remove() { if (pop.parentNode) pop.parentNode.removeChild(pop); }
+  pop.addEventListener('click', function (e) { e.stopPropagation(); remove(); openTaskDetail(t.id); });
+  pop.addEventListener('animationend', remove);
+  pop.addEventListener('webkitAnimationEnd', remove);
+  // Segurança: se a animação não terminar (aba oculta, por exemplo), some depois do tempo dela.
+  setTimeout(remove, 9000);
+  tk.pops.appendChild(pop);
+}
+
+// Compara com a consulta anterior: pergunta nova (ou outra pergunta na mesma tarefa) e tarefa que
+// terminou viram aviso. A primeira consulta só registra o estado, sem avisos.
+function detectTaskEvents(list) {
+  var a = state.agents;
+  if (!a || a.online !== true || a.paused) return;
+  var seen = {}, ask = null, done = null, t0 = now();
+  list.forEach(function (t) {
+    var qt = t.question ? t.question.text : '';
+    seen[t.id] = { state: t.state, started: t.startedAt, q: qt };
+    if (!tk.known) return;
+    var k = tk.known[t.id];
+    if (t.state === 'waiting' && (!k || k.state !== 'waiting' || k.q !== qt)) ask = ask || t;
+    else if (t.state === 'done' && (k ? k.state !== 'done' || k.started !== t.startedAt : t0 - (tMs(t.since) || 0) < 90000)) done = done || t;
+  });
+  tk.known = seen;
+  if (ask) showBanner(ask, 'ask');
+  else if (done) showDonePop(done);
+}
+
+// Tokens por segundo embaixo do percentual do Claude e do Codex (visão Tarefas).
+function paintTps() {
+  var a = state.agents, off = tasksOff();
+  PROVIDERS.forEach(function (p) {
+    var col = cols[p.id], rate = !off && a.rates ? num(a.rates[p.id]) : null;
+    set(col, 'tpsText', col.tps, 'text', rate === null ? '-- tok/s' : '⚡ ' + Math.round(rate) + ' tok/s');
+    set(col, 'tpsFill', col.tps, 'fill', rate !== null && rate > 0 ? p.brand : C.tick);
+  });
+}
+
+// minuteTick: só atualiza os textos relativos ("há 3 min"), sem procurar avisos.
+function renderTasks(minuteTick) {
+  if (!tk.card) return;
+  if (!tasksView()) closeTaskDetail();
+  var list = tList();
+  if (minuteTick !== true) detectTaskEvents(list);
+  renderTaskCard(list);
+  renderTaskDetail(list);
+  paintTps();
+}
+
+function setView(v) {
+  panelView = v === 'procs' ? 'procs' : 'tasks';
+  try { localStorage.setItem(VIEW_KEY, panelView); } catch (e) {}
+  applyView();
+  tk.view.setAttribute('aria-pressed', String(panelView === 'tasks'));
+  tk.view.setAttribute('aria-label', panelView === 'tasks' ? 'Mostrar os apps mais pesados' : 'Mostrar as tarefas');
+  if (panelView !== 'tasks') closeTaskDetail();
+  // Os mostradores mudam de tamanho: redesenha os arcos e os textos da CPU, da memória e do disco.
+  aiGauges().concat(healthGauges()).forEach(function (g) { g.drawnGauge = null; });
+  renderHealth();
+  renderTasks(true);
+}
+
+function initTasks() {
+  tk.card = document.getElementById('hb-tasks');
+  tk.banner = document.getElementById('tbanner');
+  tk.pops = document.getElementById('tpops');
+  tk.detail = document.getElementById('tdetail');
+  tk.all = document.getElementById('tall');
+  tk.one = document.getElementById('tone');
+  tk.view = document.getElementById('view');
+  var saved = null;
+  try { saved = localStorage.getItem(VIEW_KEY); } catch (e) {}
+  tk.view.addEventListener('click', function (e) { e.stopPropagation(); setView(panelView === 'tasks' ? 'procs' : 'tasks'); });
+  tk.card.addEventListener('click', function (e) {
+    var row = e.target.closest && e.target.closest('[data-id]');
+    if (row) openTaskDetail(row.getAttribute('data-id'));
+    else if (e.target.closest && e.target.closest('[data-open]')) openTaskDetail(null);
+  });
+  tk.all.addEventListener('click', function (e) {
+    var row = e.target.closest && e.target.closest('[data-id]');
+    if (!row) return;
+    tk.sel = row.getAttribute('data-id');
+    renderTaskDetail(tList());
+  });
+  tk.one.addEventListener('click', function (e) { if (e.target.closest && e.target.closest('[data-back]')) closeTaskDetail(); });
+  tk.banner.addEventListener('click', function (e) {
+    e.stopPropagation();
+    hideBanner();
+    if (e.target.closest && e.target.closest('.x')) return;
+    if (!layoutB) return;
+    if (panelView !== 'tasks') setView('tasks');
+    openTaskDetail(tk.bannerTask);
+  });
+  // A tela de alertas e a da tarefa não ficam abertas juntas.
+  document.getElementById('health-open').addEventListener('click', closeTaskDetail, true);
+  setView(saved === 'procs' ? 'procs' : 'tasks');
 }
 
 // ---------- Escala para a janela ----------
@@ -2510,6 +3075,7 @@ document.getElementById('ai-mini').addEventListener('click', function () { setEx
 
 PROVIDERS.forEach(buildColumn);
 buildHealth();
+initTasks();
 renderHealth();
 onFullChange();
 render();
@@ -2518,368 +3084,82 @@ tickGauges();
 checkSession();
 enterFull();
 
-</script>
-<script>/* proto.js */
-// Protótipo da visão "Tarefas": cartão no lugar de "Mais pesados", aviso no topo e tela da tarefa.
-// ES5, sem bibliotecas, como o resto do painel.
+</script><script>
+// Protótipo v3, por cima do painel publicado: custo equivalente (preços da API) e som ao concluir.
 (function () {
-  var MIN = 60000;
-  var VIEW_KEY = 'cockpit.view';
-  var LOGO = {}; PROVIDERS.forEach(function (p) { LOGO[p.id] = p; });
-  var NAME = { claude: 'Claude', codex: 'Codex' };
+  // US$ 0,42 / US$ 34,98 / < US$ 0,01
+  function fmtUsd(v) {
+    if (v === null || v === undefined || !isFinite(v)) return '--';
+    if (v < 0.01) return '< US$ 0,01';
+    return 'US$ ' + comma(v, v < 100 ? 2 : 0).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  }
+  window.fmtUsd = fmtUsd;
 
-  // ---------- Dados simulados (o formato proposto para /v1/panel → agents) ----------
-  var BASE = [
-    { id: 't1', provider: 'claude', name: 'Echo Show Claude/Codex monitoring expansion', project: 'monitor-uso-ia', state: 'waiting', since: 1.5,
-      startedAt: 9, prompt: 'Pode implementar a sua proposta nas três aplicações, desktop, API e painel.',
-      question: { kind: 'question', text: 'Quer que eu monte a proposta com essas regras?', options: ['Montar proposta', 'Agora não'] },
-      tokens: { input: 31200, cacheWrite: 85000, output: 9800, cacheRead: 2400000 } },
-    { id: 't2', provider: 'codex', name: 'Preencher formulário da palestra', project: 'Kiro-Workspace', state: 'running', since: 12,
-      prompt: 'Preencha o formulário de inscrição da palestra com os dados do meu perfil e revise antes de enviar.',
-      rate: 64, tokens: { input: 41800, output: 6200, cacheRead: 610000 }, limitPct: 2 },
-    { id: 't3', provider: 'claude', name: 'Post Agent — Descobertas (seg–sex 06:00)', project: 'post-agent', state: 'running', since: 4,
-      prompt: 'Rode a rotina de descobertas do dia e salve os candidatos a post.',
-      rate: 88, tokens: { input: 12400, cacheWrite: 22000, output: 3100, cacheRead: 380000 } },
-    { id: 't4', provider: 'codex', name: 'Listar PDIs locais', project: 'pdi-esig', state: 'done', since: 7, duration: 6,
-      summary: 'Encontrei 14 PDIs na pasta local. 3 estão sem revisão desde agosto e 2 têm metas vencidas. A lista completa ficou em pdis.md, ordenada por prazo.',
-      tokens: { input: 52300, output: 8900, cacheRead: 1100000 }, limitPct: 3 },
-    { id: 't5', provider: 'claude', name: 'Banco de horas (segunda 07:00)', project: 'QuarkRH-Agent', state: 'done', since: 38, duration: 2,
-      summary: 'Banco de horas atualizado: saldo de +6h12 na semana. Nenhuma marcação faltando.',
-      tokens: { input: 8100, cacheWrite: 15000, output: 1900, cacheRead: 210000 } }
-  ];
-  var PERMISSION = { id: 't6', provider: 'claude', name: 'Conceito de agente no fluxo de sustentação', project: 'sindrape', state: 'waiting', since: 0.3,
-    prompt: 'Rode os testes do módulo de sustentação e publique o branch.',
-    question: { kind: 'permission', tool: 'Bash', text: 'git push origin feature/agente-sustentacao', options: ['Permitir', 'Permitir sempre', 'Negar'] },
-    tokens: { input: 21000, cacheWrite: 40000, output: 5400, cacheRead: 900000 } };
-  var MANY = [
-    { id: 'm1', provider: 'codex', name: 'Revisar contrato da API de saúde', project: 'usage-ia-api', state: 'running', since: 2, prompt: 'Revise o contrato.', rate: 51, tokens: { input: 9800, output: 1500, cacheRead: 120000 }, limitPct: 1 },
-    { id: 'm2', provider: 'claude', name: 'Ponto 07:50 (Entrada)', project: 'QuarkRH-Agent', state: 'running', since: 1, prompt: 'Bata o ponto de entrada.', rate: 95, tokens: { input: 3100, cacheWrite: 9000, output: 800, cacheRead: 60000 } },
-    { id: 'm3', provider: 'codex', name: 'Estruture os destaques do livro', project: 'notas', state: 'done', since: 55, duration: 14, summary: 'Destaques organizados em 6 temas.', tokens: { input: 88000, output: 21000, cacheRead: 2900000 }, limitPct: 5 },
-    { id: 'm4', provider: 'claude', name: 'Gerar relatório de viagem', project: 'Relatorio-Viagem-ESIG', state: 'done', since: 80, duration: 9, summary: 'Relatório gerado em PDF.', tokens: { input: 14000, cacheWrite: 30000, output: 6100, cacheRead: 640000 } }
-  ];
-
-  var tasks = [], sel = null, view = 'tasks', expanded = false, bannerTimer = null;
-  try { view = localStorage.getItem(VIEW_KEY) || 'tasks'; } catch (e) {}
-
-  function clone(list) { return JSON.parse(JSON.stringify(list)); }
-  function stamp(list) {
-    var now = Date.now();
-    list.forEach(function (t) { t.sinceAt = now - t.since * MIN; if (t.startedAt) t.startedAtMs = now - t.startedAt * MIN; });
-    return list;
-  }
-
-  // ---------- Textos ----------
-  function mins(ms) {
-    var m = Math.floor(ms / MIN);
-    if (m < 1) return 'agora';
-    if (m < 60) return m + ' min';
-    return Math.floor(m / 60) + 'h' + (m % 60 ? pad(m % 60) : '');
-  }
-  // Número principal: entrada nova (inclui o que foi gravado no cache) + saída. Cache lido só no detalhe.
-  function tokMain(t) { var k = t.tokens || {}; return (k.input || 0) + (k.cacheWrite || 0) + (k.output || 0); }
-  function fmtTok(n) {
-    if (n < 1000) return String(Math.round(n));
-    if (n < 1e6) return (n < 10000 ? comma(n / 1000, 1) : String(Math.round(n / 1000))) + ' mil';
-    return comma(n / 1e6, n < 1e7 ? 1 : 0) + ' mi';
-  }
-  function tokSpan(t) { return ''; }
-  var BOLT = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z"/></svg>';
-  function tokChip(t) { return t.tokens ? '<span class="tchip" title="tokens: entrada nova + saída">' + BOLT + '<span data-tk="' + t.id + '">' + fmtTok(tokMain(t)) + '</span></span>' : ''; }
-  function stateLine(t) {
-    var age = Date.now() - t.sinceAt;
-    if (t.state === 'waiting') return (t.question.kind === 'permission' ? 'Pede permissão' : 'Aguardando você') + ' · ' + (age < MIN ? 'agora' : 'há ' + mins(age)) + tokSpan(t);
-    if (t.state === 'running') return '<b>Executando</b> · ' + mins(age) + tokSpan(t);
-    return '<b>Concluída</b> às ' + hhmm(new Date(t.sinceAt)) + (t.duration ? ' · ' + t.duration + ' min' : '') + tokSpan(t);
-  }
-  function sorted() {
-    var rank = { waiting: 0, running: 1, done: 2 };
-    return tasks.slice().sort(function (a, b) {
-      if (rank[a.state] !== rank[b.state]) return rank[a.state] - rank[b.state];
-      return a.state === 'running' ? a.sinceAt - b.sinceAt : b.sinceAt - a.sinceAt;
-    });
-  }
-  function icon(t) {
-    var p = LOGO[t.provider];
-    return '<span class="tico">' + (t.state === 'running' ? '<span class="spin"></span>' : '') +
-      '<svg class="logo" viewBox="0 0 24 24"><path fill="' + p.logoFill + '" d="' + p.logo + '"/></svg>' +
-      (t.state === 'waiting' ? '<span class="badge">?</span>' : t.state === 'done' ? '<span class="badge">✓</span>' : '') + '</span>';
-  }
-  function qText(t) {
-    return t.question.kind === 'permission' ? t.question.tool + ': ' + t.question.text : t.question.text;
-  }
-  function row(t, full) {
-    var q = t.state === 'waiting' && (full || true)
-      ? '<div class="tq' + (t.question.kind === 'permission' ? ' cmd' : '') + '">' + esc(qText(t)) + '</div>' : '';
-    return '<div class="task ' + (t.state === 'waiting' ? 'ask' : t.state === 'running' ? 'run' : 'done') + (full && sel === t.id ? ' sel' : '') + '" data-id="' + t.id + '">' +
-      icon(t) + '<div class="tx"><div class="tn">' + esc(t.name) + '</div>' + q + '<div class="ts">' + stateLine(t) + '</div>' +
-      // Lista estreita da tela da tarefa: o selo vai para uma linha própria, sem apertar o nome.
-      (full ? tokChip(t) : '') + '</div>' + (full ? '' : tokChip(t)) + '</div>';
-  }
-
-  // ---------- Cartão (tela inicial) ----------
-  var side = document.querySelector('.health-side');
-  var card = document.createElement('section');
-  card.id = 'hb-tasks';
-  card.className = 'card tcard';
-  side.appendChild(card);
-
-  // Cabe ~296 px de lista: pergunta ≈ 86 px, demais ≈ 41 px.
-  var LIST_H = 292;
-  function renderCard() {
-    var list = sorted(), q = 0, r = 0, d = 0;
-    list.forEach(function (t) { if (t.state === 'waiting') q++; else if (t.state === 'running') r++; else d++; });
-    var counts = [q ? '<b class="q">' + q + ' pergunta' + (q > 1 ? 's' : '') + '</b>' : '', r ? '<b class="r">' + r + ' rodando</b>' : ''].filter(Boolean).join(' · ');
-    var html = '<div class="chead"><span class="sec">Tarefas</span><span class="tcount">' + counts + '</span></div>';
-    if (!list.length) {
-      html += '<div class="tempty"><svg viewBox="0 0 24 24"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Nenhuma tarefa agora<small>Claude e Codex parados</small></div>';
-    } else {
-      var used = 0, shown = 0, rows = '';
-      for (var i = 0; i < list.length; i++) {
-        var h = list[i].state === 'waiting' ? (list[i].question.kind === 'permission' ? 76 : 86) : 41;
-        if (used + h > LIST_H && shown) break;
-        used += h; shown++;
-        rows += row(list[i]);
-      }
-      html += '<div class="tlist">' + rows + '</div>';
-      var extra = list.length - shown;
-      html += '<div class="tfoot"><span>' + (d ? d + ' concluída' + (d > 1 ? 's' : '') + ' nas últimas 2 h' : '') + '</span>' +
-        (extra > 0 ? '<button class="amore" type="button" data-open="1">+' + extra + ' tarefa' + (extra > 1 ? 's' : '') + '</button>' : '') + '</div>';
-    }
-    card.innerHTML = html;
-    card.classList.toggle('ask', q > 0);
-  }
-  card.addEventListener('click', function (e) {
-    var t = e.target.closest('[data-id]');
-    if (t) { openDetail(t.getAttribute('data-id')); return; }
-    if (e.target.closest('[data-open]')) openDetail(null);
-  });
-
-  // ---------- CPU com o GHz no centro (só na visão Tarefas) ----------
-  var cpuSvg = document.querySelector('#hb-cpu .hdial svg');
-  cpuSvg.insertAdjacentHTML('beforeend',
-    '<g class="ghz"><text data-d="ghz" x="80" y="67" fill="' + C.text + '" font-size="18" font-weight="700" text-anchor="middle" dominant-baseline="central" font-family="Cascadia Mono, Consolas, Roboto Mono, monospace">--</text>' +
-    '<text x="80" y="84" fill="' + C.muted + '" font-size="9" font-weight="600" text-anchor="middle" dominant-baseline="central" font-family="Segoe UI, Roboto, Arial, sans-serif">GHz</text></g>');
-  var ghzText = cpuSvg.querySelector('[data-d="ghz"]');
-  var baseRenderHealth = renderHealth;
-  // O painel chama renderHealth pelo nome global: a versão do protótipo acrescenta o GHz e
-  // leva para a CPU o aviso do modo eficiência e o modo de energia, que eram do mostrador GHz.
-  renderHealth = function () {
-    baseRenderHealth();
-    if (!hp) return;
-    var v = healthView(health.data), cpu = v.metrics.cpu, clk = v.metrics.clk, mn = hp.main.cpu, tasksView = view === 'tasks';
-    set(mn, 'ghz', ghzText, 'text', clk.has ? clk.readout : '--');
-    set(mn, 'sub', mn.sub, 'text', !v.has ? '--' : tasksView && clk.mini !== '--' ? cpu.mini + ' · ' + clk.mini : cpu.mini);
-    set(mn, 'subWarn', mn.sub, 'className', 's' + (tasksView && clk.warnText ? ' w' : ''));
-    set(mn, 'flag', mn.warn, 'className', 'hwarn' + (tasksView && clk.flag ? ' on' : ''));
-    // Memória e disco no mesmo cartão: só o espaço livre ("9,1 GB livres"), sem o total.
-    ['ram', 'disk'].forEach(function (id) {
-      var m = v.metrics[id], c = hp.main[id];
-      set(c, 'sub', c.sub, 'text', !v.has ? '--' : tasksView ? m.mini.replace(/ de \d+$/, '') : m.mini);
-    });
+  // Lista: custo da conversa no fim da linha de estado.
+  var baseLine = tStateLine;
+  tStateLine = function (t) {
+    var c = t.cost;
+    return baseLine(t) + (c && c.conversation !== null ? ' · <span class="tusd">' + fmtUsd(c.conversation) + '</span>' : '');
   };
 
-  // ---------- Botão de visão (topo): Tarefas ↔ Processos ----------
-  var toggle = document.createElement('button');
-  toggle.className = 'fs vtoggle';
-  toggle.type = 'button';
-  toggle.title = 'Trocar a lista da direita: Tarefas ou Mais pesados';
-  toggle.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6l1.5 1.5L8 5M4 12l1.5 1.5L8 11M4 18l1.5 1.5L8 17M11 6h9M11 12h9M11 18h9"/></svg>';
-  var refresh = document.getElementById('refresh');
-  refresh.parentNode.insertBefore(toggle, refresh.nextSibling);
-  toggle.addEventListener('click', function (e) { e.stopPropagation(); setView(view === 'tasks' ? 'procs' : 'tasks'); });
-  function setView(v) {
-    view = v;
-    try { localStorage.setItem(VIEW_KEY, v); } catch (e) {}
-    document.getElementById('cockpit').classList.toggle('vt', v === 'tasks');
-    toggle.setAttribute('aria-pressed', String(v === 'tasks'));
-    toggle.setAttribute('aria-label', v === 'tasks' ? 'Mostrar os apps mais pesados' : 'Mostrar as tarefas');
-    if (v !== 'tasks') closeDetail();
-    // Os mostradores mudam de tamanho: redesenha os arcos e os textos da CPU.
-    healthGauges().forEach(function (g) { g.drawnGauge = null; });
-    renderHealth();
-    window.parent.postMessage({ proto: 'view', view: v }, '*');
-  }
-
-  // ---------- Aviso no topo ----------
-  var top = document.querySelector('.top');
-  var banner = document.createElement('div');
-  banner.className = 'tbanner';
-  top.appendChild(banner);
-  var bannerTask = null;
-  function showBanner(t, kind) {
-    bannerTask = t.id;
-    var label = kind === 'ask'
-      ? (t.question.kind === 'permission' ? 'Permissão pedida' : 'Pergunta') + ' · ' + NAME[t.provider] + ' · ' + t.name
-      : 'Concluída · ' + NAME[t.provider] + (t.duration ? ' · ' + t.duration + ' min' : '') + (t.tokens ? ' · ' + fmtTok(tokMain(t)) + ' tokens' : '');
-    var main = kind === 'ask' ? qText(t) : t.name;
-    banner.className = 'tbanner ' + kind;
-    banner.innerHTML = icon({ provider: t.provider, state: kind === 'ask' ? 'waiting' : 'done' }) +
-      '<div class="tx"><div class="k">' + esc(label) + '</div><div class="m">' + esc(main) + '</div></div>' +
-      '<button class="go" type="button">Ver</button>' +
-      '<button class="x" type="button" aria-label="Fechar aviso"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>';
-    void banner.offsetWidth;
-    banner.classList.add('on');
-    clearTimeout(bannerTimer);
-    bannerTimer = setTimeout(hideBanner, kind === 'ask' ? 30000 : 10000);
-  }
-  function hideBanner() { banner.classList.remove('on'); clearTimeout(bannerTimer); }
-  banner.addEventListener('click', function (e) {
-    e.stopPropagation();
-    if (e.target.closest('.x')) { hideBanner(); return; }
-    hideBanner();
-    if (view !== 'tasks') setView('tasks');
-    openDetail(bannerTask);
-  });
-
-  // ---------- Tela da tarefa ----------
-  var stage = document.getElementById('stage');
-  var detail = document.createElement('div');
-  detail.id = 'tdetail';
-  detail.innerHTML = '<section class="card tall" aria-label="Todas as tarefas"></section><section class="card tdcard"></section>';
-  stage.appendChild(detail);
-  var allEl = detail.firstChild, oneEl = detail.lastChild;
-
-  function openDetail(id) {
-    var list = sorted();
-    if (!list.length) return;
-    sel = id || (sel && find(sel) ? sel : list[0].id);
-    expanded = true;
-    stage.classList.add('texp');
-    renderDetail();
-  }
-  function closeDetail() { expanded = false; stage.classList.remove('texp'); }
-  function find(id) { for (var i = 0; i < tasks.length; i++) if (tasks[i].id === id) return tasks[i]; return null; }
-
-  function renderDetail() {
-    if (!expanded) return;
-    var list = sorted(), groups = { waiting: [], running: [], done: [] };
-    list.forEach(function (t) { groups[t.state].push(t); });
-    var html = '';
-    [['waiting', 'Aguardando você'], ['running', 'Executando'], ['done', 'Concluídas · 2 h']].forEach(function (g) {
-      if (!groups[g[0]].length) return;
-      html += '<div class="sec">' + g[1] + ' · ' + groups[g[0]].length + '</div>' + groups[g[0]].map(function (t) { return row(t, true); }).join('');
-    });
-    allEl.innerHTML = html;
-
-    var t = find(sel) || list[0];
-    var body = '';
-    if (t.state === 'waiting' && t.question.kind === 'permission') {
-      body += '<div class="sec" style="color:#EF9F27">Pede permissão · ' + esc(t.question.tool) + '</div><div class="tdcmd">' + esc(t.question.text) + '</div>';
-    } else if (t.state === 'waiting') {
-      body += '<div class="sec" style="color:#EF9F27">Pergunta</div><div class="tdq ask">' + esc(t.question.text) + '</div>';
-    }
-    if (t.state === 'waiting') {
-      body += '<div class="sec">Opções</div><div class="topts">' + t.question.options.map(function (o) { return '<span>' + esc(o) + '</span>'; }).join('') + '</div>' +
-        '<div class="tsoon">Responda no PC. Responder pelo painel fica para uma próxima versão.</div>';
-    }
-    var facts = [['Projeto', t.project], ['Ferramenta', NAME[t.provider]]];
-    if (t.state === 'running') facts.push(['Executando há', mins(Date.now() - t.sinceAt)]);
-    if (t.state === 'waiting') facts.push(['Esperando há', mins(Date.now() - t.sinceAt)]);
-    if (t.state === 'done') facts.push(['Concluída às', hhmm(new Date(t.sinceAt))], ['Duração', t.duration + ' min']);
-    // Tokens logo depois da pergunta (ou no topo), antes dos textos longos, para caber sem rolar.
-    if (t.tokens) {
-      var k = t.tokens;
-      body += '<div class="sec">Tokens' + (t.state === 'done' ? ' gastos' : ' até agora') + '</div><div class="tokbox">' +
-        '<div class="kt"><b>' + BOLT + '<span data-tk="' + t.id + '">' + fmtTok(tokMain(t)) + '</span></b><span>entrada nova + saída</span></div>' +
-        (t.state === 'running' && t.rate ? '<div class="ks"><b data-tps="' + t.id + '">' + t.rate + '</b><span>tokens/s agora</span></div>' : '') +
-        (t.limitPct ? '<div class="kl"><b>~' + t.limitPct + '%</b><span>do limite de 5 h</span></div>' : '') + '</div>';
-      facts.push(['Saída', fmtTok(k.output || 0)], ['Entrada nova', fmtTok((k.input || 0) + (k.cacheWrite || 0))], ['Cache lido', fmtTok(k.cacheRead || 0)]);
-    }
-    if (t.state === 'done' && t.summary) body += '<div class="sec">Resposta final</div><div class="tdtext">' + esc(t.summary) + '</div>';
-    if (t.prompt) body += '<div class="sec">Último pedido</div><div class="tdtext">' + esc(t.prompt) + '</div>';
-    body += '<div class="tfacts">' + facts.map(function (f) { return '<div class="fact"><span>' + f[0] + '</span><b>' + esc(f[1]) + '</b></div>'; }).join('') + '</div>';
-
-    oneEl.innerHTML = '<div class="chead"><button class="back" type="button">‹ Voltar</button><span class="sec">Tarefa</span></div>' +
-      '<div class="tdhead">' + icon(t) + '<div style="min-width:0"><div class="tdname">' + esc(t.name) + '</div><div class="tdmeta">' +
-      NAME[t.provider] + ' · ' + esc(t.project) + ' · ' + stateLine(t).replace(/<\/?b>/g, '') + '</div></div></div>' +
-      '<div class="tdbody">' + body + '</div>';
-  }
-  allEl.addEventListener('click', function (e) {
-    var r = e.target.closest('[data-id]');
-    if (r) { sel = r.getAttribute('data-id'); renderDetail(); }
-  });
-  oneEl.addEventListener('click', function (e) { if (e.target.closest('.back')) closeDetail(); });
-  // A tela de alertas e a da tarefa não ficam abertas juntas.
-  document.getElementById('health-open').addEventListener('click', closeDetail, true);
-
-  function renderAll() { renderCard(); renderDetail(); paintTps(); }
-
-  // ---------- Tokens por segundo nos mostradores do Claude e do Codex ----------
-  // Saída gerada por segundo, somando as tarefas daquela ferramenta que estão executando
-  // (média dos últimos ~30 s, calculada no app desktop). Sem tarefa executando: 0, em cinza.
-  var tps = {};
-  PROVIDERS.forEach(function (p) {
-    var svg = cols[p.id].el.querySelector('.gauge svg');
-    svg.insertAdjacentHTML('beforeend', '<text class="tps" data-v="tps" x="80" y="124" fill="' + C.muted + '" font-size="11" font-weight="700" text-anchor="middle" dominant-baseline="central" font-family="Segoe UI, Roboto, Arial, sans-serif">--</text>');
-    tps[p.id] = { el: svg.querySelector('[data-v="tps"]'), last: {} };
-  });
-  function paintTps() {
-    var off = window.PROTO.offline;
-    PROVIDERS.forEach(function (p) {
-      var sum = 0, running = 0;
-      tasks.forEach(function (t) { if (t.provider === p.id && t.state === 'running') { running++; sum += t.liveRate || t.rate || 0; } });
-      set(tps[p.id], 'text', tps[p.id].el, 'text', off ? '-- tok/s' : '\u26A1 ' + Math.round(sum) + ' tok/s');
-      set(tps[p.id], 'fill', tps[p.id].el, 'fill', !off && running ? p.brand : C.tick);
-    });
-  }
-  // Simulação: as tarefas executando geram tokens; só os números mudam na tela.
-  setInterval(function () {
-    if (window.PROTO.offline) return;
-    tasks.forEach(function (t) {
-      if (t.state !== 'running' || !t.tokens) return;
-      t.liveRate = t.rate * (0.8 + Math.random() * 0.4);
-      t.tokens.output += t.liveRate * 2;
-      t.tokens.input += t.liveRate * 0.7;
-      var els = document.querySelectorAll('[data-tk="' + t.id + '"]');
-      for (var i = 0; i < els.length; i++) els[i].textContent = fmtTok(tokMain(t));
-      var r = document.querySelector('[data-tps="' + t.id + '"]');
-      if (r) r.textContent = Math.round(t.liveRate);
-    });
-    paintTps();
-  }, 2000);
-  setInterval(renderAll, 15000);
-
-  // ---------- Controles do protótipo (chamados pela página de fora) ----------
-  window.proto = {
-    scenario: function (name) {
-      hideBanner(); closeDetail();
-      tasks = name === 'empty' ? [] : name === 'permission' ? stamp(clone(BASE.concat([PERMISSION]))) : name === 'many' ? stamp(clone(BASE.concat([PERMISSION], MANY))) : stamp(clone(BASE));
-      renderAll();
-    },
-    ask: function () {
-      var t = stamp(clone([{ id: 'n' + Date.now(), provider: 'codex', name: 'Revisar contrato da API de saúde', project: 'usage-ia-api', state: 'waiting', since: 0,
-        prompt: 'Revise o contrato e aplique as mudanças.',
-        question: { kind: 'question', text: 'O campo agents entra no /v1/panel ou numa rota separada?', options: ['No /v1/panel', 'Rota separada'] },
-        tokens: { input: 15000, output: 2100, cacheRead: 300000 } }]))[0];
-      tasks.push(t); renderAll(); showBanner(t, 'ask');
-    },
-    done: function () {
-      var t = null;
-      sorted().forEach(function (x) { if (!t && x.state === 'running') t = x; });
-      if (!t) return;
-      t.duration = Math.max(1, Math.round((Date.now() - t.sinceAt) / MIN));
-      t.state = 'done'; t.sinceAt = Date.now();
-      t.summary = 'Formulário preenchido e revisado. Faltou só o número de matrícula, que deixei em branco para você conferir.';
-      renderAll(); showBanner(t, 'done');
-    },
-    view: setView,
-    offline: function (on) { window.PROTO.offline = on; refreshNow(); paintTps(); },
-    open: function (id) { if (view !== 'tasks') setView('tasks'); openDetail(id || null); }
+  // Tela da tarefa: cartão de custo logo depois dos tokens.
+  var baseDetail = renderTaskDetail;
+  renderTaskDetail = function (list) {
+    baseDetail(list);
+    if (!tk.open) return;
+    // O custo fica no cartão próprio; na linha abaixo do nome ele só repetiria (e cortaria).
+    var meta = tk.one.querySelector('.tdmeta');
+    if (meta && meta.innerHTML.indexOf('tusd') >= 0) meta.innerHTML = meta.innerHTML.replace(/ · <span class="tusd">[^<]*<\/span>/, '');
+    var t = tFind(tk.sel), box = tk.one.querySelector('.tokbox');
+    if (!t || !t.cost || !box || tk.one.querySelector('.tcost')) return;
+    var c = t.cost;
+    box.insertAdjacentHTML('afterend',
+      '<div class="sec">Custo equivalente</div><div class="tcost">' +
+      '<div><b>' + fmtUsd(c.request) + '</b><span>último pedido</span></div>' +
+      '<div><b>' + fmtUsd(c.conversation) + '</b><span>conversa toda</span></div></div>' +
+      '<div class="tsoon">Preço da API do ' + esc(c.model) + ' por tipo de token: entrada, gravação e leitura do cache e saída. ' +
+      (c.reference ? 'Preço de referência: falta confirmar o do modelo usado. ' : '') +
+      'Nas assinaturas o limite segue a mesma lógica, mas a fórmula não é publicada.</div>');
   };
 
-  // A página de controles (index.html) manda { proto: 'cmd', name, arg } por postMessage.
-  window.addEventListener('message', function (e) {
-    var m = e.data;
-    if (m && m.proto === 'cmd' && typeof window.proto[m.name] === 'function') window.proto[m.name](m.arg);
-  });
+  // Concluída: o aviso na lista leva o custo e toca o som escolhido.
+  function playDone() {
+    // Dentro da página de teste, quem toca é a página de fora (lá está o toque que libera o áudio).
+    if (window.parent !== window) window.parent.postMessage({ proto: 'sound' }, '*');
+    else AlarmSounds.play(window.SOUND_ID || 'bipe', 0.8);
+  }
+  var basePop = showDonePop;
+  showDonePop = function (t) {
+    playDone();
+    basePop(t);
+    var pops = tk.pops.querySelectorAll('.tpop'), pop = pops[pops.length - 1];
+    if (pop && t.cost && pop.querySelector('.tchip'))
+      pop.querySelector('.tchip').insertAdjacentHTML('afterend', '<span class="pusd">' + fmtUsd(t.cost.request) + '</span>');
+  };
+  var baseBanner = showBanner;
+  showBanner = function (t, kind) {
+    if (kind === 'done' && !tasksView()) playDone();
+    baseBanner(t, kind);
+  };
 
-  // painel.html#s=permission&e=ask&v=procs&o=1: abre direto num estado (usado para as capturas).
-  var hash = {};
-  location.hash.replace(/^#/, '').split('&').forEach(function (kv) { var p = kv.split('='); if (p[0]) hash[p[0]] = p[1] || '1'; });
-  setView(hash.v || view);
-  window.proto.scenario(hash.s || 'normal');
-  if (hash.o) window.PROTO.offline = true;
-  if (hash.e) setTimeout(function () { window.proto[hash.e](hash.t); }, 600);
+  function cmd(name, arg) {
+    if (name === 'done') { window.MOCK.done = Date.now(); poll(); }
+    else if (name === 'ask') { window.MOCK.ask = Date.now(); poll(); }
+    else if (name === 'reset') { window.MOCK.done = window.MOCK.ask = false; tk.known = null; poll(); }
+    else if (name === 'open') { if (panelView !== 'tasks') setView('tasks'); openTaskDetail(arg || null); }
+    else if (name === 'view') setView(arg);
+    else if (name === 'offline') { window.MOCK.offline = !!arg; window.PROTO.offline = !!arg; poll(); }
+    else if (name === 'sound') window.SOUND_ID = arg;
+  }
+  window.addEventListener('message', function (e) { var m = e.data; if (m && m.proto === 'cmd') cmd(m.name, m.arg); });
+
+  var h = {};
+  location.hash.replace(/^#/, '').split('&').forEach(function (kv) { var p = kv.split('='); if (p[0]) h[p[0]] = decodeURIComponent(p[1] || '1'); });
+  setTimeout(function () {
+    if (h.v) setView(h.v);
+    if (h.e) cmd(h.e);
+    if (h.t) cmd('open', h.t);
+  }, 1500);
 })();
 
 </script>

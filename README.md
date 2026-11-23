@@ -325,6 +325,7 @@ UsageCockpit/
     HealthPublisher.cs  envio opcional da saúde do PC para /v1/health
     AgentTasks.cs       leitura das tarefas do Claude Code e do Codex (estado, pergunta, tokens)
     AgentsPublisher.cs  envio das tarefas para /v1/agents
+    ModelPrices.cs      preços da API por modelo, para o custo equivalente das tarefas
     ClaudeHooks.cs      hooks de permissão do Claude Code (--claude-hook, --remove-hooks)
     Placement.cs        monitores, posição, DPI e janela sempre visível (Win32)
   Controls/

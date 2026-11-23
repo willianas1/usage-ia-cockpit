@@ -407,7 +407,7 @@ Content-Type: application/json; charset=utf-8
 ```json
 {
   "schemaVersion": 1,
-  "client": { "name": "UsageCockpit", "version": "0.12.0" },
+  "client": { "name": "UsageCockpit", "version": "0.13.0" },
   "sentAt": "2026-11-23T12:10:04.1234567-03:00",
   "reason": "change",
   "paused": false,
@@ -427,6 +427,7 @@ Content-Type: application/json; charset=utf-8
       "summary": null,
       "tokens": { "input": 31200, "cacheWrite": 85000, "output": 9800, "cacheRead": 2400000 },
       "conversation": { "input": 412000, "cacheWrite": 690000, "output": 183000, "cacheRead": 36000000 },
+      "cost": { "request": 1.0436, "conversation": 18.0308, "model": "Claude Opus 5.5" },
       "tokensPerSecond": 0,
       "limitPercent": null
     }
@@ -444,6 +445,7 @@ Content-Type: application/json; charset=utf-8
 | `tasks[].question` | Só em `waiting`. `kind`: `question` (pergunta com opções), `permission` (com `tool`, ex.: `Bash`) ou `input` (o Claude Code espera algo que não deu para identificar) |
 | `tasks[].tokens` | `input`: entrada nova; `cacheWrite`: entrada gravada no cache; `output`: saída (inclui raciocínio); `cacheRead`: contexto lido do cache. O painel mostra `input + cacheWrite + output` |
 | `tasks[].conversation` | Mesmos campos de `tokens`, somando a conversa inteira (todos os pedidos da sessão). Apps anteriores à 0.12 não mandam; o painel usa então os do pedido |
+| `tasks[].cost` | Custo equivalente em US$ pelos preços da API (abaixo): `request` (último pedido), `conversation` (conversa toda) e `model` (nome do modelo do preço). `null` quando o modelo não está na tabela; ausente em apps anteriores à 0.13 |
 | `tasks[].tokensPerSecond` | Saída por segundo da tarefa; `null` em `done` |
 | `tasks[].limitPercent` | Só no Codex: quanto do limite de 5 h o pedido consumiu |
 
@@ -458,3 +460,20 @@ A lista vem ordenada (perguntas, execuções, concluídas) e tem no máximo 20 t
 - O app lê os arquivos uma vez por segundo, numa thread de fundo; nada é executado.
 
 Para ver o JSON no seu PC sem enviar nada, rode `UsageIACockpit.exe --agents tarefas.json`: o app lê as tarefas por cerca de 5 s, grava o arquivo e fecha.
+
+### Custo equivalente
+
+O `cost` de cada tarefa soma cada tipo de token pelo preço da API do modelo, em US$ por milhão de tokens, como os fornecedores cobram: entrada nova, gravação no cache, saída (com o raciocínio) e leitura do cache. Nas assinaturas (Claude Pro/Max, planos do ChatGPT) o limite segue a mesma lógica, mas a fórmula não é publicada: o valor serve de comparação, não é cobrança. A tabela fica em `UsageCockpit/Core/ModelPrices.cs`.
+
+| Modelo | Entrada | Saída | Leitura do cache | Gravação no cache | Fonte |
+|---|---|---|---|---|---|
+| Claude Opus 5.5 | 4 | 20 | 0,20 | 5 (5 min) / 8 (1 h) | Anthropic |
+| Claude Sonnet 5.5 | 2 | 10 | 0,10 | 1,25× / 2× a entrada | Anthropic |
+| Demais Claude (Fable, Mythos, Opus, Sonnet, Haiku) | tabela | tabela | tabela | 1,25× / 2× a entrada | Anthropic |
+| GPT-5.6 Terra | 2 | 12 | 0,20 | 2 (sem preço publicado; usa o da entrada) | página do modelo na OpenAI |
+| GPT-6.2 Sol | 2 | 10 | 0,10 | 2,50 | sites que acompanham os preços da OpenAI |
+
+- **Claude:** o custo é calculado por resposta, com o modelo dela (`message.model`), e a gravação no cache se divide em 5 min e 1 h pelo `usage.cache_creation`.
+- **Codex:** pelo modelo do `turn_context`, sobre os mesmos totais de `tokens` e `conversation`. Prompts acima de 272 mil tokens têm preço maior na OpenAI, e isso não entra na conta.
+- Modelo fora da tabela: `cost` vai `null` e o painel não mostra custo para a tarefa.
+

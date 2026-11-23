@@ -28,6 +28,12 @@ public sealed record AgentTokens(long Input, long CacheWrite, long Output, long 
         Math.Max(0, Output - o.Output), Math.Max(0, CacheRead - o.CacheRead));
 }
 
+/// <summary>
+/// Custo equivalente em US$ pelos preços da API (ModelPrices): do pedido atual e da conversa inteira.
+/// Model: nome do modelo usado no preço (o da resposta mais recente).
+/// </summary>
+public sealed record AgentCost(double Request, double Conversation, string Model);
+
 /// <summary>O que a tarefa espera do usuário. Kind: question, permission ou input.</summary>
 public sealed record AgentQuestion(string Kind, string Text, string? Tool, IReadOnlyList<string> Options);
 
@@ -50,6 +56,7 @@ public sealed record AgentTask(
     string? Summary,
     AgentTokens Tokens,
     AgentTokens? Conversation,
+    AgentCost? Cost,
     double? TokensPerSecond,
     double? LimitPercent);
 
@@ -498,6 +505,10 @@ sealed class ClaudeTasks
         // Respostas do pedido atual: do pedido à API até a última linha gravada, com a saída final.
         readonly Dictionary<string, (DateTimeOffset Start, DateTimeOffset End, long Output)> _spans = new();
         static readonly TimeSpan RateWindow = TimeSpan.FromSeconds(90);
+        // Custo de cada resposta (por message.id) no pedido atual e na conversa; sem preço do modelo: fora.
+        readonly Dictionary<string, double> _costTurn = new();
+        readonly Dictionary<string, double> _costAll = new();
+        string? _priceModel;
 
         // Pedido atual (turno): do último prompt do usuário em diante.
         DateTimeOffset? _turnStart;
@@ -543,6 +554,7 @@ sealed class ClaudeTasks
             {
                 ResetTurn(null);
                 _all.Clear();
+                _costAll.Clear();
             }
             foreach (var doc in docs)
                 using (doc)
@@ -603,6 +615,7 @@ sealed class ClaudeTasks
             _usage.Clear();
             _pending.Clear();
             _spans.Clear();
+            _costTurn.Clear();
         }
 
         void Apply(JsonElement r, bool subagent, RequestClock clock)
@@ -683,8 +696,20 @@ sealed class ClaudeTasks
                 AgentText.Long(usage, "input_tokens"), AgentText.Long(usage, "cache_creation_input_tokens"),
                 AgentText.Long(usage, "output_tokens"), AgentText.Long(usage, "cache_read_input_tokens"));
             _all[id] = tokens;
+            // Custo pelo modelo da resposta; a gravação no cache se divide em 5 min e 1 h quando o detalhe vem.
+            double? cost = null;
+            if (ModelPrices.Find(AgentText.Str(message, "model")) is { } price)
+            {
+                var creation = AgentText.Obj(usage, "cache_creation");
+                var write1h = AgentText.Long(creation, "ephemeral_1h_input_tokens");
+                var write5m = Math.Max(0, tokens.CacheWrite - write1h);
+                cost = price.Cost(tokens.Input, write5m, write1h, tokens.Output, tokens.CacheRead);
+                _costAll[id] = cost.Value;
+                _priceModel = price.Name;
+            }
             if (!turn) return;
             _usage[id] = tokens;
+            if (cost is { } c) _costTurn[id] = c;
             // Velocidade: a resposta só é gravada quando termina, já com a saída final. Mede-se do pedido à
             // API até a última linha dela (o total de saída não cresce enquanto o Claude gera).
             if (at is not { } end) return;
@@ -718,6 +743,9 @@ sealed class ClaudeTasks
             if (_info is not { } info || _turnStart is not { } start) return null;
             var tokens = _usage.Values.Aggregate(AgentTokens.Zero, (a, b) => a.Plus(b));
             var conversation = _all.Values.Aggregate(AgentTokens.Zero, (a, b) => a.Plus(b));
+            var cost = _priceModel != null
+                ? new AgentCost(Math.Round(_costTurn.Values.Sum(), 4), Math.Round(_costAll.Values.Sum(), 4), _priceModel)
+                : null;
             var question = Question(info, mark);
             var idle = info.Status == "idle" && question == null;
 
@@ -757,6 +785,7 @@ sealed class ClaudeTasks
                 state == AgentStates.Done ? AgentText.Summary(_lastText) : null,
                 tokens,
                 conversation,
+                cost,
                 rate,
                 null);
         }
@@ -899,6 +928,7 @@ sealed class CodexTasks
         readonly JsonlTail _tail;
         readonly string _threadId;
         string? _cwd;
+        string? _model;
         DateTimeOffset? _turnStart;
         DateTimeOffset? _endedAt;
         bool _active;
@@ -945,6 +975,7 @@ sealed class CodexTasks
             if (type == "turn_context")
             {
                 _cwd = AgentText.Str(p, "cwd") ?? _cwd;
+                _model = AgentText.Str(p, "model") ?? _model;
                 return;
             }
             if (type == "response_item")
@@ -1078,6 +1109,12 @@ sealed class CodexTasks
 
             var rate = state == AgentStates.Done ? null : _rate.Sample(now, tokens.Output);
             var name = names.TryGetValue(_threadId, out var n) ? n : null;
+            AgentCost? cost = null;
+            if (ModelPrices.Find(_model) is { } price)
+            {
+                double Of(AgentTokens k) => price.Cost(k.Input, k.CacheWrite, 0, k.Output, k.CacheRead);
+                cost = new AgentCost(Math.Round(Of(tokens), 4), Math.Round(Of(_total), 4), price.Name);
+            }
             return new AgentTask(
                 AgentText.Id("codex", _threadId),
                 "codex",
@@ -1092,6 +1129,7 @@ sealed class CodexTasks
                 state == AgentStates.Done ? AgentText.Summary(_lastText) : null,
                 tokens,
                 _total,
+                cost,
                 rate,
                 limit is > 0 ? limit : null);
         }
