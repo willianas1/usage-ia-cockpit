@@ -27,6 +27,7 @@ public partial class PublishWindow : Window
         TabletUrlBox.Text = settings.TabletBaseUrl ?? "";
         TabletKeyBox.Password = settings.TabletKey ?? "";
         TabletPinBox.Text = settings.TabletCertSha256 ?? "";
+        TabletAddressBox.Text = TabletPairing.DisplayAddress(settings.TabletBaseUrl);
         ExampleBox.Text = publisher.PreviewJson();
         ShowOutcome();
         publisher.OutcomeChanged += ShowOutcome;
@@ -73,6 +74,42 @@ public partial class PublishWindow : Window
         }
     }
 
+    /// <summary>
+    /// Pareia com o endereço e o código da tela do tablet e preenche URL, chave e impressão digital.
+    /// Nada é salvo até clicar em Salvar, como nos outros campos.
+    /// </summary>
+    async void TabletPair_Click(object sender, RoutedEventArgs e)
+    {
+        TabletPairButton.IsEnabled = false;
+        ShowPairText("Pareando…", false);
+        try
+        {
+            var r = await TabletPairing.PairAsync(TabletAddressBox.Text, TabletCodeBox.Text);
+            TabletUrlBox.Text = r.BaseUrl;
+            TabletKeyBox.Password = r.Key;
+            TabletPinBox.Text = r.Fingerprint;
+            TabletAddressBox.Text = TabletPairing.DisplayAddress(r.BaseUrl);
+            TabletCodeBox.Text = "";
+            TabletCheck.IsChecked = true;
+            ShowPairText($"Pareado com o tablet (certificado {r.Fingerprint[..4]} {r.Fingerprint[4..8]}…). Clique em Salvar para começar a enviar.", false);
+        }
+        catch (TabletPairingException ex)
+        {
+            ShowPairText(ex.Message, true);
+        }
+        finally
+        {
+            TabletPairButton.IsEnabled = true;
+        }
+    }
+
+    void ShowPairText(string text, bool warn)
+    {
+        TabletPairText.Text = text;
+        TabletPairText.Foreground = warn ? Warn : Foreground;
+        TabletPairText.Visibility = Visibility.Visible;
+    }
+
     static readonly Brush Warn = new SolidColorBrush(Color.FromRgb(0xF0, 0x88, 0x3E));
 
     async void Test_Click(object sender, RoutedEventArgs e)
@@ -108,7 +145,9 @@ public partial class PublishWindow : Window
         }
         if (problem == null && tablet)
         {
-            if (ApiPublisher.Endpoint(PublishTarget.Tablet, tabletUrl, UsagePublisher.Route, out var error) == null) problem = error;
+            if (tabletUrl.Length == 0 && tabletKey.Length == 0 && tabletPin.Length == 0)
+                problem = "Pareie com o tablet: toque no botão de conexão no painel dele, digite aqui o endereço e o código e clique em Parear";
+            else if (ApiPublisher.Endpoint(PublishTarget.Tablet, tabletUrl, UsagePublisher.Route, out var error) == null) problem = error;
             else if (tabletKey.Length == 0) problem = "Informe a chave do tablet";
             else if (tabletPin.Length != 64) problem = "Informe a impressão digital do certificado do tablet (64 dígitos hexadecimais)";
         }

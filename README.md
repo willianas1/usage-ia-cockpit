@@ -216,7 +216,7 @@ Todas as opções ficam na janela **Configurações** e valem na hora, enquanto 
 | Horário de trabalho | Fora do horário escolhido, em passos de 30 minutos, as consultas e os envios pausam sozinhos. Um ▶ fora do horário continua consultando até o fim do próximo expediente, e uma pausa pelo botão só termina pelo botão | Desligado, das 8:00 às 18:00 |
 | Iniciar com o Windows | Abre o app ao entrar no Windows | Desligado |
 | Envio para API | Envia o uso atual para uma API sua, para usar em outras aplicações. Veja [docs/API.md](docs/API.md) | Desligado |
-| Tablet na rede local | Na mesma janela do envio para API: manda uso, saúde e tarefas também para o tablet (URL, chave e impressão digital do certificado). Veja [docs/API.md](docs/API.md#tablet-na-rede-local) | Desligado |
+| Tablet na rede local | Na mesma janela do envio para API: manda uso, saúde e tarefas também para o tablet. Pareie com o endereço e o código de 8 dígitos da tela do tablet; URL, chave e impressão digital do certificado ficam em Configuração manual. Veja [docs/API.md](docs/API.md#tablet-na-rede-local) | Desligado |
 | Monitorar a saúde do PC | Lê CPU, memória, discos, energia e processos, sem administrador, e mostra um resumo com alertas na aba Saúde do PC | Desligado |
 | Enviar a saúde para a API | Envia a saúde para `{URL base}/v1/health` a cada 15 s. Pausa junto com as consultas, pelo botão ou fora do horário de trabalho. Precisa do envio para API ligado | Ligado |
 

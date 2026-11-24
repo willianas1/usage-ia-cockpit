@@ -31,13 +31,24 @@ Abra **Configurações › Envio para API › Configurar…** e preencha:
 
 Na mesma janela, a seção **Tablet na rede local** liga um segundo destino. É o app Android [usage-ia-tablet](../../usage-ia-tablet), que recebe as mesmas rotas (`/v1/usage`, `/v1/health` e `/v1/agents`) e mostra o painel do Echo Show no próprio tablet, sem passar pela internet.
 
+**Parear:** no tablet, toque no botão de conexão no topo do painel. A tela de pareamento mostra o endereço do tablet e um código de 8 dígitos. No PC, digite os dois, clique em **Parear** e depois em **Salvar**. O pareamento preenche sozinho a URL, a chave e a impressão digital do certificado.
+
+- O tablet só aceita pareamento com a tela de pareamento aberta. Cada abertura gera um código novo. O código também muda depois de cada pareamento e depois de 5 tentativas erradas.
+- Um mesmo endereço pode errar 5 vezes em 10 minutos; depois disso, o tablet responde `429` até a tentativa mais antiga sair da janela.
+- O endereço aceita `192.168.1.113`, `192.168.1.113:8787` ou `https://192.168.1.113:8787`. Sem porta, o app usa 8787.
+
+**Configuração manual** (para versões do app do tablet sem pareamento, ou para conferir): abra **Configuração manual** na mesma seção. A tela de pareamento do tablet mostra os três valores.
+
 | Campo | Exemplo |
 |---|---|
-| URL | `https://192.168.1.113:8787` (aparece na tela do tablet) |
-| Chave | gerada pelo tablet no primeiro uso |
+| URL | `https://192.168.1.113:8787` |
+| Chave | gerada pelo tablet no primeiro uso (43 caracteres) |
 | Impressão digital | SHA-256 do certificado do tablet, com 64 dígitos hexadecimais (espaços e `:` são ignorados) |
 
+Um PC configurado à mão, ou por versões anteriores do app, continua funcionando: o pareamento entrega a mesma chave e o mesmo certificado.
+
 - O tablet usa um certificado autoassinado. O app aceita a conexão só quando a impressão digital do certificado é a configurada. Nome do host e cadeia de certificação não contam. HTTP não é aceito.
+- Chave errada também tem limite: 20 tentativas por endereço em 5 minutos bloqueiam o endereço com `429` e `Retry-After`. A chave tem 256 bits, então esse limite é só um reforço.
 - Cada destino tem a própria fila, com espera e novas tentativas independentes. Um tablet desligado não atrasa os envios para a API.
 - Certificado diferente do configurado conta como chave recusada: os envios para o tablet param até a configuração ser salva de novo. Isso acontece quando o app do tablet é reinstalado do zero ou quando outro aparelho assume o IP.
 - Basta um destino ligado (API ou tablet) para o app coletar as tarefas e instalar os hooks do Claude Code.
@@ -51,6 +62,21 @@ Na mesma janela, a seção **Tablet na rede local** liga um segundo destino. É 
   - **Codex, aprovações:** hook `PermissionRequest` em `~/.codex/hooks.json`, instalado só com o tablet ligado. O Codex pede para confiar no hook uma vez, em Configurações › Hooks (ou `/hooks` na CLI). O pedido só aparece na tela do Codex depois que o hook termina, por isso ele espera o tablet por no máximo 60 s.
   - **Codex, perguntas assíncronas e texto livre:** a resposta vai como mensagem do usuário na conversa, pelo `codex queue --thread <id> --message <texto>`. As perguntas que travam a tarefa (`request_user_input` síncrono) continuam sendo respondidas só no PC.
   - No envio de `/v1/agents`, `question.answerable: true` indica que dá para responder pelo tablet naquele momento.
+
+#### Protocolo de pareamento
+
+Um código de 8 dígitos é fácil de adivinhar por força bruta se aparecer num hash. Por isso o pareamento usa SPAKE2, uma troca de chaves autenticada por senha: quem não sabe o código só testa um palpite por tentativa, e não há nada para quebrar offline. A impressão digital do certificado que cada lado vê entra na conta, então um aparelho no meio da conexão não consegue confirmar. Implementações: `UsageCockpit/Core/TabletPairing.cs` (PC) e `app/src/main/java/com/usageia/tablet/Spake2.java` (tablet).
+
+- **Grupo:** MODP de 2048 bits do RFC 3526 (grupo 14), `g = 2`, subgrupo de ordem `q = (p-1)/2`.
+- **Elementos fixos:** `M` e `N` são o SHA-256 de `"UsageIA SPAKE2 M:0"` … `":8"` (e o mesmo com `N`), concatenados, lidos como inteiro big-endian, `mod p` e elevados ao quadrado `mod p`.
+- **Senha:** `w = SHA-256("UsageIA pair code:" + 8 dígitos) mod q`.
+- **Codificação:** os elementos e `w` vão em 256 bytes big-endian, em hexadecimal no JSON. Quem recebe um elemento confere que `1 < e < p-1` e `e^q = 1`.
+
+1. O PC abre o HTTPS aceitando qualquer certificado, anota a impressão digital SHA-256 `F` e fixa esse certificado para o resto do pareamento. Ele sorteia `x` e envia `POST /v1/pair/start` com `{"x": hex(g^x · M^w)}`.
+2. O tablet sorteia `y`, calcula `Y = g^y · N^w` e `K = (X / M^w)^y`, e responde `{"session", "y": hex(Y), "confirm"}`. As recusas são `403 pairing_closed` (tela fechada), `429 code_changed` (5 tentativas com o mesmo código) e `429 too_many_attempts` (endereço bloqueado, com `Retry-After`).
+3. Os dois montam a transcrição `TT = SHA-256` dos campos `"UsageIA-pair-v1"`, `F` (64 dígitos hexadecimais em maiúsculas, ASCII), `X`, `Y`, `K` e `w`, cada um precedido do tamanho em 4 bytes big-endian. A chave de confirmação é `Ka = HMAC-SHA256(TT, "UsageIA confirm")`. O tablet usa a impressão digital do próprio certificado.
+4. O `confirm` do tablet é `HMAC-SHA256(Ka, "tablet")`. Se não bater, o código está errado (ou outro aparelho respondeu) e o PC para por aí.
+5. O PC envia `POST /v1/pair/finish` com `{"session", "confirm": hex(HMAC-SHA256(Ka, "pc"))}`. Se bater, o tablet troca o código e responde `{"key", "fingerprint"}`. A sessão vale 60 s e só para o mesmo endereço.
 
 Para gerar uma chave, você pode rodar no PowerShell:
 
