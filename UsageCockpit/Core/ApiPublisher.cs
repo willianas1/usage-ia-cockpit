@@ -29,6 +29,7 @@ public enum PublishTarget { Api, Tablet }
 public abstract class ApiPublisher
 {
     static readonly TimeSpan MaxBackoff = TimeSpan.FromMinutes(10);
+    static readonly TimeSpan TabletRejectedRetry = TimeSpan.FromMinutes(5);
     static readonly TimeSpan Timeout = TimeSpan.FromSeconds(10);
 
     protected static readonly JsonSerializerOptions JsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
@@ -238,10 +239,17 @@ public abstract class ApiPublisher
                     c.Failures = 0;
                     c.RetryAt = DateTimeOffset.MinValue;
                 }
+                else if (outcome.KeyRejected && c.Target == PublishTarget.Api)
+                {
+                    // Chave errada na API não melhora sozinha: para até o usuário corrigir.
+                    c.KeyRejected = true;
+                }
                 else if (outcome.KeyRejected)
                 {
-                    // Chave ou certificado errado não melhora sozinho: para até o usuário corrigir.
-                    c.KeyRejected = true;
+                    // No tablet, a recusa pode ser passageira (o app do tablet sendo reinstalado ou pareado de
+                    // novo, bloqueio temporário por tentativas): tenta de novo a cada 5 min, sem parar de vez.
+                    c.Failures++;
+                    c.RetryAt = DateTimeOffset.Now + TabletRejectedRetry;
                 }
                 else
                 {
@@ -282,7 +290,21 @@ public abstract class ApiPublisher
     {
         if (Endpoint(target, baseUrl, _route, out var error) is not { } url)
             return new PublishOutcome(false, error!, DateTimeOffset.Now);
-        return (await SendAsync(target, url, key, pin, BuildPayload("test"))).Result;
+        var result = (await SendAsync(target, url, key, pin, BuildPayload("test"))).Result;
+        // Teste bem-sucedido com a configuração salva: libera na hora o envio que estava esperando.
+        var (savedUrl, savedKey, savedPin) = Destination(target);
+        if (result.Ok && string.Equals(savedUrl?.Trim(), baseUrl?.Trim(), StringComparison.OrdinalIgnoreCase)
+            && savedKey.Trim() == key.Trim() && NormalizePin(savedPin) == NormalizePin(pin))
+        {
+            var c = _channels[target == PublishTarget.Api ? 0 : 1];
+            c.KeyRejected = false;
+            c.Failures = 0;
+            c.RetryAt = DateTimeOffset.MinValue;
+            c.Wait.Cancel();
+            c.Wait = new CancellationTokenSource();
+            Enqueue("heartbeat");
+        }
+        return result;
     }
 
     /// <summary>

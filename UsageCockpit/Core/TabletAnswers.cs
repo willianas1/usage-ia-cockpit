@@ -273,7 +273,12 @@ public sealed class TabletAnswerReceiver
                 req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", key);
                 using var res = await client.SendAsync(req, ct);
                 if (res.StatusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden)
-                    return; // chave errada: o envio mostra o erro; volta quando a configuração for salva
+                {
+                    // Chave recusada: pode ser passageiro (tablet reinstalado ou pareado de novo). Tenta de novo
+                    // a cada minuto em vez de desistir até a configuração ser salva.
+                    await Task.Delay(TimeSpan.FromMinutes(1), ct);
+                    continue;
+                }
                 if (!res.IsSuccessStatusCode) throw new HttpRequestException(res.StatusCode.ToString());
                 var body = await res.Content.ReadAsStringAsync(ct);
                 failures = 0;
