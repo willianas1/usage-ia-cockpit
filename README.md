@@ -1,4 +1,4 @@
-﻿# Usage IA Cockpit
+# Usage IA Cockpit
 
 Painel flutuante para Windows que mostra, em tempo real, quanto você já usou dos limites do **Claude Code** e do **Codex** (ChatGPT): a janela de **5 horas** e a cota **semanal** de cada conta.
 
