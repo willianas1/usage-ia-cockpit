@@ -15,8 +15,8 @@ namespace UsageCockpit.Core;
 ///   Codex só mostra o pedido na tela depois que o hook termina, então ele espera o tablet por pouco tempo
 ///   (TabletAnswers.CodexWait) e, sem resposta, deixa o pedido aparecer no PC. O Codex pede para confiar
 ///   no hook uma vez (Configurações › Hooks, ou /hooks na CLI).
-/// - Perguntas assíncronas (request_user_input_async) e texto livre: viram mensagem do usuário na conversa,
-///   pelo "codex queue --thread &lt;id&gt; --message &lt;texto&gt;".
+/// - Perguntas (request_user_input) não: o Codex Desktop as mostra numa janela que nenhum processo de fora
+///   responde, e uma mensagem na fila ("codex queue") só chega depois, sem responder a pergunta.
 /// </summary>
 public static class CodexHooks
 {
@@ -33,7 +33,7 @@ public static class CodexHooks
             stdin.CopyTo(ms);
             using var doc = JsonDocument.Parse(ms.ToArray());
             if (AgentText.Str(doc.RootElement, "hook_event_name") != "PermissionRequest") return;
-            if (!AppSettings.Load().TabletEnabled) return;
+            if (!TabletAnswers.TabletOn()) return;
             if (TabletAnswers.WaitForCodex(doc.RootElement) is { } decision) ClaudeHooks.WriteStdout(decision);
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException or NotSupportedException)
@@ -97,78 +97,5 @@ public static class CodexHooks
                 if (ClaudeHooks.IsOurs(inner[j], HookArg)) inner.RemoveAt(j);
             if (inner.Count == 0) list.RemoveAt(i);
         }
-    }
-
-    // ---------- Mensagem na conversa (codex queue) ----------
-
-    /// <summary>
-    /// Manda a resposta do tablet como mensagem do usuário na conversa do Codex. A conversa é achada pelo
-    /// id público da tarefa (x-…) entre os rollouts recentes. Roda fora da thread da interface.
-    /// </summary>
-    public static void Queue(TabletAnswer a)
-    {
-        var text = (a.Text ?? a.Choice)?.Trim();
-        if (string.IsNullOrEmpty(text) || text.Length > 4000) return;
-        _ = Task.Run(() =>
-        {
-            try
-            {
-                if (ThreadOf(a.TaskId) is not { } thread || CodexJs() is not { } js || Node() is not { } node) return;
-                var psi = new ProcessStartInfo(node)
-                {
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                };
-                // ArgumentList: cada argumento vai como está, sem passar por um shell.
-                foreach (var arg in new[] { js, "queue", "--thread", thread, "--message", text }) psi.ArgumentList.Add(arg);
-                using var p = Process.Start(psi);
-                if (p == null) return;
-                p.StandardOutput.ReadToEndAsync();
-                p.StandardError.ReadToEndAsync();
-                if (!p.WaitForExit(30_000)) p.Kill(entireProcessTree: true);
-            }
-            catch (Exception e) when (e is IOException or UnauthorizedAccessException or InvalidOperationException
-                                           or System.ComponentModel.Win32Exception)
-            {
-                AgentTasksMonitor.Log(e);
-            }
-        });
-    }
-
-    /// <summary>Id da conversa (uuid no fim do nome do rollout) cujo id público é taskId.</summary>
-    static string? ThreadOf(string taskId)
-    {
-        var root = Http.Home(".codex", "sessions");
-        if (!Directory.Exists(root)) return null;
-        var since = DateTime.UtcNow.AddDays(-2);
-        return Directory.EnumerateFiles(root, "rollout-*.jsonl", SearchOption.AllDirectories)
-            .Where(f => File.GetLastWriteTimeUtc(f) >= since)
-            .Select(f => Path.GetFileNameWithoutExtension(f))
-            .Select(n => n.Length >= 36 ? n[^36..] : n)
-            .FirstOrDefault(id => AgentText.Id("codex", id) == taskId);
-    }
-
-    static string? CodexJs()
-    {
-        var js = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "npm", "node_modules", "@openai", "codex", "bin", "codex.js");
-        return File.Exists(js) ? js : null;
-    }
-
-    static string? Node()
-    {
-        foreach (var dir in (Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator))
-        {
-            try
-            {
-                var path = Path.Combine(dir.Trim('"'), "node.exe");
-                if (File.Exists(path)) return path;
-            }
-            catch (ArgumentException) { }
-        }
-        var fallback = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "nodejs", "node.exe");
-        return File.Exists(fallback) ? fallback : null;
     }
 }

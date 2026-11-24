@@ -1170,8 +1170,9 @@ sealed class CodexTasks
                 var q = _questions.OrderByDescending(x => x.Value.At).First();
                 state = AgentStates.Waiting;
                 since = q.Value.At;
-                // Pergunta assíncrona: a resposta é uma mensagem do usuário, que o tablet manda pelo codex queue.
-                question = _async.Contains(q.Key) ? q.Value.Question with { Answerable = true } : q.Value.Question;
+                // Perguntas do Codex só são respondidas no PC: o Codex Desktop mostra a pergunta numa janela que
+                // nenhum processo de fora consegue responder (uma mensagem na fila não responde a pergunta).
+                question = q.Value.Question;
             }
             else if (TabletAnswers.Waiting(id) is { Kind: "permission" } wait)
             {

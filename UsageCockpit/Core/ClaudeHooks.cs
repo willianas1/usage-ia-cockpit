@@ -30,7 +30,8 @@ public static class ClaudeHooks
     /// <summary>Notificações que indicam espera pelo usuário (idle_prompt é só a sessão parada).</summary>
     static readonly HashSet<string> WaitingTypes = new(StringComparer.Ordinal) { "permission_prompt", "elicitation_dialog" };
 
-    static string MarksFolder => Path.Combine(AppSettings.Folder, "hooks");
+    // Fora do AppData: o hook pode rodar dentro do pacote do Claude Desktop (ver TabletAnswers.SharedFolder).
+    static string MarksFolder => Path.Combine(TabletAnswers.SharedFolder, "hooks");
     static string SettingsPath => Http.Home(".claude", "settings.json");
     static readonly Regex SafeId = new("^[A-Za-z0-9-]{8,80}$", RegexOptions.CultureInvariant);
 
@@ -82,7 +83,7 @@ public static class ClaudeHooks
             File.WriteAllText(tmp, JsonSerializer.Serialize(mark), new UTF8Encoding(false));
             File.Move(tmp, path, overwrite: true);
 
-            if (evt == "PermissionRequest" && AppSettings.Load().TabletEnabled
+            if (evt == "PermissionRequest" && TabletAnswers.TabletOn()
                 && TabletAnswers.WaitForClaude(r, session) is { } decision)
                 WriteStdout(decision);
         }

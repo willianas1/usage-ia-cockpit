@@ -22,9 +22,8 @@ public sealed record TabletAnswer(string TaskId, string? Question, string? Choic
 /// <summary>
 /// Respostas vindas do tablet (só com o tablet ligado; com a API nada disso roda). O app busca as
 /// respostas no tablet com uma requisição longa (GET /v1/answers?wait=25): a conexão sai do PC, como os
-/// envios, e a resposta chega na hora. Cada uma é entregue à ferramenta: no Claude Code, ao hook
-/// PermissionRequest que está esperando (arquivo em %APPDATA%\UsageCockpit\answers); no Codex, pelo
-/// CodexAnswers.
+/// envios, e a resposta chega na hora. Cada uma é entregue ao hook PermissionRequest que está esperando
+/// (Claude Code ou Codex), por um arquivo em %USERPROFILE%\.usage-ia-cockpit\answers.
 /// </summary>
 public static class TabletAnswers
 {
@@ -32,32 +31,69 @@ public static class TabletAnswers
     public static readonly TimeSpan MaxWait = TimeSpan.FromSeconds(590);
     public const int HookTimeoutSeconds = 600;
 
-    static string Folder => Path.Combine(AppSettings.Folder, "answers");
+    /// <summary>
+    /// Pasta trocada entre o Cockpit e os hooks. Fica fora do AppData: o Claude Desktop e o Codex Desktop são
+    /// apps empacotados (MSIX), e os hooks que eles rodam leem e gravam o AppData numa cópia virtualizada do
+    /// pacote, que o Cockpit não enxerga. A pasta do usuário não é virtualizada.
+    /// </summary>
+    public static string SharedFolder => Http.Home(".usage-ia-cockpit");
+    static string Folder => Path.Combine(SharedFolder, "answers");
+    static string TabletFlag => Path.Combine(SharedFolder, "tablet-ligado");
+
+    /// <summary>Opção especial do painel: pular a pergunta.</summary>
+    public const string Skip = "__pular__";
+
+    /// <summary>Se o tablet está ligado no Cockpit (o hook não lê a configuração, que pode estar virtualizada).</summary>
+    public static bool TabletOn() => File.Exists(TabletFlag);
+
+    /// <summary>Chamado pelo Cockpit quando a configuração muda.</summary>
+    public static void SetTabletOn(bool on)
+    {
+        try
+        {
+            if (on)
+            {
+                Directory.CreateDirectory(SharedFolder);
+                File.WriteAllText(TabletFlag, DateTimeOffset.Now.ToString("O"));
+            }
+            else if (File.Exists(TabletFlag)) File.Delete(TabletFlag);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+        }
+    }
 
     /// <summary>Hook esperando a resposta de uma tarefa. Kind: permission ou question; Tool e Text: o que mostrar.</summary>
     public sealed record WaitMark(int Pid, DateTimeOffset At, string Kind = "permission", string? Tool = null, string? Text = null);
-    sealed record AnswerFile(string? Question, string? Choice, DateTimeOffset At);
+    sealed record AnswerFile(string? Question, string? Choice, DateTimeOffset At, string? Text = null);
 
     // ---------- Lado do monitor: o painel só mostra botões quando há quem receba a resposta ----------
 
     /// <summary>Se um hook está esperando a resposta desta tarefa agora.</summary>
     public static bool IsWaiting(string taskId) => Waiting(taskId) != null;
 
-    /// <summary>O hook (Claude Code ou Codex) que espera a resposta desta tarefa, se ainda estiver vivo.</summary>
+    /// <summary>
+    /// O hook (Claude Code ou Codex) que espera a resposta desta tarefa, se ainda estiver vivo. O hook renova o
+    /// arquivo de espera a cada 2 s; vale enquanto ele for recente. Não dá para olhar o processo: o hook pode
+    /// rodar dentro do pacote do Claude Desktop ou do Codex Desktop, fora do alcance do Cockpit.
+    /// </summary>
     public static WaitMark? Waiting(string taskId)
     {
         try
         {
-            if (ReadWait(Path.Combine(Folder, taskId + ".wait")) is not { } w) return null;
-            if (DateTimeOffset.Now - w.At > MaxWait) return null;
-            using var p = Process.GetProcessById(w.Pid);
-            return p.HasExited ? null : w;
+            var path = Path.Combine(Folder, taskId + ".wait");
+            if (ReadWait(path) is not { } w) return null;
+            if (DateTime.UtcNow - File.GetLastWriteTimeUtc(path) > AliveFor) return null;
+            return DateTimeOffset.Now - w.At > MaxWait ? null : w;
         }
-        catch (Exception e) when (e is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception)
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
             return null;
         }
     }
+
+    static readonly TimeSpan AliveEvery = TimeSpan.FromSeconds(2);
+    static readonly TimeSpan AliveFor = TimeSpan.FromSeconds(10);
 
     /// <summary>Entrega a resposta ao hook que espera por ela (arquivo lido pelo processo do hook).</summary>
     public static void DeliverToHook(TabletAnswer a)
@@ -67,7 +103,7 @@ public static class TabletAnswers
             Directory.CreateDirectory(Folder);
             var path = Path.Combine(Folder, a.TaskId + ".json");
             var tmp = path + ".tmp";
-            File.WriteAllText(tmp, JsonSerializer.Serialize(new AnswerFile(a.Question, a.Choice, DateTimeOffset.Now)), new UTF8Encoding(false));
+            File.WriteAllText(tmp, JsonSerializer.Serialize(new AnswerFile(a.Question, a.Choice, DateTimeOffset.Now, a.Text)), new UTF8Encoding(false));
             File.Move(tmp, path, overwrite: true);
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
@@ -96,9 +132,9 @@ public static class TabletAnswers
             if (string.IsNullOrEmpty(askText)) return null;
         }
         var expected = askText != null ? AgentText.Clip(askText, 600) : AgentText.ToolSummary(tool, input);
-        var choice = Wait(AgentText.Id("claude", sessionId), new WaitMark(Environment.ProcessId, DateTimeOffset.Now,
+        var answer = Wait(AgentText.Id("claude", sessionId), new WaitMark(Environment.ProcessId, DateTimeOffset.Now,
             askText != null ? "question" : "permission", tool, expected), expected, AgentText.Str(evt, "transcript_path"), MaxWait);
-        return choice == null ? null : Decision(tool, input, evt, askText, choice);
+        return answer == null ? null : Decision(tool, input, evt, askText, answer.Choice, answer.Text);
     }
 
     /// <summary>
@@ -111,11 +147,11 @@ public static class TabletAnswers
         var tool = AgentText.Str(evt, "tool_name");
         var input = AgentText.Obj(evt, "tool_input");
         var text = AgentText.Clip(AgentText.Str(input, "description"), 600) ?? AgentText.ToolSummary(tool, input);
-        var choice = Wait(AgentText.Id("codex", thread), new WaitMark(Environment.ProcessId, DateTimeOffset.Now, "permission", tool, text),
+        var answer = Wait(AgentText.Id("codex", thread), new WaitMark(Environment.ProcessId, DateTimeOffset.Now, "permission", tool, text),
             text, null, CodexWait);
-        if (choice == null) return null;
-        var decision = choice == "Negar"
-            ? new JsonObject { ["behavior"] = "deny", ["message"] = "Negado pelo painel do tablet." }
+        if (answer == null) return null;
+        var decision = answer.Choice == "Negar"
+            ? new JsonObject { ["behavior"] = "deny", ["message"] = DenyMessage(answer.Text) }
             : new JsonObject { ["behavior"] = "allow" };
         return new JsonObject
         {
@@ -127,8 +163,11 @@ public static class TabletAnswers
     public static readonly TimeSpan CodexWait = TimeSpan.FromSeconds(60);
     public const int CodexHookTimeoutSeconds = 90;
 
-    /// <summary>Marca a espera, aguarda a resposta do tablet e devolve a opção escolhida (ou null).</summary>
-    static string? Wait(string taskId, WaitMark mark, string? expected, string? transcript, TimeSpan max)
+    static string DenyMessage(string? text) =>
+        string.IsNullOrWhiteSpace(text) ? "Negado pelo painel do tablet." : "Negado pelo painel do tablet: " + text.Trim();
+
+    /// <summary>Marca a espera, aguarda a resposta do tablet e devolve a resposta (opção e/ou texto), ou null.</summary>
+    static AnswerFile? Wait(string taskId, WaitMark mark, string? expected, string? transcript, TimeSpan max)
     {
         var pid = mark.Pid;
         var waitPath = Path.Combine(Folder, taskId + ".wait");
@@ -140,14 +179,21 @@ public static class TabletAnswers
             if (File.Exists(answerPath)) File.Delete(answerPath); // resposta de uma pergunta anterior
             File.WriteAllText(waitPath, JsonSerializer.Serialize(mark), new UTF8Encoding(false));
             var length = Length(transcript);
+            var alive = DateTimeOffset.Now;
             while (DateTimeOffset.Now - start < max)
             {
                 Thread.Sleep(250);
+                if (DateTimeOffset.Now - alive >= AliveEvery)
+                {
+                    alive = DateTimeOffset.Now;
+                    try { File.SetLastWriteTimeUtc(waitPath, DateTime.UtcNow); }
+                    catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
+                }
                 if (ReadAnswer(answerPath) is { } a)
                 {
                     TryDelete(answerPath);
                     if (a.Question != null && expected != null && a.Question != expected) continue; // era outra pergunta
-                    if (a.Choice is { Length: > 0 } choice) return choice;
+                    if (a.Choice is { Length: > 0 } || !string.IsNullOrWhiteSpace(a.Text)) return a;
                 }
                 // Respondido no terminal: a conversa andou. Outro pedido da sessão: o arquivo de espera mudou.
                 if (Length(transcript) != length) return null;
@@ -165,21 +211,29 @@ public static class TabletAnswers
         }
     }
 
-    static string Decision(string? tool, JsonElement input, JsonElement evt, string? askText, string choice)
+    static string Decision(string? tool, JsonElement input, JsonElement evt, string? askText, string? choice, string? text)
     {
         var decision = new JsonObject();
-        if (askText != null)
+        if (askText != null && choice == Skip)
         {
+            // Pular: a pergunta é recusada com um recado, e o Claude segue sem a resposta.
+            decision["behavior"] = "deny";
+            decision["message"] = "O usuário pulou esta pergunta pelo painel do tablet. Siga sem essa resposta.";
+        }
+        else if (askText != null)
+        {
+            // Opção tocada ou "Outra resposta…" escrita no tablet.
             // AskUserQuestion: "allow" sozinho não responde; a resposta vai em updatedInput.answers.
             var updated = JsonNode.Parse(input.GetRawText()) as JsonObject ?? new JsonObject();
-            updated["answers"] = new JsonObject { [askText] = choice };
+            updated["answers"] = new JsonObject { [askText] = string.IsNullOrWhiteSpace(text) ? choice : text.Trim() };
             decision["behavior"] = "allow";
             decision["updatedInput"] = updated;
         }
         else if (choice == "Negar")
         {
+            // "Negar e explicar…": o texto vai como recado para o Claude fazer diferente.
             decision["behavior"] = "deny";
-            decision["message"] = "Negado pelo painel do tablet.";
+            decision["message"] = DenyMessage(text);
         }
         else
         {
@@ -232,13 +286,11 @@ public static class TabletAnswers
 public sealed class TabletAnswerReceiver
 {
     readonly AppSettings _settings;
-    readonly Action<TabletAnswer> _codex;
     CancellationTokenSource? _cts;
 
-    public TabletAnswerReceiver(AppSettings settings, Action<TabletAnswer> codex)
+    public TabletAnswerReceiver(AppSettings settings)
     {
         _settings = settings;
-        _codex = codex;
     }
 
     public void Apply()
@@ -284,10 +336,9 @@ public sealed class TabletAnswerReceiver
                 failures = 0;
                 foreach (var a in Parse(body))
                 {
-                    // Com um hook esperando (permissão do Claude Code ou do Codex, pergunta do Claude Code), a
-                    // resposta vai para ele; senão, é resposta a uma pergunta assíncrona do Codex (mensagem).
+                    // Só há quem receba quando um hook está esperando (permissão do Claude Code ou do Codex,
+                    // pergunta do Claude Code). Sem hook, a pergunta já foi respondida no PC: a resposta é descartada.
                     if (TabletAnswers.IsWaiting(a.TaskId)) TabletAnswers.DeliverToHook(a);
-                    else if (a.TaskId.StartsWith("x-", StringComparison.Ordinal)) _codex(a);
                 }
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)

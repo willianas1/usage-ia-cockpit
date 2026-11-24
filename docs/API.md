@@ -58,9 +58,15 @@ Um PC configurado à mão, ou por versões anteriores do app, continua funcionan
   - recebe o progresso das tarefas a cada segundo.
 - **Responder pelo tablet** (só com o tablet ligado; com a API, nada disso roda):
   - **Como a resposta chega ao PC:** o app busca as respostas tocadas no painel com `GET {URL do tablet}/v1/answers?wait=25`, uma requisição longa com a mesma chave e o mesmo certificado. A conexão sai do PC, e não há porta aberta nele.
-  - **Claude Code:** o hook `PermissionRequest` (timeout de 600 s) espera a resposta do tablet e devolve permitir, permitir sempre (com as regras sugeridas) ou negar. Também responde ao `AskUserQuestion` de uma pergunta e aprova o plano do `ExitPlanMode`. O diálogo do terminal continua valendo: se você responder no PC antes, o hook desiste.
-  - **Codex, aprovações:** hook `PermissionRequest` em `~/.codex/hooks.json`, instalado só com o tablet ligado. O Codex pede para confiar no hook uma vez, em Configurações › Hooks (ou `/hooks` na CLI). O pedido só aparece na tela do Codex depois que o hook termina, por isso ele espera o tablet por no máximo 60 s.
-  - **Codex, perguntas assíncronas e texto livre:** a resposta vai como mensagem do usuário na conversa, pelo `codex queue --thread <id> --message <texto>`. As perguntas que travam a tarefa (`request_user_input` síncrono) continuam sendo respondidas só no PC.
+  - **Claude Code:** o hook `PermissionRequest` (timeout de 600 s) espera a resposta do tablet e devolve:
+    - nas permissões: permitir, permitir sempre (com as regras sugeridas), negar, ou negar com um recado ("Negar e explicar…");
+    - no `AskUserQuestion` de uma pergunta: a opção tocada, outra resposta escrita no tablet, ou "Pular" (a pergunta é recusada com um recado e o Claude segue sem a resposta);
+    - no `ExitPlanMode`: a aprovação do plano.
+
+    O diálogo do terminal continua valendo: se você responder no PC antes, o hook desiste.
+  - **Pasta compartilhada:** o Cockpit e os hooks trocam os avisos e as respostas em `%USERPROFILE%\.usage-ia-cockpit` (`hooks`, `answers` e o arquivo `tablet-ligado`), fora do `AppData`. O Claude Desktop e o Codex Desktop são apps empacotados (MSIX), e os hooks que eles rodam enxergam uma cópia virtualizada do `AppData`.
+  - **Codex, aprovações:** hook `PermissionRequest` em `~/.codex/hooks.json`, instalado só com o tablet ligado. Devolve permitir, negar ou negar com recado. O Codex pede para confiar no hook uma vez, em Configurações › Hooks (ou `/hooks` na CLI). O pedido só aparece na tela do Codex depois que o hook termina, por isso ele espera o tablet por no máximo 60 s.
+  - **Codex, perguntas:** só no PC. O Codex Desktop mostra a pergunta numa janela (opções, "Pular" e resposta escrita) que nenhum processo de fora consegue responder. Uma mensagem na fila (`codex queue`) não responde a pergunta e só chega depois, como mensagem nova.
   - No envio de `/v1/agents`, `question.answerable: true` indica que dá para responder pelo tablet naquele momento.
 
 #### Protocolo de pareamento

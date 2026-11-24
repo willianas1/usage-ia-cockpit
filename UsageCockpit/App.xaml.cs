@@ -57,6 +57,7 @@ public partial class App : Application
         {
             ClaudeHooks.Remove();
             CodexHooks.Remove();
+            TabletAnswers.SetTabletOn(false);
             Shutdown();
             return;
         }
@@ -110,7 +111,7 @@ public partial class App : Application
         var agents = _agents = new AgentsPublisher(_settings, new AgentTasksMonitor());
         agents.Monitor.Updated += () => Dispatcher.BeginInvoke(agents.OnUpdated);
         // Respostas tocadas no painel do tablet (só com o tablet ligado).
-        _answers = new TabletAnswerReceiver(_settings, CodexHooks.Queue);
+        _answers = new TabletAnswerReceiver(_settings);
         _overlay = new OverlayWindow(_settings, _vm);
         _overlay.SettingsRequested += OpenSettings;
         _overlay.MinimizedToTray += NotifyMinimized;
@@ -159,6 +160,7 @@ public partial class App : Application
         if (_agents == null) return;
         _agents.Reconfigure();
         _answers?.Apply();
+        TabletAnswers.SetTabletOn(_settings.TabletEnabled);
         var install = _settings.AnyPublishEnabled && _settings.ShowClaude;
         // O hook do Codex só serve para responder pelo tablet.
         var codex = _settings.TabletEnabled && _settings.ShowCodex;
