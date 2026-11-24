@@ -56,18 +56,35 @@ public abstract class ApiPublisher
         lock (TabletLock)
         {
             if (_tabletClient is { } c && c.Pin == pin) return c.Client;
-            var client = NewClient(new HttpClientHandler
-            {
-                AllowAutoRedirect = false,
-                ServerCertificateCustomValidationCallback = (_, cert, _, _) =>
-                    cert != null && CryptographicOperations.FixedTimeEquals(
-                        Encoding.ASCII.GetBytes(cert.GetCertHashString(HashAlgorithmName.SHA256).ToUpperInvariant()),
-                        Encoding.ASCII.GetBytes(pin)),
-            });
+            var client = NewClient(TabletHandler(pin));
             _tabletClient = (pin, client);
             return client;
         }
     }
+
+    static (string Pin, HttpClient Client)? _tabletLongClient;
+
+    /// <summary>Cliente do tablet para a busca longa de respostas (GET /v1/answers?wait=25): timeout maior.</summary>
+    internal static HttpClient TabletLongPollClient(string pin)
+    {
+        lock (TabletLock)
+        {
+            if (_tabletLongClient is { } c && c.Pin == pin) return c.Client;
+            var client = new HttpClient(TabletHandler(pin)) { Timeout = TimeSpan.FromSeconds(45) };
+            client.DefaultRequestHeaders.UserAgent.ParseAdd($"UsageCockpit/{AppVersion}");
+            _tabletLongClient = (pin, client);
+            return client;
+        }
+    }
+
+    static HttpClientHandler TabletHandler(string pin) => new()
+    {
+        AllowAutoRedirect = false,
+        ServerCertificateCustomValidationCallback = (_, cert, _, _) =>
+            cert != null && CryptographicOperations.FixedTimeEquals(
+                Encoding.ASCII.GetBytes(cert.GetCertHashString(HashAlgorithmName.SHA256).ToUpperInvariant()),
+                Encoding.ASCII.GetBytes(pin)),
+    };
 
     /// <summary>Impressão digital só com os dígitos hexadecimais, em maiúsculas (aceita espaços e dois-pontos).</summary>
     public static string NormalizePin(string? pin) =>
@@ -90,14 +107,23 @@ public abstract class ApiPublisher
     protected readonly AppSettings Settings;
     readonly string _route;
     readonly TimeSpan _minGap;
+    readonly TimeSpan _tabletGap;
     readonly Channel[] _channels = [new(PublishTarget.Api), new(PublishTarget.Tablet)];
 
-    protected ApiPublisher(AppSettings settings, string route, TimeSpan minGap)
+    /// <param name="minGap">Intervalo mínimo entre envios para a API (preserva a cota da Vercel e do Redis).</param>
+    /// <param name="tabletGap">O mesmo para o tablet. Na rede local não há cota: o padrão só junta rajadas.</param>
+    protected ApiPublisher(AppSettings settings, string route, TimeSpan minGap, TimeSpan? tabletGap = null)
     {
         Settings = settings;
         _route = route;
         _minGap = minGap;
+        _tabletGap = tabletGap ?? TabletGap;
     }
+
+    /// <summary>Intervalo mínimo padrão entre envios para o tablet: só junta pedidos que chegam juntos.</summary>
+    protected static readonly TimeSpan TabletGap = TimeSpan.FromMilliseconds(200);
+
+    TimeSpan Gap(Channel c) => c.Target == PublishTarget.Tablet ? _tabletGap : _minGap;
 
     public static string AppVersion
     {
@@ -136,27 +162,29 @@ public abstract class ApiPublisher
 
     /// <summary>
     /// Pede um envio a cada destino ligado. Com <paramref name="ifIdleFor"/>, só aos destinos sem
-    /// tentativa nesse intervalo (sinais de vida). Pedidos próximos são agrupados (no máximo um a cada
-    /// intervalo mínimo, por destino).
+    /// tentativa nesse intervalo (sinais de vida); <paramref name="tabletIfIdleFor"/> troca esse intervalo
+    /// para o tablet. Pedidos próximos são agrupados (no máximo um a cada intervalo mínimo, por destino).
     /// </summary>
-    protected void Enqueue(string reason, TimeSpan? ifIdleFor = null)
+    protected void Enqueue(string reason, TimeSpan? ifIdleFor = null, TimeSpan? tabletIfIdleFor = null)
     {
         var now = DateTimeOffset.Now;
         foreach (var c in _channels)
         {
             if (!Enabled(c)) continue;
-            if (ifIdleFor is { } idle && now - c.LastAttemptAt < idle) continue;
+            var idleSpan = c.Target == PublishTarget.Tablet ? tabletIfIdleFor ?? ifIdleFor : ifIdleFor;
+            if (idleSpan is { } idle && now - c.LastAttemptAt < idle) continue;
             c.Pending = c.Pending == null ? reason : MergeReason(c.Pending, reason);
             if (!c.Flushing)
                 _ = FlushAsync(c);
         }
     }
 
-    /// <summary>Se algum destino ligado está sem tentativa de envio há pelo menos esse tempo.</summary>
-    protected bool IdleFor(TimeSpan span)
+    /// <summary>Se algum destino ligado está sem tentativa de envio há pelo menos esse tempo (no tablet, tabletSpan).</summary>
+    protected bool IdleFor(TimeSpan span, TimeSpan? tabletSpan = null)
     {
         var now = DateTimeOffset.Now;
-        return _channels.Any(c => Enabled(c) && now - c.LastAttemptAt >= span);
+        return _channels.Any(c => Enabled(c)
+            && now - c.LastAttemptAt >= (c.Target == PublishTarget.Tablet ? tabletSpan ?? span : span));
     }
 
     /// <summary>A configuração mudou: esquece falhas anteriores e libera um envio imediato.</summary>
@@ -181,7 +209,8 @@ public abstract class ApiPublisher
         {
             while (c.Pending != null)
             {
-                var notBefore = c.LastAttemptAt + _minGap > c.RetryAt ? c.LastAttemptAt + _minGap : c.RetryAt;
+                var gap = Gap(c);
+                var notBefore = c.LastAttemptAt + gap > c.RetryAt ? c.LastAttemptAt + gap : c.RetryAt;
                 var wait = notBefore - DateTimeOffset.Now;
                 if (wait > TimeSpan.Zero)
                 {

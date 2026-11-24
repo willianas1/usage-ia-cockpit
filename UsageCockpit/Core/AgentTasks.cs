@@ -34,8 +34,11 @@ public sealed record AgentTokens(long Input, long CacheWrite, long Output, long 
 /// </summary>
 public sealed record AgentCost(double Request, double Conversation, string Model);
 
-/// <summary>O que a tarefa espera do usuário. Kind: question, permission ou input.</summary>
-public sealed record AgentQuestion(string Kind, string Text, string? Tool, IReadOnlyList<string> Options);
+/// <summary>
+/// O que a tarefa espera do usuário. Kind: question, permission ou input. Answerable: dá para responder
+/// pelo painel do tablet agora (há um hook esperando, ou o Codex aceita a resposta como mensagem).
+/// </summary>
+public sealed record AgentQuestion(string Kind, string Text, string? Tool, IReadOnlyList<string> Options, bool Answerable = false);
 
 /// <summary>
 /// Uma tarefa: o pedido mais recente de uma sessão do Claude Code ou de uma conversa do Codex.
@@ -780,7 +783,7 @@ sealed class ClaudeTasks
                 since,
                 start,
                 state == AgentStates.Done ? since : null,
-                question?.Question,
+                question is { } w && TabletAnswers.IsWaiting(AgentText.Id("claude", _id)) ? w.Question with { Answerable = true } : question?.Question,
                 _prompt,
                 state == AgentStates.Done ? AgentText.Summary(_lastText) : null,
                 tokens,
@@ -1138,12 +1141,22 @@ sealed class CodexTasks
             string state;
             DateTimeOffset since;
             AgentQuestion? question = null;
+            var id = AgentText.Id("codex", _threadId);
             if (_questions.Count > 0)
             {
-                var q = _questions.Values.OrderByDescending(x => x.At).First();
+                var q = _questions.OrderByDescending(x => x.Value.At).First();
                 state = AgentStates.Waiting;
-                since = q.At;
-                question = q.Question;
+                since = q.Value.At;
+                // Pergunta assíncrona: a resposta é uma mensagem do usuário, que o tablet manda pelo codex queue.
+                question = _async.Contains(q.Key) ? q.Value.Question with { Answerable = true } : q.Value.Question;
+            }
+            else if (TabletAnswers.Waiting(id) is { Kind: "permission" } wait)
+            {
+                // Pedido de aprovação avisado pelo hook PermissionRequest do Codex (só com o tablet ligado).
+                state = AgentStates.Waiting;
+                since = wait.At;
+                question = new AgentQuestion("permission", wait.Text ?? "O Codex pede aprovação", wait.Tool,
+                    new[] { "Permitir", "Negar" }, Answerable: true);
             }
             else if (_active)
             {
@@ -1168,7 +1181,7 @@ sealed class CodexTasks
                 cost = new AgentCost(Math.Round(Of(tokens), 4), Math.Round(Of(_total), 4), price.Name);
             }
             return new AgentTask(
-                AgentText.Id("codex", _threadId),
+                id,
                 "codex",
                 AgentText.Clip(name, 200) ?? AgentText.Clip(_firstPrompt, 80) ?? AgentText.Project(_cwd) ?? "Codex",
                 AgentText.Project(_cwd),

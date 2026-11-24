@@ -24,6 +24,7 @@ public partial class App : Application
     UsagePublisher? _publisher;
     HealthPublisher? _health;
     AgentsPublisher? _agents;
+    TabletAnswerReceiver? _answers;
     OverlayWindow? _overlay;
     SettingsWindow? _settingsWindow;
     Forms.NotifyIcon? _tray;
@@ -43,10 +44,19 @@ public partial class App : Application
             return;
         }
 
-        // Desinstalação: tira do ~/.claude/settings.json só os hooks deste app.
+        // Chamado pelo Codex a cada pedido de aprovação (hook, só com o tablet ligado).
+        if (e.Args.Length >= 1 && e.Args[0] == CodexHooks.HookArg)
+        {
+            CodexHooks.Handle();
+            Shutdown();
+            return;
+        }
+
+        // Desinstalação: tira do ~/.claude/settings.json e do ~/.codex/hooks.json só os hooks deste app.
         if (e.Args.Length >= 1 && e.Args[0] == ClaudeHooks.RemoveArg)
         {
             ClaudeHooks.Remove();
+            CodexHooks.Remove();
             Shutdown();
             return;
         }
@@ -99,6 +109,8 @@ public partial class App : Application
         // Tarefas do Claude Code e do Codex: o monitor lê numa thread de fundo; o envio fica na da interface.
         var agents = _agents = new AgentsPublisher(_settings, new AgentTasksMonitor());
         agents.Monitor.Updated += () => Dispatcher.BeginInvoke(agents.OnUpdated);
+        // Respostas tocadas no painel do tablet (só com o tablet ligado).
+        _answers = new TabletAnswerReceiver(_settings, CodexHooks.Queue);
         _overlay = new OverlayWindow(_settings, _vm);
         _overlay.SettingsRequested += OpenSettings;
         _overlay.MinimizedToTray += NotifyMinimized;
@@ -146,11 +158,16 @@ public partial class App : Application
     {
         if (_agents == null) return;
         _agents.Reconfigure();
+        _answers?.Apply();
         var install = _settings.AnyPublishEnabled && _settings.ShowClaude;
+        // O hook do Codex só serve para responder pelo tablet.
+        var codex = _settings.TabletEnabled && _settings.ShowCodex;
         Task.Run(() =>
         {
             if (install) ClaudeHooks.Ensure();
             else ClaudeHooks.Remove();
+            if (codex) CodexHooks.Ensure();
+            else CodexHooks.Remove();
         });
     }
 
@@ -241,6 +258,7 @@ public partial class App : Application
     {
         _health?.Monitor.Dispose();
         _agents?.Monitor.Dispose();
+        _answers?.Stop();
         _tray?.Dispose();
         _single?.Dispose();
         base.OnExit(e);

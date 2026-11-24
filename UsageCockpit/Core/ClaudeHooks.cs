@@ -36,7 +36,11 @@ public static class ClaudeHooks
 
     // ---------- Chamado pelo Claude Code ----------
 
-    /// <summary>Modo --claude-hook: lê o evento da entrada padrão e grava o aviso. Nunca falha nem responde nada.</summary>
+    /// <summary>
+    /// Modo --claude-hook: lê o evento da entrada padrão e grava o aviso. Com o tablet ligado, um pedido de
+    /// permissão (ou pergunta do AskUserQuestion) espera a resposta tocada no painel e a devolve ao Claude
+    /// Code pela saída padrão; sem resposta, não decide nada e vale o diálogo do terminal. Nunca falha.
+    /// </summary>
     public static void Handle()
     {
         try
@@ -77,10 +81,23 @@ public static class ClaudeHooks
             var tmp = path + ".tmp";
             File.WriteAllText(tmp, JsonSerializer.Serialize(mark), new UTF8Encoding(false));
             File.Move(tmp, path, overwrite: true);
+
+            if (evt == "PermissionRequest" && AppSettings.Load().TabletEnabled
+                && TabletAnswers.WaitForClaude(r, session) is { } decision)
+                WriteStdout(decision);
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException or NotSupportedException)
         {
         }
+    }
+
+    /// <summary>Resposta do hook (JSON) para quem o chamou. O app é WinExe: escreve direto no handle herdado.</summary>
+    public static void WriteStdout(string json)
+    {
+        using var stdout = Console.OpenStandardOutput();
+        var bytes = new UTF8Encoding(false).GetBytes(json);
+        stdout.Write(bytes, 0, bytes.Length);
+        stdout.Flush();
     }
 
     // ---------- Lido pelo monitor ----------
@@ -126,9 +143,11 @@ public static class ClaudeHooks
 
     static string Command(string exe) => $"\"{exe}\" {HookArg}";
 
-    static bool IsOurs(JsonNode? hook) =>
+    static bool IsOurs(JsonNode? hook) => IsOurs(hook, HookArg);
+
+    internal static bool IsOurs(JsonNode? hook, string arg) =>
         hook?["command"]?.GetValueKind() == JsonValueKind.String
-        && hook["command"]!.GetValue<string>().Contains(HookArg, StringComparison.Ordinal);
+        && hook["command"]!.GetValue<string>().Contains(arg, StringComparison.Ordinal);
 
     /// <summary>
     /// Garante as entradas deste app nos hooks PermissionRequest e Notification, apontando para o exe
@@ -153,7 +172,8 @@ public static class ClaudeHooks
                     {
                         ["type"] = "command",
                         ["command"] = Command(exe),
-                        ["timeout"] = 5,
+                        // O PermissionRequest pode esperar a resposta do tablet (até 590 s).
+                        ["timeout"] = evt == "PermissionRequest" ? TabletAnswers.HookTimeoutSeconds : 5,
                     }),
                 };
                 if (evt == "PermissionRequest") entry["matcher"] = "*";
@@ -198,11 +218,13 @@ public static class ClaudeHooks
         }
     }
 
-    static void Edit(Action<JsonObject> change)
+    static void Edit(Action<JsonObject> change) => EditJson(SettingsPath, change);
+
+    /// <summary>Edita um JSON de configuração com cópia do original na primeira vez; só grava se mudou.</summary>
+    internal static void EditJson(string path, Action<JsonObject> change)
     {
         try
         {
-            var path = SettingsPath;
             var original = File.Exists(path) ? File.ReadAllText(path) : "";
             JsonObject root;
             if (string.IsNullOrWhiteSpace(original))

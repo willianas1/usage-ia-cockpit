@@ -33,6 +33,8 @@ public sealed class AgentsPublisher : ApiPublisher
 
     static readonly TimeSpan MinGap = TimeSpan.FromSeconds(2);
     static readonly TimeSpan ProgressEvery = TimeSpan.FromSeconds(10);
+    /// <summary>No tablet, os tokens e a velocidade andam a cada leitura do monitor (1 s).</summary>
+    static readonly TimeSpan TabletProgressEvery = TimeSpan.FromSeconds(1);
     static readonly TimeSpan LiveHeartbeat = TimeSpan.FromSeconds(60);
     static readonly TimeSpan IdleHeartbeat = TimeSpan.FromMinutes(5);
 
@@ -102,10 +104,10 @@ public sealed class AgentsPublisher : ApiPublisher
             _tokens = tokens;
             Enqueue("change");
         }
-        else if (live && tokens != _tokens && IdleFor(ProgressEvery))
+        else if (live && tokens != _tokens && IdleFor(ProgressEvery, TabletProgressEvery))
         {
             _tokens = tokens;
-            Enqueue("progress", ProgressEvery);
+            Enqueue("progress", ProgressEvery, TabletProgressEvery);
         }
         else
         {

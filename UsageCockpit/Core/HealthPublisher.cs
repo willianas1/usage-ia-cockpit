@@ -63,6 +63,7 @@ public sealed class HealthPublisher : ApiPublisher
     public const int SchemaVersion = 1;
 
     // No mesmo ritmo em que o painel do Echo Show consulta a API (15 s): cada consulta traz dado novo.
+    // O tablet recebe cada leitura do coletor (a cada 5 s), sem esperar.
     static readonly TimeSpan MinGap = TimeSpan.FromSeconds(15);
     static readonly TimeSpan IntervalEvery = TimeSpan.FromSeconds(15);
 
@@ -161,7 +162,7 @@ public sealed class HealthPublisher : ApiPublisher
         }
         else
         {
-            Enqueue("interval", IntervalEvery);
+            Enqueue("interval", IntervalEvery, tabletIfIdleFor: TimeSpan.Zero);
         }
     }
 

@@ -41,6 +41,16 @@ Na mesma janela, a seção **Tablet na rede local** liga um segundo destino. É 
 - Cada destino tem a própria fila, com espera e novas tentativas independentes. Um tablet desligado não atrasa os envios para a API.
 - Certificado diferente do configurado conta como chave recusada: os envios para o tablet param até a configuração ser salva de novo. Isso acontece quando o app do tablet é reinstalado do zero ou quando outro aparelho assume o IP.
 - Basta um destino ligado (API ou tablet) para o app coletar as tarefas e instalar os hooks do Claude Code.
+- **Ritmo:** a API mantém os intervalos mínimos descritos neste documento (15 s para uso e saúde, 2 s para tarefas, progresso a cada 10 s), para preservar a cota da Vercel e do Redis. O tablet não tem cota:
+  - recebe cada mudança em até 200 ms;
+  - recebe a saúde a cada leitura (5 s);
+  - recebe o progresso das tarefas a cada segundo.
+- **Responder pelo tablet** (só com o tablet ligado; com a API, nada disso roda):
+  - **Como a resposta chega ao PC:** o app busca as respostas tocadas no painel com `GET {URL do tablet}/v1/answers?wait=25`, uma requisição longa com a mesma chave e o mesmo certificado. A conexão sai do PC, e não há porta aberta nele.
+  - **Claude Code:** o hook `PermissionRequest` (timeout de 600 s) espera a resposta do tablet e devolve permitir, permitir sempre (com as regras sugeridas) ou negar. Também responde ao `AskUserQuestion` de uma pergunta e aprova o plano do `ExitPlanMode`. O diálogo do terminal continua valendo: se você responder no PC antes, o hook desiste.
+  - **Codex, aprovações:** hook `PermissionRequest` em `~/.codex/hooks.json`, instalado só com o tablet ligado. O Codex pede para confiar no hook uma vez, em Configurações › Hooks (ou `/hooks` na CLI). O pedido só aparece na tela do Codex depois que o hook termina, por isso ele espera o tablet por no máximo 60 s.
+  - **Codex, perguntas assíncronas e texto livre:** a resposta vai como mensagem do usuário na conversa, pelo `codex queue --thread <id> --message <texto>`. As perguntas que travam a tarefa (`request_user_input` síncrono) continuam sendo respondidas só no PC.
+  - No envio de `/v1/agents`, `question.answerable: true` indica que dá para responder pelo tablet naquele momento.
 
 Para gerar uma chave, você pode rodar no PowerShell:
 
