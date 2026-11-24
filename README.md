@@ -52,6 +52,7 @@ O painel fica por cima de todas as janelas, em qualquer canto de qualquer monito
 - **Pausar as consultas:** o botão ⏸ do modo completo, ou o clique direito, para as consultas e os envios para a API. Pausado, os ponteiros param de tremer, os valores ficam cinza e o botão vira ▶ para continuar. Com o **horário de trabalho** ligado, o app pausa sozinho no fim do expediente, avisa num balão do ícone da bandeja e volta no início do próximo.
 - **Nunca fica em branco:** se uma consulta falhar, o painel mostra a última leitura boa com um aviso ⚠. Se a leitura tiver mais de 15 minutos, a conta fica levemente esmaecida.
 - **Envio para API (opcional):** manda o uso atual para uma API sua, para usar os mesmos números em um dashboard, bot ou widget. Veja [docs/API.md](docs/API.md).
+- **Tablet na rede local (opcional):** manda o mesmo envio direto para um tablet Android com o app [usage-ia-tablet](../usage-ia-tablet), que mostra o painel do Echo Show sem passar pela internet. A conexão é HTTPS com o certificado do tablet fixado pela impressão digital. Veja [docs/API.md](docs/API.md#tablet-na-rede-local).
 - **Tarefas do Claude Code e do Codex:** com o envio para API ligado, manda para `/v1/agents` o que cada ferramenta está executando, as perguntas e pedidos de permissão pendentes, as tarefas concluídas nas últimas 8 h e os tokens de cada uma. O painel do Echo Show lista as tarefas e avisa quando chega uma pergunta ou uma tarefa termina. Veja [docs/API.md](docs/API.md#tarefas-do-claude-code-e-do-codex-v1agents).
 - **Saúde do PC (opcional):** acompanha CPU, memória, discos, modo de energia e os processos mais pesados, com alertas como disco cheio ou PC ligado há muitos dias. Não aparece no painel: o resumo fica em Configurações › Saúde do PC, e os dados podem ir para a mesma API, em `/v1/health`. Veja [docs/API.md](docs/API.md#saúde-do-pc-v1health).
 - **Leve:** cerca de 2% de um núcleo de CPU em repouso. A renderização usa a placa de vídeo, e as animações param com o painel minimizado.
@@ -215,6 +216,7 @@ Todas as opções ficam na janela **Configurações** e valem na hora, enquanto 
 | Horário de trabalho | Fora do horário escolhido, em passos de 30 minutos, as consultas e os envios pausam sozinhos. Um ▶ fora do horário continua consultando até o fim do próximo expediente, e uma pausa pelo botão só termina pelo botão | Desligado, das 8:00 às 18:00 |
 | Iniciar com o Windows | Abre o app ao entrar no Windows | Desligado |
 | Envio para API | Envia o uso atual para uma API sua, para usar em outras aplicações. Veja [docs/API.md](docs/API.md) | Desligado |
+| Tablet na rede local | Na mesma janela do envio para API: manda uso, saúde e tarefas também para o tablet (URL, chave e impressão digital do certificado). Veja [docs/API.md](docs/API.md#tablet-na-rede-local) | Desligado |
 | Monitorar a saúde do PC | Lê CPU, memória, discos, energia e processos, sem administrador, e mostra um resumo com alertas na aba Saúde do PC | Desligado |
 | Enviar a saúde para a API | Envia a saúde para `{URL base}/v1/health` a cada 15 s. Pausa junto com as consultas, pelo botão ou fora do horário de trabalho. Precisa do envio para API ligado | Ligado |
 

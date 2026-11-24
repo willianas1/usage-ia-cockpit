@@ -189,6 +189,29 @@ public sealed class AppSettings
         set => PublishKeyProtected = string.IsNullOrEmpty(value) ? null : Secret.Protect(value);
     }
 
+    /// <summary>
+    /// Segundo destino dos envios: o tablet na rede local (usage-ia-tablet), que recebe as mesmas rotas
+    /// por HTTPS com certificado autoassinado. O certificado é aceito só se a impressão digital SHA-256
+    /// for a configurada aqui.
+    /// </summary>
+    public bool TabletEnabled { get; set; }
+    public string? TabletBaseUrl { get; set; }
+    public string? TabletCertSha256 { get; set; }
+
+    /// <summary>Chave do tablet cifrada com DPAPI. Use <see cref="TabletKey"/> para ler e gravar.</summary>
+    public string? TabletKeyProtected { get; set; }
+
+    [JsonIgnore]
+    public string? TabletKey
+    {
+        get => Secret.Unprotect(TabletKeyProtected);
+        set => TabletKeyProtected = string.IsNullOrEmpty(value) ? null : Secret.Protect(value);
+    }
+
+    /// <summary>Algum destino ligado (API ou tablet): é o que liga a coleta das tarefas e os hooks.</summary>
+    [JsonIgnore]
+    public bool AnyPublishEnabled => PublishEnabled || TabletEnabled;
+
     /// <summary>Coleta de indicadores de saúde do PC (CPU, memória, discos, energia). Desligada por padrão.</summary>
     public bool HealthEnabled { get; set; }
 

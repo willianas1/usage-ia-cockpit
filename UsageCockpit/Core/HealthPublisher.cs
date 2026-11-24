@@ -93,9 +93,8 @@ public sealed class HealthPublisher : ApiPublisher
             Request("heartbeat");
     }
 
-    /// <summary>Envio ligado nas três chaves: saúde monitorada, saúde enviada e envio para API configurado.</summary>
-    protected override bool Configured =>
-        Settings.HealthEnabled && Settings.HealthPublishEnabled && Settings.PublishEnabled;
+    /// <summary>Saúde monitorada e enviada; o envio ainda depende de um destino ligado (API ou tablet).</summary>
+    protected override bool Wanted => Settings.HealthEnabled && Settings.HealthPublishEnabled;
 
     protected override bool Ready => _monitor.Latest != null;
 
@@ -124,7 +123,7 @@ public sealed class HealthPublisher : ApiPublisher
         else
         {
             _waitingReason = null;
-            SetOutcome(null);
+            ClearOutcomes();
         }
     }
 
@@ -160,9 +159,9 @@ public sealed class HealthPublisher : ApiPublisher
             _lastSignature = signature;
             Enqueue("alert");
         }
-        else if (DateTimeOffset.Now - LastAttemptAt >= IntervalEvery)
+        else
         {
-            Enqueue("interval");
+            Enqueue("interval", IntervalEvery);
         }
     }
 
@@ -173,7 +172,10 @@ public sealed class HealthPublisher : ApiPublisher
             return Task.FromResult(new PublishOutcome(false,
                 Settings.HealthEnabled ? "Aguarde a primeira leitura (cerca de 5 s)" : "Ligue o monitoramento primeiro",
                 DateTimeOffset.Now));
-        return TestAsync(Settings.PublishBaseUrl, Settings.PublishKey ?? "");
+        // Com a API desligada, testa o tablet.
+        return Settings.PublishEnabled || !Settings.TabletEnabled
+            ? TestAsync(Settings.PublishBaseUrl, Settings.PublishKey ?? "")
+            : TestAsync(PublishTarget.Tablet, Settings.TabletBaseUrl, Settings.TabletKey ?? "", Settings.TabletCertSha256);
     }
 
     /// <summary>JSON exatamente como seria enviado agora, ou nulo sem leitura. Usado no modo --health.</summary>

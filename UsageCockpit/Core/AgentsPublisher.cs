@@ -50,7 +50,7 @@ public sealed class AgentsPublisher : ApiPublisher
     /// <summary>Consultas pausadas: avisa a API uma vez (paused: true, sem tarefas) e para.</summary>
     public bool Paused { get; private set; }
 
-    protected override bool Configured => Settings.PublishEnabled && (Settings.ShowClaude || Settings.ShowCodex);
+    protected override bool Wanted => Settings.ShowClaude || Settings.ShowCodex;
 
     /// <summary>"paused" e "change" não são trocados por um envio de rotina que chegue enquanto esperam.</summary>
     protected override string MergeReason(string pending, string reason) =>
@@ -83,7 +83,7 @@ public sealed class AgentsPublisher : ApiPublisher
         Apply();
         _signature = null;
         if (Configured) Enqueue(Paused ? "paused" : "change");
-        else SetOutcome(null);
+        else ClearOutcomes();
     }
 
     /// <summary>Chamado na thread da interface a cada leitura do monitor (1 s).</summary>
@@ -95,7 +95,6 @@ public sealed class AgentsPublisher : ApiPublisher
             $"{t.Id}:{t.State}:{t.StartedAt.ToUnixTimeSeconds()}:{t.Name}:{t.Question?.Text}"));
         var live = tasks.Any(t => t.State != AgentStates.Done);
         var tokens = tasks.Sum(t => t.Tokens.Output + t.Tokens.Input + t.Tokens.CacheWrite);
-        var since = DateTimeOffset.Now - LastAttemptAt;
 
         if (signature != _signature)
         {
@@ -103,14 +102,14 @@ public sealed class AgentsPublisher : ApiPublisher
             _tokens = tokens;
             Enqueue("change");
         }
-        else if (live && tokens != _tokens && since >= ProgressEvery)
+        else if (live && tokens != _tokens && IdleFor(ProgressEvery))
         {
             _tokens = tokens;
-            Enqueue("progress");
+            Enqueue("progress", ProgressEvery);
         }
-        else if (since >= (live ? LiveHeartbeat : IdleHeartbeat))
+        else
         {
-            Enqueue("heartbeat");
+            Enqueue("heartbeat", live ? LiveHeartbeat : IdleHeartbeat);
         }
     }
 

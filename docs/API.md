@@ -27,6 +27,21 @@ Abra **Configurações › Envio para API › Configurar…** e preencha:
 - A chave fica gravada em `%APPDATA%\UsageCockpit\settings.json`, cifrada com DPAPI. Só o seu usuário do Windows, nesta máquina, consegue decifrá-la.
 - **Testar conexão** envia um payload real com `reason: "test"`, usando os valores digitados, sem salvar.
 
+### Tablet na rede local
+
+Na mesma janela, a seção **Tablet na rede local** liga um segundo destino. É o app Android [usage-ia-tablet](../../usage-ia-tablet), que recebe as mesmas rotas (`/v1/usage`, `/v1/health` e `/v1/agents`) e mostra o painel do Echo Show no próprio tablet, sem passar pela internet.
+
+| Campo | Exemplo |
+|---|---|
+| URL | `https://192.168.1.113:8787` (aparece na tela do tablet) |
+| Chave | gerada pelo tablet no primeiro uso |
+| Impressão digital | SHA-256 do certificado do tablet, com 64 dígitos hexadecimais (espaços e `:` são ignorados) |
+
+- O tablet usa um certificado autoassinado. O app aceita a conexão só quando a impressão digital do certificado é a configurada. Nome do host e cadeia de certificação não contam. HTTP não é aceito.
+- Cada destino tem a própria fila, com espera e novas tentativas independentes. Um tablet desligado não atrasa os envios para a API.
+- Certificado diferente do configurado conta como chave recusada: os envios para o tablet param até a configuração ser salva de novo. Isso acontece quando o app do tablet é reinstalado do zero ou quando outro aparelho assume o IP.
+- Basta um destino ligado (API ou tablet) para o app coletar as tarefas e instalar os hooks do Claude Code.
+
 Para gerar uma chave, você pode rodar no PowerShell:
 
 ```powershell

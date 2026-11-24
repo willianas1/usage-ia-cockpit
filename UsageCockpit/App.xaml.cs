@@ -146,7 +146,7 @@ public partial class App : Application
     {
         if (_agents == null) return;
         _agents.Reconfigure();
-        var install = _settings.PublishEnabled && _settings.ShowClaude;
+        var install = _settings.AnyPublishEnabled && _settings.ShowClaude;
         Task.Run(() =>
         {
             if (install) ClaudeHooks.Ensure();

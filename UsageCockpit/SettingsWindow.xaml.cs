@@ -242,7 +242,8 @@ public partial class SettingsWindow : Window
     void ShowAgentsStatus()
     {
         var o = _agents.LastOutcome;
-        AgentsStatus.Text = !_settings.PublishEnabled ? "Tarefas: ligue o envio para API para mandar as tarefas ao painel"
+        if (!_settings.PublishEnabled && _settings.TabletEnabled) o = _agents.TabletOutcome;
+        AgentsStatus.Text = !_settings.AnyPublishEnabled ? "Tarefas: ligue o envio para API para mandar as tarefas ao painel"
             : _agents.Paused ? "Tarefas: envio pausado junto com as consultas"
             : o == null ? "Tarefas: aguardando o primeiro envio"
             : o.Ok ? $"Tarefas: {o.Message.ToLowerInvariant()}"
@@ -251,11 +252,19 @@ public partial class SettingsWindow : Window
 
     void ShowPublishStatus()
     {
-        var o = _publisher.LastOutcome;
-        PublishStatus.Text = !_settings.PublishEnabled ? "Desligado"
-            : o == null ? "Ligado, aguardando o primeiro envio"
-            : o.Ok ? $"Ligado · {o.Message.ToLowerInvariant()}"
-            : $"Ligado · erro: {o.Message}";
+        if (!_settings.AnyPublishEnabled)
+        {
+            PublishStatus.Text = "Desligado";
+            return;
+        }
+        static string Line(string who, PublishOutcome? o) =>
+            o == null ? $"{who} · aguardando o primeiro envio"
+            : o.Ok ? $"{who} · {o.Message.ToLowerInvariant()}"
+            : $"{who} · erro: {o.Message}";
+        var lines = new System.Collections.Generic.List<string>();
+        if (_settings.PublishEnabled) lines.Add(Line("API", _publisher.LastOutcome));
+        if (_settings.TabletEnabled) lines.Add(Line("Tablet", _publisher.TabletOutcome));
+        PublishStatus.Text = string.Join("\n", lines);
     }
 
     static readonly Brush Warn = new SolidColorBrush(Color.FromRgb(0xEF, 0x9F, 0x27));
@@ -294,14 +303,14 @@ public partial class SettingsWindow : Window
 
     void ShowHealthStatus()
     {
-        var o = _health.LastOutcome;
+        var o = _settings.PublishEnabled || !_settings.TabletEnabled ? _health.LastOutcome : _health.TabletOutcome;
         HealthTestButton.IsEnabled = _settings.HealthEnabled;
         HealthPublishStatus.Foreground = Foreground;
         if (!_settings.HealthEnabled)
             HealthPublishStatus.Text = "Monitoramento desligado";
         else if (!_settings.HealthPublishEnabled)
             HealthPublishStatus.Text = "Envio da saúde desligado";
-        else if (!_settings.PublishEnabled)
+        else if (!_settings.AnyPublishEnabled)
             HealthPublishStatus.Text = "Ligue o envio para API na aba Sistema para enviar a saúde";
         else if (_health.Paused)
             HealthPublishStatus.Text = "Envio pausado junto com as consultas";

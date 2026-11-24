@@ -44,6 +44,34 @@
         <TextBlock Text="STATUS" Style="{StaticResource Section}"/>
         <TextBlock x:Name="StatusText" TextWrapping="Wrap"/>
 
+        <Border BorderBrush="#2D333B" BorderThickness="0,1,0,0" Margin="0,18,0,0"/>
+        <TextBlock Text="TABLET NA REDE LOCAL" Style="{StaticResource Section}"/>
+        <CheckBox x:Name="TabletCheck" Content="Enviar também para o tablet (Usage IA Painel)"/>
+        <TextBlock Style="{StaticResource Hint}"
+                   Text="O tablet recebe o uso, a saúde e as tarefas direto pela rede, por HTTPS. URL, chave e impressão digital aparecem na tela dele (toque longo no canto inferior esquerdo)."/>
+        <Grid Margin="0,8,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition/>
+                <RowDefinition/>
+                <RowDefinition/>
+            </Grid.RowDefinitions>
+            <TextBlock Text="URL" VerticalAlignment="Center" Margin="0,0,10,0"/>
+            <TextBox x:Name="TabletUrlBox" Grid.Column="1" Padding="4,3"/>
+            <TextBlock Text="Chave" Grid.Row="1" VerticalAlignment="Center" Margin="0,6,10,0"/>
+            <PasswordBox x:Name="TabletKeyBox" Grid.Row="1" Grid.Column="1" Padding="4,3" Margin="0,6,0,0"/>
+            <TextBlock Text="Impressão digital" Grid.Row="2" VerticalAlignment="Center" Margin="0,6,10,0"/>
+            <TextBox x:Name="TabletPinBox" Grid.Row="2" Grid.Column="1" Padding="4,3" Margin="0,6,0,0"
+                     FontFamily="Cascadia Mono, Consolas" FontSize="11"/>
+        </Grid>
+        <DockPanel Margin="0,8,0,0">
+            <Button x:Name="TabletTestButton" Content="Testar tablet" DockPanel.Dock="Left" Click="TabletTest_Click"/>
+            <TextBlock x:Name="TabletStatusText" VerticalAlignment="Center" TextWrapping="Wrap"/>
+        </DockPanel>
+
         <Expander Header="Como implementar a API" Foreground="#D0D7DE" Margin="0,16,0,0">
             <StackPanel Margin="0,8,0,0">
                 <TextBlock Style="{StaticResource Hint}" Foreground="#D0D7DE" xml:space="preserve">POST {URL base}/v1/usage

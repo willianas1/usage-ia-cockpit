@@ -54,7 +54,7 @@ public sealed class UsagePublisher : ApiPublisher
         _vm = vm;
     }
 
-    protected override bool Configured => Settings.PublishEnabled;
+    protected override bool Wanted => true;
 
     /// <summary>Pede um envio. Pedidos próximos são agrupados (no máximo um a cada 30 s). Pausado, não envia.</summary>
     public void Publish(string reason)
@@ -75,18 +75,18 @@ public sealed class UsagePublisher : ApiPublisher
     /// <summary>Chamado periodicamente: manda um sinal de vida se nada foi enviado nos últimos 5 min.</summary>
     public void HeartbeatIfDue()
     {
-        if (DateTimeOffset.Now - LastAttemptAt >= HeartbeatEvery)
-            Publish("heartbeat");
+        if (_vm.IsPaused) return;
+        Enqueue("heartbeat", HeartbeatEvery);
     }
 
     /// <summary>A configuração mudou: esquece falhas anteriores e envia logo.</summary>
     public void Reconfigure()
     {
         ResetFailures();
-        if (Settings.PublishEnabled)
+        if (Settings.AnyPublishEnabled)
             Publish("heartbeat");
         else
-            SetOutcome(null);
+            ClearOutcomes();
     }
 
     /// <summary>JSON exatamente como seria enviado agora; usado como exemplo na janela de configuração.</summary>

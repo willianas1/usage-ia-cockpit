@@ -23,6 +23,10 @@ public partial class PublishWindow : Window
         EnabledCheck.IsChecked = settings.PublishEnabled;
         UrlBox.Text = settings.PublishBaseUrl ?? "";
         KeyBox.Password = settings.PublishKey ?? "";
+        TabletCheck.IsChecked = settings.TabletEnabled;
+        TabletUrlBox.Text = settings.TabletBaseUrl ?? "";
+        TabletKeyBox.Password = settings.TabletKey ?? "";
+        TabletPinBox.Text = settings.TabletCertSha256 ?? "";
         ExampleBox.Text = publisher.PreviewJson();
         ShowOutcome();
         publisher.OutcomeChanged += ShowOutcome;
@@ -43,6 +47,30 @@ public partial class PublishWindow : Window
             : o.Ok ? o.Message
             : $"{o.Message} ({o.At:HH:mm:ss})";
         StatusText.Foreground = o is { Ok: false } && _settings.PublishEnabled ? Warn : Foreground;
+
+        var t = _publisher.TabletOutcome;
+        TabletStatusText.Text = !_settings.TabletEnabled ? "Envio para o tablet desligado"
+            : t == null ? "Aguardando o primeiro envio"
+            : t.Ok ? t.Message
+            : $"{t.Message} ({t.At:HH:mm:ss})";
+        TabletStatusText.Foreground = t is { Ok: false } && _settings.TabletEnabled ? Warn : Foreground;
+    }
+
+    async void TabletTest_Click(object sender, RoutedEventArgs e)
+    {
+        TabletTestButton.IsEnabled = false;
+        TabletStatusText.Text = "Testando…";
+        TabletStatusText.Foreground = Foreground;
+        try
+        {
+            var o = await _publisher.TestAsync(PublishTarget.Tablet, TabletUrlBox.Text, TabletKeyBox.Password, TabletPinBox.Text);
+            TabletStatusText.Text = o.Ok ? $"Teste OK: o tablet aceitou o envio ({o.At:HH:mm:ss})" : $"Teste falhou: {o.Message}";
+            TabletStatusText.Foreground = o.Ok ? Foreground : Warn;
+        }
+        finally
+        {
+            TabletTestButton.IsEnabled = true;
+        }
     }
 
     static readonly Brush Warn = new SolidColorBrush(Color.FromRgb(0xF0, 0x88, 0x3E));
@@ -68,21 +96,35 @@ public partial class PublishWindow : Window
         var enabled = EnabledCheck.IsChecked == true;
         var url = UrlBox.Text.Trim();
         var key = KeyBox.Password.Trim();
+        var tablet = TabletCheck.IsChecked == true;
+        var tabletUrl = TabletUrlBox.Text.Trim();
+        var tabletKey = TabletKeyBox.Password.Trim();
+        var tabletPin = ApiPublisher.NormalizePin(TabletPinBox.Text);
+        string? problem = null;
         if (enabled)
         {
-            string? problem = null;
             if (UsagePublisher.Endpoint(url, out var error) == null) problem = error;
             else if (key.Length == 0) problem = "Informe a chave de autenticação";
-            if (problem != null)
-            {
-                MessageBox.Show(this, problem, Title, MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
+        }
+        if (problem == null && tablet)
+        {
+            if (ApiPublisher.Endpoint(PublishTarget.Tablet, tabletUrl, UsagePublisher.Route, out var error) == null) problem = error;
+            else if (tabletKey.Length == 0) problem = "Informe a chave do tablet";
+            else if (tabletPin.Length != 64) problem = "Informe a impressão digital do certificado do tablet (64 dígitos hexadecimais)";
+        }
+        if (problem != null)
+        {
+            MessageBox.Show(this, problem, Title, MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
         }
 
         _settings.PublishEnabled = enabled;
         _settings.PublishBaseUrl = url.Length == 0 ? null : url;
         _settings.PublishKey = key;
+        _settings.TabletEnabled = tablet;
+        _settings.TabletBaseUrl = tabletUrl.Length == 0 ? null : tabletUrl;
+        _settings.TabletKey = tabletKey;
+        _settings.TabletCertSha256 = tabletPin.Length == 0 ? null : tabletPin;
         _settings.Save();
         _publisher.Reconfigure();
         DialogResult = true; // fecha e avisa quem abriu que a configuração mudou
