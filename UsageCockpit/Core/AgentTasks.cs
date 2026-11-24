@@ -84,6 +84,7 @@ public sealed class AgentTasksMonitor : IDisposable
     readonly Timer _timer;
     readonly ClaudeTasks _claude = new();
     readonly CodexTasks _codex = new();
+    readonly DailyModelUsage _models = new();
     int _busy;
     bool _running;
 
@@ -100,6 +101,9 @@ public sealed class AgentTasksMonitor : IDisposable
     /// <summary>Saída gerada por segundo (média de ~30 s), somando as tarefas executando de cada ferramenta.</summary>
     public double ClaudeRate { get; private set; }
     public double CodexRate { get; private set; }
+
+    /// <summary>Uso do dia por modelo (atualizado a cada 5 s); nulo até a primeira leitura.</summary>
+    public DailyModels? Models { get; private set; }
 
     /// <summary>Disparado numa thread de fundo depois de cada leitura.</summary>
     public event Action? Updated;
@@ -132,6 +136,16 @@ public sealed class AgentTasksMonitor : IDisposable
             Tasks = Order(list);
             ClaudeRate = Rate(list, "claude");
             CodexRate = Rate(list, "codex");
+            // Falha na soma por modelo não pode parar as tarefas.
+            try
+            {
+                _models.Update(now, ClaudeEnabled, CodexEnabled);
+                Models = _models.Current;
+            }
+            catch (Exception e)
+            {
+                Log(e);
+            }
             Updated?.Invoke();
         }
         catch (Exception e)
@@ -291,25 +305,33 @@ sealed class RateMeter
 /// </summary>
 sealed class JsonlTail
 {
+    /// <summary>Filtro barato antes do parse: só as linhas aceitas viram JSON.</summary>
+    public delegate bool LineFilter(ReadOnlySpan<byte> line);
+
     const int MaxRead = 8 * 1024 * 1024;
     readonly string _path;
     readonly int _initialTail;
+    readonly LineFilter? _filter;
     long _offset = -1;
     byte[] _partial = Array.Empty<byte>();
 
-    public JsonlTail(string path, int initialTail = 4 * 1024 * 1024)
+    public JsonlTail(string path, int initialTail = 4 * 1024 * 1024, LineFilter? filter = null)
     {
         _path = path;
         _initialTail = initialTail;
+        _filter = filter;
     }
 
     public string Path => _path;
     public DateTime LastWriteUtc { get; private set; }
+    /// <summary>A última leitura parou no limite de 8 MB: ainda há linhas para ler.</summary>
+    public bool Behind { get; private set; }
 
     /// <summary>Linhas completas novas desde a última leitura. Arquivo encolheu: recomeça do início.</summary>
     public List<JsonDocument> ReadNew(out bool restarted)
     {
         restarted = false;
+        Behind = false;
         var docs = new List<JsonDocument>();
         FileInfo info;
         try
@@ -349,6 +371,7 @@ sealed class JsonlTail
                 read += n;
             }
             _offset += read;
+            Behind = fs.Length > _offset;
             if (read < count) Array.Resize(ref data, _partial.Length + read);
         }
         catch (IOException)
@@ -367,7 +390,7 @@ sealed class JsonlTail
             var len = i - start;
             if (skipFirst)
                 skipFirst = false;
-            else if (len > 1)
+            else if (len > 1 && (_filter == null || _filter(data.AsSpan(start, len))))
                 Parse(data.AsMemory(start, len), docs);
             start = i + 1;
         }

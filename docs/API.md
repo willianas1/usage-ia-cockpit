@@ -482,7 +482,14 @@ Content-Type: application/json; charset=utf-8
       "tokensPerSecond": 0,
       "limitPercent": null
     }
-  ]
+  ],
+  "models": {
+    "date": "2026-11-23",
+    "items": [
+      { "provider": "claude", "model": "Claude Opus 5.5", "input": 956, "cacheWrite": 1143446, "output": 414027, "cacheRead": 96771879 },
+      { "provider": "codex", "model": "GPT-6.2 Sol", "input": 412000, "cacheWrite": 0, "output": 8950, "cacheRead": 6989000 }
+    ]
+  }
 }
 ```
 
@@ -499,6 +506,7 @@ Content-Type: application/json; charset=utf-8
 | `tasks[].cost` | Custo equivalente em US$ pelos preços da API (abaixo): `request` (último pedido), `conversation` (conversa toda) e `model` (nome do modelo do preço). `null` quando o modelo não está na tabela; ausente em apps anteriores à 0.13 |
 | `tasks[].tokensPerSecond` | Saída por segundo da tarefa; `null` em `done` |
 | `tasks[].limitPercent` | Só no Codex: quanto do limite de 5 h o pedido consumiu |
+| `models` | Uso do dia por modelo, somando todas as conversas desde a meia-noite (não só as tarefas da lista). `date`: o dia local; `items[]`: `provider`, `model` (nome da tabela de preços ou o id do arquivo) e os mesmos campos de `tokens`, do maior total para o menor. Só modelos com uso; conta desligada fica de fora. `null` com as consultas pausadas; ausente em apps anteriores à 0.16. O painel do tablet mostra a distribuição; a Usage IA API guarda o campo, mas não o repassa |
 
 A lista vem ordenada (perguntas, execuções, concluídas) e tem no máximo 20 tarefas; com mais, as concluídas mais antigas ficam de fora. O corpo pode passar de 16 KB; a API aceita até 64 KB nesta rota.
 
@@ -508,7 +516,7 @@ A lista vem ordenada (perguntas, execuções, concluídas) e tem no máximo 20 t
 - A cada **10 s** enquanto há tarefa executando e os tokens mudaram.
 - Sinal de vida a cada **60 s** com tarefa ativa, ou a cada **5 min** sem nenhuma.
 - **Pausa junto com as consultas** (botão ou fim do horário de trabalho): manda uma vez `paused: true`, sem tarefas, e para de ler os arquivos.
-- O app lê os arquivos uma vez por segundo, numa thread de fundo; nada é executado.
+- O app lê os arquivos uma vez por segundo, numa thread de fundo; nada é executado. A soma por modelo (`models`) lê todos os arquivos alterados no dia, só as linhas novas, a cada 5 s.
 
 Para ver o JSON no seu PC sem enviar nada, rode `UsageIACockpit.exe --agents tarefas.json`: o app lê as tarefas por cerca de 5 s, grava o arquivo e fecha.
 

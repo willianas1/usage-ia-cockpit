@@ -15,7 +15,8 @@ public sealed record AgentsPayload(
     string Reason,
     bool Paused,
     AgentRates Rates,
-    IReadOnlyList<AgentTask> Tasks);
+    IReadOnlyList<AgentTask> Tasks,
+    DailyModels? Models);
 
 /// <summary>Saída por segundo de cada ferramenta (soma das tarefas executando). Nulo: ferramenta desligada.</summary>
 public sealed record AgentRates(double? Claude, double? Codex);
@@ -129,6 +130,7 @@ public sealed class AgentsPublisher : ApiPublisher
             reason,
             paused,
             new AgentRates(Settings.ShowClaude ? _monitor.ClaudeRate : null, Settings.ShowCodex ? _monitor.CodexRate : null),
-            paused ? Array.Empty<AgentTask>() : _monitor.Tasks);
+            paused ? Array.Empty<AgentTask>() : _monitor.Tasks,
+            paused ? null : _monitor.Models);
     }
 }
