@@ -1,4 +1,4 @@
-# Usage IA Cockpit
+﻿# Usage IA Cockpit
 
 Painel flutuante para Windows que mostra, em tempo real, quanto você já usou dos limites do **Claude Code** e do **Codex** (ChatGPT): a janela de **5 horas** e a cota **semanal** de cada conta.
 
@@ -304,8 +304,8 @@ dotnet run --project UsageCockpit
 2. Crie e envie uma tag:
 
    ```powershell
-   git tag v0.15.0
-   git push origin v0.15.0
+   git tag v0.16.0
+   git push origin v0.16.0
    ```
 
 3. O workflow `.github/workflows/release.yml` gera o exe portátil e o instalador e publica os dois na página de Releases, junto com o `SHA256SUMS.txt`. A tag precisa estar no formato `v1.2.3` (sufixo opcional, como `v1.2.3-beta.1`); outro formato faz o build falhar.
