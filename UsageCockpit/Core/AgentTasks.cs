@@ -43,7 +43,9 @@ public sealed record AgentQuestion(string Kind, string Text, string? Tool, IRead
 /// <summary>
 /// Uma tarefa: o pedido mais recente de uma sessão do Claude Code ou de uma conversa do Codex.
 /// State: running, waiting ou done. Since: quando entrou no estado atual. Tokens: do pedido atual;
-/// Conversation: da conversa inteira (todos os pedidos da sessão).
+/// Conversation: da conversa inteira (todos os pedidos da sessão). FullPrompt e FullSummary: o pedido e
+/// a resposta final inteiros, com as quebras de linha (markdown); só vão para o tablet na rede local,
+/// nunca para a API (AgentsPublisher), que recebe só o início em Prompt e Summary.
 /// </summary>
 public sealed record AgentTask(
     string Id,
@@ -61,7 +63,13 @@ public sealed record AgentTask(
     AgentTokens? Conversation,
     AgentCost? Cost,
     double? TokensPerSecond,
-    double? LimitPercent);
+    double? LimitPercent,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? FullPrompt = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? FullSummary = null)
+{
+    /// <summary>A mesma tarefa sem os textos inteiros: é o que vai para a API.</summary>
+    public AgentTask Short() => FullPrompt == null && FullSummary == null ? this : this with { FullPrompt = null, FullSummary = null };
+}
 
 public static class AgentStates
 {
@@ -220,6 +228,23 @@ static class AgentText
 
     /// <summary>Início da resposta final, sem as tags que algumas automações usam (&lt;heartbeat&gt;…).</summary>
     public static string? Summary(string? text) => text == null ? null : Clip(Tags.Replace(text, " "), 400);
+
+    /// <summary>Pedido inteiro, para o tablet (até 4 mil caracteres).</summary>
+    public const int FullPromptMax = 4000;
+    /// <summary>Resposta final inteira, para o tablet (até 16 mil caracteres).</summary>
+    public const int FullSummaryMax = 16000;
+
+    /// <summary>
+    /// Texto inteiro, com as quebras de linha (o markdown depende delas): só tira os espaços das pontas e
+    /// corta no limite, com reticências. Nulo quando cabe no resumo (o tablet usa o resumo).
+    /// </summary>
+    public static string? Full(string? text, int max, string? shortText)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return null;
+        var t = text.Replace("\r\n", "\n").Trim();
+        if (t.Length > max) t = t[..(max - 1)].TrimEnd() + "…";
+        return t == shortText ? null : t;
+    }
 
     /// <summary>Identificador público da tarefa: não expõe o id da sessão.</summary>
     public static string Id(string provider, string sessionId)
@@ -539,6 +564,7 @@ sealed class ClaudeTasks
         // Pedido atual (turno): do último prompt do usuário em diante.
         DateTimeOffset? _turnStart;
         string? _prompt;
+        string? _promptText;
         string? _lastText;
         DateTimeOffset? _lastProgressAt;
         readonly Dictionary<string, AgentTokens> _usage = new();
@@ -637,6 +663,7 @@ sealed class ClaudeTasks
         {
             _turnStart = start;
             _prompt = null;
+            _promptText = null;
             _lastText = null;
             _usage.Clear();
             _pending.Clear();
@@ -690,6 +717,7 @@ sealed class ClaudeTasks
                     || text.TrimStart().StartsWith("<task-notification>", StringComparison.Ordinal)) return;
                 ResetTurn(at ?? DateTimeOffset.Now);
                 _prompt = AgentText.Clip(text, 300);
+                _promptText = text;
                 _lastProgressAt = at;
                 return;
             }
@@ -797,6 +825,7 @@ sealed class ClaudeTasks
             }
 
             var rate = state == AgentStates.Done ? null : Speed(now);
+            var summary = state == AgentStates.Done ? AgentText.Summary(_lastText) : null;
             return new AgentTask(
                 AgentText.Id("claude", _id),
                 "claude",
@@ -808,12 +837,14 @@ sealed class ClaudeTasks
                 state == AgentStates.Done ? since : null,
                 question is { } w && TabletAnswers.IsWaiting(AgentText.Id("claude", _id)) ? w.Question with { Answerable = true } : question?.Question,
                 _prompt,
-                state == AgentStates.Done ? AgentText.Summary(_lastText) : null,
+                summary,
                 tokens,
                 conversation,
                 cost,
                 rate,
-                null);
+                null,
+                AgentText.Full(_promptText, AgentText.FullPromptMax, _prompt),
+                summary == null ? null : AgentText.Full(_lastText, AgentText.FullSummaryMax, summary));
         }
 
         sealed record Waiting(AgentQuestion Question, DateTimeOffset At);
@@ -959,6 +990,7 @@ sealed class CodexTasks
         DateTimeOffset? _endedAt;
         bool _active;
         string? _prompt;
+        string? _promptText;
         string? _firstPrompt;
         string? _lastText;
         AgentTokens _total = AgentTokens.Zero;
@@ -1031,6 +1063,7 @@ sealed class CodexTasks
                     _turnStart = at;
                     _endedAt = null;
                     _prompt = null;
+                    _promptText = null;
                     _lastText = null;
                     _base = _total;
                     // O limite de 5 h é da conta, não da conversa: entre um pedido e outro ele sobe com o uso
@@ -1045,6 +1078,7 @@ sealed class CodexTasks
                     if (AgentText.Clip(AgentText.Str(p, "message"), 300) is { } prompt)
                     {
                         _prompt = prompt;
+                        _promptText = AgentText.Str(p, "message");
                         _firstPrompt ??= prompt;
                     }
                     break;
@@ -1058,6 +1092,7 @@ sealed class CodexTasks
                         && !text.Contains(ReplyTag, StringComparison.Ordinal) && AgentText.Clip(text, 300) is { } asked)
                     {
                         _prompt = asked;
+                        _promptText = text;
                         _firstPrompt ??= asked;
                     }
                     break;
@@ -1204,6 +1239,7 @@ sealed class CodexTasks
                 double Of(AgentTokens k) => price.Cost(k.Input, k.CacheWrite, 0, k.Output, k.CacheRead);
                 cost = new AgentCost(Math.Round(Of(tokens), 4), Math.Round(Of(_total), 4), price.Name);
             }
+            var summary = state == AgentStates.Done ? AgentText.Summary(_lastText) : null;
             return new AgentTask(
                 id,
                 "codex",
@@ -1215,12 +1251,14 @@ sealed class CodexTasks
                 state == AgentStates.Done ? since : null,
                 question,
                 _prompt,
-                state == AgentStates.Done ? AgentText.Summary(_lastText) : null,
+                summary,
                 tokens,
                 _total,
                 cost,
                 rate,
-                limit is > 0 ? limit : null);
+                limit is > 0 ? limit : null,
+                AgentText.Full(_promptText, AgentText.FullPromptMax, _prompt),
+                summary == null ? null : AgentText.Full(_lastText, AgentText.FullSummaryMax, summary));
         }
     }
 }

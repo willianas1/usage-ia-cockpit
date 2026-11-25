@@ -116,13 +116,21 @@ public sealed class AgentsPublisher : ApiPublisher
         }
     }
 
-    public string PreviewJson() => JsonSerializer.Serialize(Build("test"), PrettyJson);
+    public string PreviewJson() => JsonSerializer.Serialize(Build("test", PublishTarget.Api), PrettyJson);
 
-    protected override object BuildPayload(string reason) => Build(reason);
+    protected override object BuildPayload(string reason) => Build(reason, PublishTarget.Api);
 
-    AgentsPayload Build(string reason)
+    protected override object BuildPayload(string reason, PublishTarget target) => Build(reason, target);
+
+    /// <summary>
+    /// O pedido e a resposta inteiros (fullPrompt e fullSummary) só vão para o tablet, na rede local. A API
+    /// recebe só o início (prompt e summary), como diz o docs/API.md.
+    /// </summary>
+    AgentsPayload Build(string reason, PublishTarget target)
     {
         var paused = Paused || reason == "paused";
+        IReadOnlyList<AgentTask> tasks = paused ? Array.Empty<AgentTask>() : _monitor.Tasks;
+        if (target != PublishTarget.Tablet) tasks = tasks.Select(t => t.Short()).ToList();
         return new AgentsPayload(
             SchemaVersion,
             new PublishClient("UsageCockpit", AppVersion),
@@ -130,7 +138,7 @@ public sealed class AgentsPublisher : ApiPublisher
             reason,
             paused,
             new AgentRates(Settings.ShowClaude ? _monitor.ClaudeRate : null, Settings.ShowCodex ? _monitor.CodexRate : null),
-            paused ? Array.Empty<AgentTask>() : _monitor.Tasks,
+            tasks,
             paused ? null : _monitor.Models);
     }
 }

@@ -68,6 +68,7 @@ Um PC configurado à mão, ou por versões anteriores do app, continua funcionan
   - **Codex, aprovações:** hook `PermissionRequest` em `~/.codex/hooks.json`, instalado só com o tablet ligado. Devolve permitir, negar ou negar com recado. O Codex pede para confiar no hook uma vez, em Configurações › Hooks (ou `/hooks` na CLI). O pedido só aparece na tela do Codex depois que o hook termina, por isso ele espera o tablet por no máximo 60 s.
   - **Codex, perguntas:** só no PC. O Codex Desktop mostra a pergunta numa janela (opções, "Pular" e resposta escrita) que nenhum processo de fora consegue responder. Uma mensagem na fila (`codex queue`) não responde a pergunta e só chega depois, como mensagem nova.
   - No envio de `/v1/agents`, `question.answerable: true` indica que dá para responder pelo tablet naquele momento.
+- **Textos inteiros (só no tablet):** no `/v1/agents` do tablet, cada tarefa leva também `fullPrompt` (seu último pedido inteiro, até 4 mil caracteres) e `fullSummary` (a resposta final inteira, até 16 mil, só em tarefas concluídas). Os dois mantêm as quebras de linha, e o painel do tablet mostra o markdown formatado. Cada campo só vai quando o texto não cabe no `prompt` ou no `summary`. A API nunca recebe esses campos: lá continuam só os inícios descritos em "Tarefas".
 
 #### Protocolo de pareamento
 
@@ -424,6 +425,8 @@ Diferente do `/v1/usage` e do `/v1/health`, aqui vão **textos das conversas**, 
 | `question.options` | Opções da pergunta (até 6) | 80 cada |
 | `prompt` | Seu último pedido na sessão | 300 |
 | `summary` | Início da resposta final, só em tarefas concluídas | 400 |
+
+Para o tablet na rede local, vão também o pedido e a resposta inteiros (`fullPrompt` e `fullSummary`; veja "Tablet na rede local"). Para a API, não.
 
 **Nunca são enviados** o id real da sessão (vai um código derivado dele, como `c-1a2b3c4d5e6f`), caminhos completos, o restante da conversa, conteúdo de arquivos nem saídas de ferramentas. Tudo é lido no próprio PC, dos arquivos que o Claude Code e o Codex já gravam.
 

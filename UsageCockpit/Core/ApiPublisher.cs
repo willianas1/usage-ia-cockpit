@@ -154,6 +154,9 @@ public abstract class ApiPublisher
 
     protected abstract object BuildPayload(string reason);
 
+    /// <summary>Payload de um destino: por padrão o mesmo para a API e o tablet.</summary>
+    protected virtual object BuildPayload(string reason, PublishTarget target) => BuildPayload(reason);
+
     /// <summary>Qual motivo fica quando chega um pedido com outro já pendente. Padrão: o mais novo.</summary>
     protected virtual string MergeReason(string pending, string reason) => reason;
 
@@ -232,7 +235,7 @@ public abstract class ApiPublisher
                     SetOutcome(c, new PublishOutcome(false, error!, DateTimeOffset.Now));
                     break;
                 }
-                var outcome = await SendAsync(c.Target, url, key, pin, BuildPayload(reason));
+                var outcome = await SendAsync(c.Target, url, key, pin, BuildPayload(reason, c.Target));
                 SetOutcome(c, outcome.Result);
                 if (outcome.Result.Ok)
                 {
@@ -290,7 +293,7 @@ public abstract class ApiPublisher
     {
         if (Endpoint(target, baseUrl, _route, out var error) is not { } url)
             return new PublishOutcome(false, error!, DateTimeOffset.Now);
-        var result = (await SendAsync(target, url, key, pin, BuildPayload("test"))).Result;
+        var result = (await SendAsync(target, url, key, pin, BuildPayload("test", target))).Result;
         // Teste bem-sucedido com a configuração salva: libera na hora o envio que estava esperando.
         var (savedUrl, savedKey, savedPin) = Destination(target);
         if (result.Ok && string.Equals(savedUrl?.Trim(), baseUrl?.Trim(), StringComparison.OrdinalIgnoreCase)
