@@ -85,7 +85,7 @@ public static class AgentStates
 public sealed class AgentTasksMonitor : IDisposable
 {
     /// <summary>Tarefas concluídas continuam na lista por este tempo.</summary>
-    public static readonly TimeSpan DoneVisible = TimeSpan.FromHours(8);
+    public static readonly TimeSpan DoneVisible = TimeSpan.FromHours(24);
     /// <summary>Limite de tarefas na lista (perguntas e execuções primeiro). A API aceita até 20.</summary>
     public const int MaxTasks = 20;
 
